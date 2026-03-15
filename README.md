@@ -64,7 +64,6 @@ INBOX_LIMIT=25
 And make sure these keys exist in your Secret Party environment:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_REDIRECT_URI` (optional — if omitted, inferred per-request from reverse proxy headers)
 - `FRONTEND_ORIGIN` (optional)
 
 ### 3. Run (Development)
@@ -125,7 +124,6 @@ Mailania uses [Secret Party](https://github.com/0916dhkim/secret-party) for encr
 3. **Store your Google credentials** as secrets in Secret Party:
    - `GOOGLE_CLIENT_ID`
    - `GOOGLE_CLIENT_SECRET`
-   - `GOOGLE_REDIRECT_URI` (optional — see below)
    - `FRONTEND_ORIGIN` (optional)
 4. **Set required env vars** in Dokploy (or `.env`):
 
@@ -140,18 +138,18 @@ SECRET_PARTY_PRIVATE_KEY_BASE64=<your-api-client-private-key-base64>
 Secret Party is the only source of truth for OAuth config in Mailania.
 
 - Required keys in Secret Party: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- Optional keys in Secret Party: `GOOGLE_REDIRECT_URI`, `FRONTEND_ORIGIN`
+- Optional key in Secret Party: `FRONTEND_ORIGIN`
 - Plaintext `GOOGLE_*` env vars are intentionally ignored
 
 ### Redirect URI inference
 
-If `GOOGLE_REDIRECT_URI` is **not** set in Secret Party, Mailania infers it per-request from reverse proxy headers:
+Mailania always infers redirect URI per-request from reverse proxy headers:
 
 ```
 {x-forwarded-proto || req.protocol}://{x-forwarded-host || Host}/auth/callback
 ```
 
-This works automatically behind Traefik / Dokploy without extra config. If you need a fixed redirect URI (e.g. for strict Google Cloud redirect validation), set `GOOGLE_REDIRECT_URI` in Secret Party and it will be used as-is.
+This works automatically behind Traefik / Dokploy without extra config.
 
 ### Crypto details
 

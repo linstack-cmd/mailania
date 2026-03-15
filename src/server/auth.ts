@@ -11,30 +11,17 @@ const SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"];
 const CALLBACK_PATH = "/auth/callback";
 
 /**
- * Resolve the OAuth redirect URI.
+ * Resolve the OAuth redirect URI from request context.
  *
- * Priority:
- *   1. Explicit value from Secret Party (config.googleRedirectUri)
- *   2. Inferred per-request from x-forwarded-proto/x-forwarded-host
- *      (standard behind Traefik / Dokploy reverse proxies)
- *   3. Fallback to req.protocol + req.get("host")
- *
+ * Uses reverse-proxy headers first (Traefik / Dokploy), then req.protocol/host.
  * Never infers from query params or other untrusted user input.
  */
 export function resolveRedirectUri(req: Request): string {
-  const cfg = getConfig();
-
-  if (cfg.googleRedirectUri) {
-    return cfg.googleRedirectUri;
-  }
-
   const proto = req.get("x-forwarded-proto") || req.protocol;
   const host = req.get("x-forwarded-host") || req.get("host");
 
   if (!host) {
-    throw new Error(
-      "Cannot infer redirect URI: no Host header and GOOGLE_REDIRECT_URI not configured",
-    );
+    throw new Error("Cannot infer redirect URI: no Host header");
   }
 
   return `${proto}://${host}${CALLBACK_PATH}`;
@@ -50,16 +37,15 @@ function makeOAuth2Client(redirectUri: string) {
 }
 
 /**
- * Build an OAuth2 client using a static redirect URI (for token loading only).
- * When no explicit URI is configured, a placeholder is fine because
- * setCredentials doesn't hit the redirect endpoint.
+ * Build an OAuth2 client using a placeholder redirect URI (for token loading only).
+ * setCredentials doesn't use the redirect endpoint.
  */
 export function getOAuth2Client() {
   const cfg = getConfig();
   return new google.auth.OAuth2(
     cfg.googleClientId,
     cfg.googleClientSecret,
-    cfg.googleRedirectUri ?? "http://localhost/auth/callback",
+    "http://localhost/auth/callback",
   );
 }
 
