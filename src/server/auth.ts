@@ -1,16 +1,18 @@
 import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
+import { getConfig } from "./config.js";
 
 const TOKEN_PATH = path.resolve("token.json");
 
 const SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"];
 
 export function getOAuth2Client() {
+  const cfg = getConfig();
   return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI
+    cfg.googleClientId,
+    cfg.googleClientSecret,
+    cfg.googleRedirectUri,
   );
 }
 
