@@ -2,6 +2,27 @@
 
 Minimal Gmail web client with Google OAuth and inbox listing. Built with React, Express, [Flow CSS](https://github.com/0916dhkim/flow-css), and Vite. Designed as a web app foundation with future mobile compatibility in mind.
 
+## Product Direction (Core)
+
+Mailania's goal is to give users a **fast way to organize inbox** through a collaborative AI triage workflow.
+
+### AI triage principles
+
+- The LLM can triage and **suggest** actions, but must **not archive/delete emails autonomously**.
+- Mailania should collaborate with the user to build a **personalized triage system** over time.
+- The collaboration UI is the core product surface (not an afterthought).
+
+### What the agent should suggest
+
+- Bulk archive specific emails (with clear rationale and preview)
+- Create/update Gmail filters (with explicit user review before applying)
+
+### UX requirements for suggestions
+
+- Every suggestion should include enough context to decide confidently (sender, subject, snippet, reason, impact).
+- User feedback should be first-class (approve, reject, edit criteria, explain why).
+- When confidence is low or intent is unclear, the agent should ask/discuss rather than force an action.
+
 ## Architecture
 
 - **Frontend:** React + Vite + Flow CSS (theme-driven, zero-class styling)
@@ -14,10 +35,11 @@ mailania/
 ├── src/
 │   ├── server/
 │   │   ├── index.ts          # Routes & server startup
-│   │   ├── config.ts         # Config loader (Secret Party only for OAuth config)
+│   │   ├── config.ts         # Config loader (Secret Party for OAuth + LLM config)
 │   │   ├── secret-party.ts   # Secret Party API client & decryption
 │   │   ├── auth.ts           # OAuth2 token management
-│   │   └── gmail.ts          # Gmail API wrapper
+│   │   ├── gmail.ts          # Gmail API wrapper
+│   │   └── triage.ts         # AI triage suggestions (Claude, read-only)
 │   └── client/
 │       ├── main.tsx          # Entry point
 │       ├── App.tsx           # UI (login + inbox)
@@ -65,6 +87,8 @@ And make sure these keys exist in your Secret Party environment:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `FRONTEND_ORIGIN` (optional)
+- `ANTHROPIC_API_KEY` (required for AI triage — see below)
+- `ANTHROPIC_MODEL` (optional, defaults to `claude-sonnet-4-20250514`)
 
 ### 3. Run (Development)
 
@@ -157,6 +181,85 @@ This works automatically behind Traefik / Dokploy without extra config.
 - **DEK unwrap:** RSA-OAEP (2048-bit, SHA-256) decrypt of per-environment DEK
 - **Secret unwrap:** AES-256-GCM decrypt of each secret value using the DEK
 - **No extra dependencies** — uses Node.js built-in `crypto` module
+
+---
+
+## AI Triage Suggestions
+
+Mailania includes an LLM-powered triage assistant that analyzes your inbox and suggests organizational actions. **It is strictly read-only** — suggestions are presented for user review, never executed autonomously.
+
+### Setup
+
+Add your Anthropic API key to Secret Party:
+
+- **`ANTHROPIC_API_KEY`** (required) — your Anthropic API key
+- **`ANTHROPIC_MODEL`** (optional) — model to use (defaults to `claude-sonnet-4-20250514`)
+
+If `ANTHROPIC_API_KEY` is not configured, the server starts normally but `POST /api/triage/suggest` returns `503`.
+
+### API
+
+```
+POST /api/triage/suggest
+Content-Type: application/json
+
+# Option A: Let the server fetch current inbox
+{}
+
+# Option B: Provide messages explicitly
+{
+  "messages": [
+    {
+      "id": "msg-id",
+      "subject": "Weekly newsletter",
+      "from": "news@example.com",
+      "date": "Mon, 10 Mar 2025 09:00:00 -0400",
+      "snippet": "This week in tech..."
+    }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "suggestions": [
+    {
+      "kind": "archive_bulk",
+      "title": "Archive 5 newsletter emails",
+      "rationale": "These are automated newsletters from 3 senders...",
+      "confidence": "high",
+      "messageIds": ["id1", "id2", "id3", "id4", "id5"]
+    },
+    {
+      "kind": "create_filter",
+      "title": "Auto-archive GitHub notifications",
+      "rationale": "12 messages from notifications@github.com...",
+      "confidence": "medium",
+      "filterDraft": {
+        "from": "notifications@github.com",
+        "label": "GitHub",
+        "archive": true
+      }
+    },
+    {
+      "kind": "needs_user_input",
+      "title": "Unclear intent: meeting reschedule",
+      "rationale": "This looks like it might need a reply...",
+      "confidence": "low",
+      "questions": ["Do you want to keep meeting-related emails in your inbox?"]
+    }
+  ]
+}
+```
+
+**Suggestion kinds:**
+- `archive_bulk` — batch archive with message IDs and rationale
+- `create_filter` — proposed Gmail filter with draft criteria
+- `needs_user_input` — ambiguous situation, asks clarifying questions
+
+**Safety policy:** The triage endpoint never performs Gmail mutations. It uses `gmail.readonly` scope like the rest of the app. All suggestions require explicit user action through the UI.
 
 ---
 

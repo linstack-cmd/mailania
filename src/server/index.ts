@@ -4,6 +4,7 @@ import path from "path";
 import { loadConfig, getConfig } from "./config.js";
 import { getAuthUrl, exchangeCode, loadToken, isAuthenticated, logout } from "./auth.js";
 import { listInbox } from "./gmail.js";
+import { generateTriageSuggestions } from "./triage.js";
 
 async function main() {
   // Load config (fetches secrets from Secret Party if configured)
@@ -11,6 +12,7 @@ async function main() {
 
   const app = express();
   app.set("trust proxy", true);
+  app.use(express.json());
 
   // --- API Routes ---
 
@@ -40,6 +42,69 @@ async function main() {
       }
       console.error("Gmail API error:", err);
       res.status(500).json({ error: "Failed to fetch inbox" });
+    }
+  });
+
+  // --- Triage Suggestions (LLM-powered, read-only) ---
+
+  app.post("/api/triage/suggest", async (req, res) => {
+    // Check LLM availability
+    if (!config.anthropicApiKey) {
+      res.status(503).json({
+        error: "Triage suggestions unavailable — ANTHROPIC_API_KEY not configured",
+      });
+      return;
+    }
+
+    // Check Gmail auth
+    const auth = loadToken();
+    if (!auth) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    try {
+      // Accept optional messages payload; otherwise fetch from inbox
+      let messages = req.body?.messages;
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        messages = await listInbox(auth, config.inboxLimit);
+      }
+
+      const result = await generateTriageSuggestions(
+        messages,
+        config.anthropicApiKey,
+        config.anthropicModel,
+      );
+
+      res.json(result);
+    } catch (err: any) {
+      if (err?.code === 401 || err?.response?.status === 401) {
+        logout();
+        res.status(401).json({ error: "Token expired" });
+        return;
+      }
+
+      // Anthropic API errors
+      if (err?.status) {
+        console.error("Anthropic API error:", err.status, err.message);
+        res.status(502).json({
+          error: "LLM request failed",
+          detail: err.message,
+        });
+        return;
+      }
+
+      // JSON parse errors from LLM response
+      if (err instanceof SyntaxError) {
+        console.error("Failed to parse LLM response:", err.message);
+        res.status(502).json({
+          error: "LLM returned invalid response format",
+        });
+        return;
+      }
+
+      console.error("Triage suggestion error:", err);
+      res.status(500).json({ error: "Failed to generate triage suggestions" });
     }
   });
 
