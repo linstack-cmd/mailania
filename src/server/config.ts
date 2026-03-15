@@ -1,7 +1,7 @@
 /**
- * Centralized app config with Secret Party integration.
+ * Centralized app config with Secret Party as the single source of truth.
  *
- * Priority: Secret Party → environment variable → error (for required keys).
+ * Required secrets are fetched from Secret Party at startup.
  * Call loadConfig() once at startup before accepting requests.
  */
 
@@ -19,63 +19,50 @@ export interface AppConfig {
 let _config: AppConfig | null = null;
 
 /**
- * Load configuration from Secret Party (if configured) with env var fallback.
- * Throws if required values are missing from both sources.
+ * Load configuration strictly from Secret Party for OAuth-related values.
+ * Throws if Secret Party is not configured or required keys are missing.
  */
 export async function loadConfig(): Promise<AppConfig> {
   if (_config) return _config;
-
-  let secrets = new Map<string, string>();
 
   const spApiUrl = process.env.SECRET_PARTY_API_URL;
   const spEnvId = process.env.SECRET_PARTY_ENVIRONMENT_ID;
   const spPrivateKey = process.env.SECRET_PARTY_PRIVATE_KEY_BASE64;
 
-  if (spApiUrl && spEnvId && spPrivateKey) {
-    console.log("[Config] Secret Party configured — fetching secrets…");
-    try {
-      secrets = await fetchSecrets(
-        {
-          apiUrl: spApiUrl,
-          environmentId: spEnvId,
-          privateKeyBase64: spPrivateKey,
-        },
-        [
-          "GOOGLE_CLIENT_ID",
-          "GOOGLE_CLIENT_SECRET",
-          "GOOGLE_REDIRECT_URI",
-          "FRONTEND_ORIGIN",
-        ],
-      );
-      console.log(
-        `[Config] Loaded ${secrets.size} secret(s) from Secret Party`,
-      );
-    } catch (err) {
-      console.error(
-        "[Config] Secret Party fetch failed, falling back to env vars:",
-        (err as Error).message,
-      );
-    }
-  } else {
-    console.log(
-      "[Config] Secret Party not configured — using environment variables only",
+  if (!spApiUrl || !spEnvId || !spPrivateKey) {
+    throw new Error(
+      "Missing Secret Party config. Set SECRET_PARTY_API_URL, " +
+        "SECRET_PARTY_ENVIRONMENT_ID, and SECRET_PARTY_PRIVATE_KEY_BASE64.",
     );
   }
 
-  // Secret Party values take priority; env vars are the fallback
-  const googleClientId =
-    secrets.get("GOOGLE_CLIENT_ID") ?? process.env.GOOGLE_CLIENT_ID;
-  const googleClientSecret =
-    secrets.get("GOOGLE_CLIENT_SECRET") ?? process.env.GOOGLE_CLIENT_SECRET;
-  const googleRedirectUri =
-    secrets.get("GOOGLE_REDIRECT_URI") ?? process.env.GOOGLE_REDIRECT_URI;
-  const frontendOrigin =
-    secrets.get("FRONTEND_ORIGIN") ?? process.env.FRONTEND_ORIGIN;
+  console.log("[Config] Fetching secrets from Secret Party…");
+
+  const secrets = await fetchSecrets(
+    {
+      apiUrl: spApiUrl,
+      environmentId: spEnvId,
+      privateKeyBase64: spPrivateKey,
+    },
+    [
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_REDIRECT_URI",
+      "FRONTEND_ORIGIN",
+    ],
+  );
+
+  console.log(`[Config] Loaded ${secrets.size} secret(s) from Secret Party`);
+
+  const googleClientId = secrets.get("GOOGLE_CLIENT_ID");
+  const googleClientSecret = secrets.get("GOOGLE_CLIENT_SECRET");
+  const googleRedirectUri = secrets.get("GOOGLE_REDIRECT_URI");
+  const frontendOrigin = secrets.get("FRONTEND_ORIGIN");
 
   if (!googleClientId || !googleClientSecret || !googleRedirectUri) {
     throw new Error(
-      "Missing required config: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and " +
-        "GOOGLE_REDIRECT_URI must be provided via Secret Party or environment variables.",
+      "Missing required Secret Party keys: GOOGLE_CLIENT_ID, " +
+        "GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI.",
     );
   }
 

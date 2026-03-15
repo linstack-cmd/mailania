@@ -6,7 +6,7 @@ Minimal Gmail web client with Google OAuth and inbox listing. Built with React, 
 
 - **Frontend:** React + Vite + Flow CSS (theme-driven, zero-class styling)
 - **Backend:** Express API server (OAuth flow, Gmail API proxy)
-- **Secrets:** Optional [Secret Party](https://github.com/0916dhkim/secret-party) integration for encrypted secret management
+- **Secrets:** [Secret Party](https://github.com/0916dhkim/secret-party) as single source of truth for encrypted secret management
 - **Deploy:** Dockerfile included, Dokploy-ready
 
 ```
@@ -14,7 +14,7 @@ mailania/
 ├── src/
 │   ├── server/
 │   │   ├── index.ts          # Routes & server startup
-│   │   ├── config.ts         # Config loader (Secret Party + env fallback)
+│   │   ├── config.ts         # Config loader (Secret Party only for OAuth config)
 │   │   ├── secret-party.ts   # Secret Party API client & decryption
 │   │   ├── auth.ts           # OAuth2 token management
 │   │   └── gmail.ts          # Gmail API wrapper
@@ -51,16 +51,21 @@ mailania/
 cp .env.example .env
 ```
 
-Fill in your credentials:
+Fill in your Secret Party connection values:
 
 ```env
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:3001/auth/callback
+SECRET_PARTY_API_URL=https://secret-party.probablydanny.com
+SECRET_PARTY_ENVIRONMENT_ID=your-environment-id
+SECRET_PARTY_PRIVATE_KEY_BASE64=your-api-client-private-key-base64
 PORT=3001
-FRONTEND_ORIGIN=http://localhost:5173
 INBOX_LIMIT=25
 ```
+
+And make sure these keys exist in your Secret Party environment:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `FRONTEND_ORIGIN` (optional)
 
 ### 3. Run (Development)
 
@@ -96,7 +101,7 @@ docker run -p 3001:3001 --env-file .env mailania
 2. Build mode: Dockerfile
 3. Expose internal port: `3001`
 4. Set domain: `mailania.probablydanny.com`
-5. Add environment variables (see below for Secret Party option)
+5. Add environment variables (Secret Party required)
 6. Deploy
 7. Verify health: `https://mailania.probablydanny.com/healthz`
 8. Sign in flow should return to app home after Google auth
@@ -105,16 +110,13 @@ docker run -p 3001:3001 --env-file .env mailania
 
 ## Secret Party Integration
 
-Mailania supports [Secret Party](https://github.com/0916dhkim/secret-party) for encrypted secret management. When configured, OAuth credentials are fetched and decrypted from Secret Party at server startup instead of being stored as plain-text env vars.
+Mailania uses [Secret Party](https://github.com/0916dhkim/secret-party) for encrypted secret management. OAuth credentials are fetched and decrypted from Secret Party at server startup; plaintext `GOOGLE_*` env vars are not used.
 
 ### How it works
 
-| Approach | Tradeoffs |
-|----------|-----------|
-| **Runtime fetch (chosen)** | Secrets fetched once at server boot. Simple — no build-time tooling, works with any orchestrator. Adds ~1-2s to cold start. If Secret Party is unreachable, falls back to env vars. |
-| Build-time fetch (alternative) | Secrets baked into the container image. Faster cold starts but requires Secret Party access during `docker build`, complicates CI, and means secrets live in the image layer. |
-
-**Runtime fetch was chosen** because it's simpler, more secure (secrets never written to disk/image), and degrades gracefully.
+- Mailania performs a **runtime fetch** from Secret Party once at startup.
+- If Secret Party is unreachable or required keys are missing, startup fails fast with a clear error.
+- Secrets are never baked into the image or committed to env files.
 
 ### Setup
 
@@ -125,7 +127,7 @@ Mailania supports [Secret Party](https://github.com/0916dhkim/secret-party) for 
    - `GOOGLE_CLIENT_SECRET`
    - `GOOGLE_REDIRECT_URI`
    - `FRONTEND_ORIGIN` (optional)
-4. **Set three env vars** in Dokploy (or `.env`):
+4. **Set required env vars** in Dokploy (or `.env`):
 
 ```env
 SECRET_PARTY_API_URL=https://secret-party.probablydanny.com
@@ -133,14 +135,13 @@ SECRET_PARTY_ENVIRONMENT_ID=1158452150597681153
 SECRET_PARTY_PRIVATE_KEY_BASE64=<your-api-client-private-key-base64>
 ```
 
-### Priority & fallback
+### Source of truth policy
 
-Secret Party values take priority when available. If a key isn't found in Secret Party (or Secret Party is unreachable), the corresponding `GOOGLE_*` / `FRONTEND_ORIGIN` env var is used as fallback.
+Secret Party is the only source of truth for OAuth config in Mailania.
 
-This means you can:
-- **Use Secret Party only** — set the three `SECRET_PARTY_*` vars; no `GOOGLE_*` vars needed.
-- **Use env vars only** — omit the `SECRET_PARTY_*` vars; works exactly like before.
-- **Use both** — Secret Party takes priority, env vars are the safety net.
+- Required keys in Secret Party: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+- Optional key in Secret Party: `FRONTEND_ORIGIN`
+- Plaintext `GOOGLE_*` env vars are intentionally ignored
 
 ### Crypto details
 
