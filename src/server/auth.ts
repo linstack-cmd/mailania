@@ -13,16 +13,58 @@ const CALLBACK_PATH = "/auth/callback";
 /**
  * Resolve the OAuth redirect URI from request context.
  *
- * Uses reverse-proxy headers first (Traefik / Dokploy), then req.protocol/host.
+ * Protocol precedence (handles Cloudflare → origin HTTP scenario):
+ *   1. `cf-visitor` JSON header — Cloudflare sets this with the *client-facing*
+ *      scheme even when the origin connection is plain HTTP (e.g. Dokploy behind
+ *      Cloudflare proxy with "Flexible" or "Full" SSL mode).
+ *   2. `x-forwarded-proto` — standard reverse-proxy header (Traefik / nginx).
+ *   3. `req.protocol` — Express-detected protocol (fallback).
+ *
+ * Host is inferred from `x-forwarded-host` or `host`. Comma-separated lists
+ * (multiple proxies) are handled by taking the first (leftmost) value.
+ *
  * Never infers from query params or other untrusted user input.
  */
 export function resolveRedirectUri(req: Request): string {
-  const proto = req.get("x-forwarded-proto") || req.protocol;
-  const host = req.get("x-forwarded-host") || req.get("host");
+  // --- Protocol inference ---
+  let proto: string | undefined;
 
-  if (!host) {
+  // 1. Cloudflare cf-visitor header (JSON: {"scheme":"https"})
+  //    Robust parse — invalid JSON must not throw.
+  const cfVisitor = req.get("cf-visitor");
+  if (cfVisitor) {
+    try {
+      const parsed = JSON.parse(cfVisitor);
+      if (parsed && typeof parsed.scheme === "string" && parsed.scheme) {
+        proto = parsed.scheme;
+      }
+    } catch {
+      // Malformed cf-visitor — fall through to next source
+    }
+  }
+
+  // 2. x-forwarded-proto (take first value if comma-separated)
+  if (!proto) {
+    const xfp = req.get("x-forwarded-proto");
+    if (xfp) {
+      proto = xfp.split(",")[0].trim();
+    }
+  }
+
+  // 3. Express req.protocol (derives from connection / trust proxy)
+  if (!proto) {
+    proto = req.protocol;
+  }
+
+  // --- Host inference ---
+  const rawHost = req.get("x-forwarded-host") || req.get("host");
+
+  if (!rawHost) {
     throw new Error("Cannot infer redirect URI: no Host header");
   }
+
+  // Take first value if comma-separated (multiple proxies)
+  const host = rawHost.split(",")[0].trim();
 
   return `${proto}://${host}${CALLBACK_PATH}`;
 }
