@@ -35,7 +35,9 @@ mailania/
 2. Create a project (or select existing) → enable the **Gmail API**
 3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
 4. Application type: **Web application**
-5. Authorized redirect URI: `http://localhost:3001/auth/callback`
+5. Authorized redirect URIs:
+   - `http://localhost:3001/auth/callback` (local)
+   - `https://mailania.probablydanny.com/auth/callback` (Dokploy)
 6. Copy the **Client ID** and **Client Secret**
 
 > If the app is in "Testing" mode, add your Gmail address under **OAuth consent screen → Test users**.
@@ -53,6 +55,7 @@ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:3001/auth/callback
 PORT=3001
+FRONTEND_ORIGIN=http://localhost:5173
 INBOX_LIMIT=25
 ```
 
@@ -84,7 +87,26 @@ docker build -t mailania .
 docker run -p 3001:3001 --env-file .env mailania
 ```
 
-For Dokploy: point to this repo, set env vars in the dashboard, expose port 3001. Update `GOOGLE_REDIRECT_URI` to match your deployed domain.
+#### Dokploy checklist
+
+1. Create app from this repo: `linstack-cmd/mailania`
+2. Build mode: Dockerfile
+3. Expose internal port: `3001`
+4. Set domain: `mailania.probablydanny.com`
+5. Add environment variables:
+
+```env
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=https://mailania.probablydanny.com/auth/callback
+FRONTEND_ORIGIN=https://mailania.probablydanny.com
+PORT=3001
+INBOX_LIMIT=25
+```
+
+6. Deploy
+7. Verify health: `https://mailania.probablydanny.com/healthz`
+8. Sign in flow should return to app home after Google auth
 
 ## Notes
 

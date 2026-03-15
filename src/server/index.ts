@@ -5,10 +5,17 @@ import { getAuthUrl, exchangeCode, loadToken, isAuthenticated, logout } from "./
 import { listInbox } from "./gmail.js";
 
 const app = express();
+app.set("trust proxy", true);
+
 const PORT = Number(process.env.PORT) || 3001;
 const INBOX_LIMIT = Number(process.env.INBOX_LIMIT) || 25;
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN;
 
 // --- API Routes ---
+
+app.get("/healthz", (_req, res) => {
+  res.json({ ok: true });
+});
 
 app.get("/api/status", (_req, res) => {
   res.json({ authenticated: isAuthenticated() });
@@ -48,8 +55,20 @@ app.get("/auth/callback", async (req, res) => {
 
   try {
     await exchangeCode(code);
-    // Redirect back to the frontend
-    res.redirect("http://localhost:5173");
+
+    if (FRONTEND_ORIGIN) {
+      res.redirect(FRONTEND_ORIGIN);
+      return;
+    }
+
+    const proto = req.get("x-forwarded-proto") || req.protocol;
+    const host = req.get("x-forwarded-host") || req.get("host");
+    if (host) {
+      res.redirect(`${proto}://${host}`);
+      return;
+    }
+
+    res.redirect("/");
   } catch (err) {
     console.error("OAuth callback error:", err);
     res.status(500).json({ error: "Authentication failed" });
