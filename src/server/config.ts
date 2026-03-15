@@ -10,7 +10,8 @@ import { fetchSecrets } from "./secret-party.js";
 export interface AppConfig {
   googleClientId: string;
   googleClientSecret: string;
-  googleRedirectUri: string;
+  /** If set, used as-is. If omitted, inferred per-request from headers. */
+  googleRedirectUri?: string;
   frontendOrigin?: string;
   port: number;
   inboxLimit: number;
@@ -56,13 +57,21 @@ export async function loadConfig(): Promise<AppConfig> {
 
   const googleClientId = secrets.get("GOOGLE_CLIENT_ID");
   const googleClientSecret = secrets.get("GOOGLE_CLIENT_SECRET");
-  const googleRedirectUri = secrets.get("GOOGLE_REDIRECT_URI");
+  const googleRedirectUri = secrets.get("GOOGLE_REDIRECT_URI"); // optional
   const frontendOrigin = secrets.get("FRONTEND_ORIGIN");
 
-  if (!googleClientId || !googleClientSecret || !googleRedirectUri) {
+  if (!googleClientId || !googleClientSecret) {
     throw new Error(
       "Missing required Secret Party keys: GOOGLE_CLIENT_ID, " +
-        "GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI.",
+        "GOOGLE_CLIENT_SECRET.",
+    );
+  }
+
+  if (googleRedirectUri) {
+    console.log("[Config] Using explicit GOOGLE_REDIRECT_URI from Secret Party");
+  } else {
+    console.log(
+      "[Config] GOOGLE_REDIRECT_URI not set — will infer per-request from headers",
     );
   }
 

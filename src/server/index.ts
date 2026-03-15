@@ -43,8 +43,8 @@ async function main() {
     }
   });
 
-  app.get("/auth/login", (_req, res) => {
-    res.redirect(getAuthUrl());
+  app.get("/auth/login", (req, res) => {
+    res.redirect(getAuthUrl(req));
   });
 
   app.get("/auth/callback", async (req, res) => {
@@ -55,7 +55,7 @@ async function main() {
     }
 
     try {
-      await exchangeCode(code);
+      await exchangeCode(code, req);
 
       if (config.frontendOrigin) {
         res.redirect(config.frontendOrigin);
