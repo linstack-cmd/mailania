@@ -68,6 +68,63 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
   `);
 
   console.log("[DB] Triage run table ready");
+
+  // --- Approval tokens (Phase 2 safety gate) ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "approval_token" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "scope" VARCHAR(64) NOT NULL,
+      "payload_hash" VARCHAR(128) NOT NULL,
+      "session_id" VARCHAR NOT NULL,
+      "expires_at" TIMESTAMPTZ NOT NULL,
+      "consumed_at" TIMESTAMPTZ,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_approval_token_session"
+    ON "approval_token" ("session_id", "created_at" DESC)
+  `);
+
+  console.log("[DB] Approval token table ready");
+
+  // --- Action audit log (Phase 2 auditability) ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "action_log" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "session_id" VARCHAR NOT NULL,
+      "action" VARCHAR(64) NOT NULL,
+      "status" VARCHAR(16) NOT NULL,
+      "target_summary" JSONB,
+      "token_id" UUID,
+      "error" TEXT,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_action_log_session"
+    ON "action_log" ("session_id", "created_at" DESC)
+  `);
+
+  console.log("[DB] Action log table ready");
+
+  // --- Suggestion feedback ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "suggestion_feedback" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "session_id" VARCHAR NOT NULL,
+      "run_id" UUID,
+      "suggestion_index" INT NOT NULL,
+      "vote" VARCHAR(8) NOT NULL,
+      "note" TEXT,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  console.log("[DB] Suggestion feedback table ready");
+
   return _pool;
 }
 

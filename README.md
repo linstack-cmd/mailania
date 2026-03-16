@@ -40,8 +40,11 @@ mailania/
 │   │   ├── secret-party.ts   # Secret Party API client & decryption
 │   │   ├── auth.ts           # OAuth2 token management (session-backed)
 │   │   ├── db.ts             # Database connection & table init
-│   │   ├── gmail.ts          # Gmail API wrapper
-│   │   └── triage.ts         # AI triage suggestions (Claude, read-only)
+│   │   ├── gmail.ts          # Gmail API wrapper (read + mutations)
+│   │   ├── triage.ts         # AI triage suggestions (Claude, read-only)
+│   │   ├── tools-routes.ts   # Tool API routes (Phase 1 + Phase 2)
+│   │   ├── approval.ts       # Approval token system (Phase 2 safety gate)
+│   │   └── action-log.ts     # Audit log for Phase 2 mutations
 │   └── client/
 │       ├── main.tsx          # Entry point
 │       ├── App.tsx           # UI (login + inbox)
@@ -109,13 +112,15 @@ Open [http://localhost:5173](http://localhost:5173) — you'll see a mock inbox 
 | `GET /auth/login` | Redirects to `/` (no Google redirect) |
 | `GET /auth/logout` | No-op, returns `{ ok: true }` |
 | `GET /healthz` | Returns `{ ok: true, localDev: true }` |
+| `POST /api/tools/*` | Phase 1 endpoints use mock data; Phase 2 returns mock results with approval tokens |
 
 ### Safety guarantees
 
 - `LOCAL_DEV_NO_AUTH` defaults to `false` — production behavior is unchanged unless explicitly enabled
 - All dev-only code paths are isolated behind a single config flag check at startup
-- No Gmail mutation actions exist in any mode (app uses `gmail.readonly` scope)
+- Gmail mutations require explicit approval tokens (Phase 2 safety gate) — see Tool API section
 - Mock data is deterministic and hardcoded — no external calls when auth is bypassed
+- In local dev mode, Phase 2 mutations return mock results without touching Gmail
 
 ---
 
@@ -364,9 +369,130 @@ Content-Type: application/json
 
 ---
 
+## Tool API (Agent-Compatible Endpoints)
+
+Mailania exposes structured JSON endpoints under `/api/tools/` for both read-only operations (Phase 1) and human-approved mutations (Phase 2). These are designed for AI agent tool-calling but work equally well from curl or the UI.
+
+### Phase 1 — Read-Only / Suggestion Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/tools/list_inbox` | POST | List inbox messages. Body: `{ maxResults?: number }` |
+| `/api/tools/get_message` | POST | Get single message by ID. Body: `{ messageId: string }` |
+| `/api/tools/search_messages` | POST | Search with Gmail query. Body: `{ query: string, maxResults?: number }` |
+| `/api/tools/draft_filter_rule` | POST | Draft a filter rule (no mutation). Body: `{ from?, subject?, hasTheWord?, label?, archive?, markRead? }` |
+| `/api/tools/draft_bulk_action_plan` | POST | Draft a bulk action plan. Body: `{ action: "archive"\|"label"\|"unarchive", messageIds: [...], rationale: string, label?: string }` |
+| `/api/tools/save_suggestion_feedback` | POST | Save thumbs up/down. Body: `{ runId?: string, suggestionIndex: number, vote: "up"\|"down", note?: string }` |
+
+All Phase 1 endpoints are safe to call at any time — they never modify Gmail.
+
+### Phase 2 — Mutation Endpoints (Require Approval Token)
+
+| Endpoint | Method | Scope | Description |
+|---|---|---|---|
+| `/api/tools/apply_archive_bulk` | POST | `archive_bulk` | Archive messages. Body: `{ messageIds: [...], approvalToken: string }` |
+| `/api/tools/create_filter` | POST | `create_filter` | Create Gmail filter. Body: `{ rule: {...}, approvalToken: string }` |
+| `/api/tools/label_messages` | POST | `label_messages` | Apply label. Body: `{ messageIds: [...], label: string, approvalToken: string }` |
+| `/api/tools/unarchive` | POST | `unarchive` | Move back to inbox. Body: `{ messageIds: [...], approvalToken: string }` |
+
+**Every Phase 2 mutation requires a valid approval token.** Without one → `403 TOKEN_MISSING`.
+
+### Approval Token Flow
+
+```
+1. Agent/UI drafts an action (Phase 1 endpoints)
+2. User reviews the draft
+3. POST /api/tools/request_approval { scope, payload }  →  { tokenId, expiresAt }
+4. POST /api/tools/<mutation>       { ..., approvalToken: tokenId }
+5. Token is consumed (single-use), action is executed and logged
+```
+
+**Token properties:**
+- Scoped to a specific action type (`archive_bulk`, `create_filter`, etc.)
+- Payload hash verification — token only works for the exact payload it was created for
+- Expires after 10 minutes
+- Single-use — consumed atomically on first valid use
+- Tied to session ID
+
+**Safety guarantees:**
+- No mutation executes without an explicit approval token
+- Tokens cannot be reused, replayed, or applied to different payloads
+- All Phase 2 attempts are audit-logged (approved/denied/success/failure)
+- Invalid/missing token always returns 403 with a clear error code
+
+### Audit Log
+
+All Phase 2 mutation attempts are persisted to the `action_log` table with:
+- Session ID, action type, status (approved/denied/success/failure)
+- Target summary (JSON), token ID, error details
+- Timestamp
+
+### Database Tables (Auto-Created)
+
+| Table | Purpose |
+|---|---|
+| `approval_token` | Approval tokens with scope, payload hash, expiry, consumed state |
+| `action_log` | Audit log of all Phase 2 mutation attempts |
+| `suggestion_feedback` | User thumbs up/down on triage suggestions |
+
+All tables are created idempotently at startup via `initDb()`.
+
+### Local Dev Testing (curl examples)
+
+```bash
+# Phase 1: List inbox (mock data in LOCAL_DEV_NO_AUTH mode)
+curl -s -X POST http://localhost:3001/api/tools/list_inbox | jq .
+
+# Phase 1: Get a specific message
+curl -s -X POST http://localhost:3001/api/tools/get_message \
+  -H 'Content-Type: application/json' \
+  -d '{"messageId":"mock-001"}' | jq .
+
+# Phase 1: Search messages
+curl -s -X POST http://localhost:3001/api/tools/search_messages \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"github"}' | jq .
+
+# Phase 1: Draft a filter rule
+curl -s -X POST http://localhost:3001/api/tools/draft_filter_rule \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"notifications@github.com","label":"GitHub","archive":true}' | jq .
+
+# Phase 1: Draft a bulk action plan
+curl -s -X POST http://localhost:3001/api/tools/draft_bulk_action_plan \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"archive","messageIds":["mock-001","mock-002"],"rationale":"newsletters"}' | jq .
+
+# Phase 2: Request approval token + execute (use cookies for session)
+# Step 1: Get token
+TOKEN_ID=$(curl -s -X POST http://localhost:3001/api/tools/request_approval \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt -c cookies.txt \
+  -d '{"scope":"archive_bulk","payload":{"action":"archive","messageIds":["mock-001","mock-002"]}}' \
+  | jq -r .tokenId)
+
+# Step 2: Execute with token
+curl -s -X POST http://localhost:3001/api/tools/apply_archive_bulk \
+  -H 'Content-Type: application/json' \
+  -b cookies.txt \
+  -d "{\"messageIds\":[\"mock-001\",\"mock-002\"],\"approvalToken\":\"$TOKEN_ID\"}" | jq .
+```
+
+### UI Integration
+
+The triage suggestion detail modal includes an **⚡ Execute** button for `archive_bulk` and `create_filter` suggestions. Clicking it opens a confirmation modal that:
+
+1. Shows the action details and affected messages
+2. Displays a warning about Gmail modification
+3. Requires explicit "Confirm & Execute" click
+4. Automatically requests an approval token and executes the action
+5. Shows success/error feedback
+
+---
+
 ## Notes
 
-- Uses `gmail.readonly` scope — Mailania can only read, never send or modify
+- Uses `gmail.readonly`, `gmail.modify`, and `gmail.settings.basic` scopes — read-only by default, mutations only through approval tokens
 - Flow CSS handles all styling via theme tokens and `css()` calls — no class names or external CSS framework
 - OAuth tokens stored in database-backed sessions (no local `token.json`); each browser session is independent
 - In production, the Express server serves the Vite-built frontend as static files

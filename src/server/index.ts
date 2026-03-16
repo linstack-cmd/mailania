@@ -16,6 +16,7 @@ import { listInbox } from "./gmail.js";
 import { generateTriageSuggestions } from "./triage.js";
 import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
 import type { TriageSuggestion } from "./triage.js";
+import { createToolsRouter } from "./tools-routes.js";
 
 async function main() {
   // Load config (fetches secrets from Secret Party if configured)
@@ -404,6 +405,9 @@ async function main() {
       res.json({ ok: true });
     });
   }
+
+  // --- Tool API routes (Phase 1 + Phase 2) ---
+  app.use("/api/tools", createToolsRouter());
 
   // In production, serve built frontend
   const clientDist = path.resolve("dist/client");
