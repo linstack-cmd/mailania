@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
+import { useLocation } from "wouter";
 
-interface InboxMessage {
+export interface InboxMessage {
   id: string;
   subject: string;
   from: string;
@@ -10,7 +11,7 @@ interface InboxMessage {
   isRead?: boolean;
 }
 
-interface FilterDraft {
+export interface FilterDraft {
   from?: string;
   subjectContains?: string;
   hasWords?: string;
@@ -18,7 +19,7 @@ interface FilterDraft {
   archive?: boolean;
 }
 
-interface TriageSuggestion {
+export interface TriageSuggestion {
   kind: "archive_bulk" | "create_filter" | "needs_user_input";
   title: string;
   rationale: string;
@@ -28,13 +29,13 @@ interface TriageSuggestion {
   questions?: string[];
 }
 
-const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label: string; desc: string }> = {
+export const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label: string; desc: string }> = {
   archive_bulk: { icon: "📦", label: "Archive", desc: "Bulk archive safe-to-dismiss messages" },
   create_filter: { icon: "🔀", label: "Filter", desc: "Create a Gmail filter for recurring patterns" },
   needs_user_input: { icon: "❓", label: "Needs Input", desc: "Requires your decision before proceeding" },
 };
 
-const CONFIDENCE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+export const CONFIDENCE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
   high: { bg: "#ecfdf5", text: "#065f46", border: "#a7f3d0" },
   medium: { bg: "#fffbeb", text: "#92400e", border: "#fde68a" },
   low: { bg: "#fef2f2", text: "#991b1b", border: "#fecaca" },
@@ -88,9 +89,10 @@ export default function TriageSuggestions({
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [, navigate] = useLocation();
 
   // Build messageId → message lookup from inbox
   const messageMap = new Map<string, InboxMessage>();
@@ -112,6 +114,7 @@ export default function TriageSuggestions({
           if (data.suggestions) {
             setSuggestions(data.suggestions);
             setLastRunAt(data.createdAt);
+            setRunId(data.runId?.toString() ?? null);
           }
         }
       } catch {
@@ -128,8 +131,8 @@ export default function TriageSuggestions({
     setError(null);
     setSuggestions(null);
     setLastRunAt(null);
+    setRunId(null);
     setReviewedIds(new Set());
-    setSelectedIndex(null);
     try {
       const res = await fetch("/api/triage/suggest", { method: "POST" });
       if (res.status === 401) {
@@ -143,6 +146,7 @@ export default function TriageSuggestions({
       const data = await res.json();
       setSuggestions(data.suggestions ?? []);
       setLastRunAt(data.createdAt ?? null);
+      setRunId(data.runId?.toString() ?? null);
     } catch (e: any) {
       setError(e.message || "Failed to generate suggestions");
     } finally {
@@ -158,8 +162,6 @@ export default function TriageSuggestions({
       return next;
     });
   }
-
-  const selectedSuggestion = selectedIndex !== null && suggestions ? suggestions[selectedIndex] : null;
 
   return (
     <section>
@@ -281,23 +283,12 @@ export default function TriageSuggestions({
               isReviewed={reviewedIds.has(i)}
               onMarkReviewed={() => markReviewed(i)}
               onToast={setToastMsg}
-              onClick={() => setSelectedIndex(i)}
+              onClick={() => {
+                if (runId) navigate(`/suggestions/${runId}/${i}`);
+              }}
             />
           ))}
         </div>
-      )}
-
-      {/* Detail modal */}
-      {selectedSuggestion && selectedIndex !== null && (
-        <SuggestionDetailModal
-          suggestion={selectedSuggestion}
-          messageMap={messageMap}
-          isReviewed={reviewedIds.has(selectedIndex)}
-          onMarkReviewed={() => markReviewed(selectedIndex)}
-          onToast={setToastMsg}
-          lastRunAt={lastRunAt}
-          onClose={() => setSelectedIndex(null)}
-        />
       )}
 
       {/* Toast */}
@@ -307,7 +298,7 @@ export default function TriageSuggestions({
 }
 
 // --- Toast component ---
-function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+export function Toast({ message, onDone }: { message: string; onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2500);
     return () => clearTimeout(t);
@@ -475,422 +466,8 @@ function SuggestionCard({
   );
 }
 
-// --- Detail Modal ---
-function SuggestionDetailModal({
-  suggestion: s,
-  messageMap,
-  isReviewed,
-  onMarkReviewed,
-  onToast,
-  lastRunAt,
-  onClose,
-}: {
-  suggestion: TriageSuggestion;
-  messageMap: Map<string, InboxMessage>;
-  isReviewed: boolean;
-  onMarkReviewed: () => void;
-  onToast: (msg: string) => void;
-  lastRunAt: string | null;
-  onClose: () => void;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-  const [showApprovalModal, setShowApprovalModal] = useState(false);
-
-  // Determine if this suggestion is executable (has a Phase 2 action)
-  const isExecutable = s.kind === "archive_bulk" || s.kind === "create_filter";
-  const kindInfo = KIND_LABELS[s.kind];
-  const confStyle = CONFIDENCE_STYLES[s.confidence] ?? CONFIDENCE_STYLES.low;
-
-  // Focus trap: focus the dialog on mount
-  useEffect(() => {
-    dialogRef.current?.focus();
-  }, []);
-
-  // Escape key closes
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-      }
-    },
-    [onClose],
-  );
-
-  // Resolve messages
-  const resolvedMessages = s.messageIds
-    ?.map((id) => messageMap.get(id))
-    .filter((m): m is InboxMessage => !!m);
-
-  return (
-    // Backdrop
-    <div
-      className={css({
-        position: "fixed",
-        inset: 0,
-        zIndex: 5000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.4)",
-        backdropFilter: "blur(3px)",
-        animation: "modal-backdrop-in 0.2s ease-out",
-        padding: "16px",
-      })}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {/* Dialog */}
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Triage suggestion: ${s.title}`}
-        tabIndex={-1}
-        onKeyDown={handleKeyDown}
-        className={css((t) => ({
-          background: t.colors.bg,
-          borderRadius: "0.75rem",
-          boxShadow: "0 24px 48px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.1)",
-          width: "100%",
-          maxWidth: "640px",
-          maxHeight: "calc(100vh - 32px)",
-          overflowY: "auto",
-          scrollbarWidth: "thin",
-          animation: "modal-content-in 0.25s ease-out",
-          "&:focus": { outline: "none" },
-        }))}
-      >
-        {/* Header */}
-        <div
-          className={css((t) => ({
-            padding: `${t.spacing(5)} ${t.spacing(6)} ${t.spacing(4)}`,
-            borderBottom: `1px solid ${t.colors.borderLight}`,
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: t.spacing(3),
-          }))}
-        >
-          <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
-            {/* Kind + confidence */}
-            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), flexWrap: "wrap" }))}>
-              <span
-                className={css((t) => ({
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: t.spacing(1),
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: t.colors.textMuted,
-                }))}
-              >
-                {kindInfo.icon} {kindInfo.label}
-              </span>
-              <span
-                className={css({
-                  fontSize: "0.72rem",
-                  fontWeight: "700",
-                  textTransform: "uppercase",
-                  padding: "2px 10px",
-                  borderRadius: "999px",
-                  letterSpacing: "0.02em",
-                })}
-                style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
-              >
-                {s.confidence} confidence
-              </span>
-            </div>
-            {/* Title */}
-            <h2 className={css((t) => ({ fontSize: "1.2rem", fontWeight: "700", marginTop: t.spacing(2), lineHeight: "1.3" }))}>
-              {s.title}
-            </h2>
-          </div>
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            aria-label="Close detail view"
-            className={css((t) => ({
-              width: "36px",
-              height: "36px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "none",
-              background: "transparent",
-              borderRadius: t.radiusSm,
-              cursor: "pointer",
-              fontSize: "1.2rem",
-              color: t.colors.textMuted,
-              flexShrink: 0,
-              transition: "background 0.15s, color 0.15s",
-              "&:hover": { background: t.colors.bgAlt, color: t.colors.text },
-              "&:focus-visible": {
-                outline: `2px solid ${t.colors.primary}`,
-                outlineOffset: "2px",
-              },
-            }))}
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className={css((t) => ({ padding: `${t.spacing(5)} ${t.spacing(6)}` }))}>
-          {/* Kind description */}
-          <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, marginBottom: t.spacing(4), fontStyle: "italic" }))}>
-            {kindInfo.desc}
-          </p>
-
-          {/* Rationale */}
-          <DetailSection label="Rationale">
-            <p className={css({ fontSize: "0.92rem", lineHeight: "1.6" })}>{s.rationale}</p>
-          </DetailSection>
-
-          {/* Mapped message previews */}
-          {resolvedMessages && resolvedMessages.length > 0 && (
-            <DetailSection label={`Affected Messages (${resolvedMessages.length})`}>
-              <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2) }))}>
-                {resolvedMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={css((t) => ({
-                      padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-                      background: t.colors.bgAlt,
-                      borderRadius: t.radiusSm,
-                      border: `1px solid ${t.colors.borderLight}`,
-                      fontSize: "0.85rem",
-                    }))}
-                  >
-                    <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2) }))}>
-                      <span className={css({ fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 })}>
-                        {msg.from.match(/^"?([^"<]+)"?\s*</)?.[1]?.trim() ?? msg.from}
-                      </span>
-                      <span className={css((t) => ({ fontSize: "0.75rem", color: t.colors.textMuted, flexShrink: 0 }))}>
-                        {new Date(msg.date).toLocaleDateString([], { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                    <div className={css((t) => ({ fontWeight: "500", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>
-                      {msg.subject}
-                    </div>
-                    <div className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>
-                      {msg.snippet}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {s.messageIds && s.messageIds.length > resolvedMessages.length && (
-                <p className={css((t) => ({ fontSize: "0.8rem", color: t.colors.textMuted, marginTop: t.spacing(2) }))}>
-                  + {s.messageIds.length - resolvedMessages.length} message{s.messageIds.length - resolvedMessages.length !== 1 ? "s" : ""} not in current inbox view
-                </p>
-              )}
-            </DetailSection>
-          )}
-
-          {/* Show raw IDs if no messages resolved */}
-          {s.messageIds && s.messageIds.length > 0 && (!resolvedMessages || resolvedMessages.length === 0) && (
-            <DetailSection label={`Message IDs (${s.messageIds.length})`}>
-              <div className={css((t) => ({ fontFamily: "monospace", fontSize: "0.8rem", color: t.colors.textMuted, lineHeight: "1.7", wordBreak: "break-all" }))}>
-                {s.messageIds.join(", ")}
-              </div>
-            </DetailSection>
-          )}
-
-          {/* Filter draft */}
-          {s.filterDraft && (
-            <DetailSection label="Filter Draft">
-              <div
-                className={css((t) => ({
-                  padding: t.spacing(3),
-                  background: t.colors.bgAlt,
-                  borderRadius: t.radiusSm,
-                  border: `1px solid ${t.colors.borderLight}`,
-                  fontFamily: "monospace",
-                  fontSize: "0.84rem",
-                  lineHeight: "1.7",
-                }))}
-              >
-                {s.filterDraft.from && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>from:</span> {s.filterDraft.from}</div>}
-                {s.filterDraft.subjectContains && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>subject contains:</span> {s.filterDraft.subjectContains}</div>}
-                {s.filterDraft.hasWords && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>has words:</span> {s.filterDraft.hasWords}</div>}
-                {s.filterDraft.label && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>label:</span> {s.filterDraft.label}</div>}
-                {s.filterDraft.archive !== undefined && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>archive:</span> {s.filterDraft.archive ? "yes" : "no"}</div>}
-              </div>
-            </DetailSection>
-          )}
-
-          {/* Questions */}
-          {s.questions && s.questions.length > 0 && (
-            <DetailSection label="Questions for You">
-              <ul
-                className={css((t) => ({
-                  paddingLeft: t.spacing(5),
-                  fontSize: "0.9rem",
-                  lineHeight: "1.7",
-                }))}
-              >
-                {s.questions.map((q, i) => (
-                  <li key={i}>{q}</li>
-                ))}
-              </ul>
-            </DetailSection>
-          )}
-
-          {/* Metadata */}
-          {lastRunAt && (
-            <DetailSection label="Run Metadata">
-              <div className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, lineHeight: "1.6" }))}>
-                <div>Generated: {new Date(lastRunAt).toLocaleString()}</div>
-                <div>Kind: {s.kind}</div>
-                <div>Confidence: {s.confidence}</div>
-              </div>
-            </DetailSection>
-          )}
-        </div>
-
-        {/* Footer actions */}
-        <div
-          className={css((t) => ({
-            padding: `${t.spacing(4)} ${t.spacing(6)}`,
-            borderTop: `1px solid ${t.colors.borderLight}`,
-            display: "flex",
-            alignItems: "center",
-            gap: t.spacing(2),
-            flexWrap: "wrap",
-          }))}
-        >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkReviewed();
-            }}
-            className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(4)}`,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radiusSm,
-              background: "transparent",
-              color: t.colors.text,
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              fontWeight: "600",
-              transition: "all 0.15s",
-              "&:hover": { background: t.colors.bgAlt },
-            }))}
-            style={isReviewed ? { borderColor: "#10b981", background: "#ecfdf5", color: "#10b981" } : undefined}
-          >
-            {isReviewed ? "✓ Reviewed" : "Mark reviewed"}
-          </button>
-          {isExecutable && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowApprovalModal(true);
-              }}
-              className={css((t) => ({
-                padding: `${t.spacing(2)} ${t.spacing(4)}`,
-                border: "none",
-                borderRadius: t.radiusSm,
-                background: "#dc2626",
-                color: "#fff",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: "700",
-                transition: "background 0.15s",
-                "&:hover": { background: "#b91c1c" },
-              }))}
-              title="Execute this action (requires confirmation)"
-            >
-              ⚡ Execute
-            </button>
-          )}
-          {s.kind !== "needs_user_input" && !isExecutable && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToast(`📋 Previewing: ${s.title}`);
-              }}
-              className={css((t) => ({
-                padding: `${t.spacing(2)} ${t.spacing(4)}`,
-                border: `1px solid ${t.colors.border}`,
-                borderRadius: t.radiusSm,
-                background: "transparent",
-                color: t.colors.textMuted,
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: "500",
-                transition: "background 0.15s",
-                "&:hover": { background: t.colors.bgAlt },
-              }))}
-              title="Preview what this action would do (no changes applied)"
-            >
-              Review suggestion
-            </button>
-          )}
-          {s.kind === "needs_user_input" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToast("✏️ Draft response — coming soon!");
-              }}
-              className={css((t) => ({
-                padding: `${t.spacing(2)} ${t.spacing(4)}`,
-                border: `1px solid ${t.colors.primary}`,
-                borderRadius: t.radiusSm,
-                background: "transparent",
-                color: t.colors.primary,
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                fontWeight: "600",
-                transition: "background 0.15s",
-                "&:hover": { background: "rgba(37,99,235,0.06)" },
-              }))}
-            >
-              Draft response
-            </button>
-          )}
-          <div className={css({ flex: "1 1 0%" })} />
-          <button
-            onClick={onClose}
-            className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(4)}`,
-              border: "none",
-              borderRadius: t.radiusSm,
-              background: t.colors.bgAlt,
-              color: t.colors.textMuted,
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              fontWeight: "500",
-              transition: "background 0.15s",
-              "&:hover": { background: t.colors.borderLight },
-            }))}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-
-      {/* Approval confirmation modal */}
-      {showApprovalModal && (
-        <ApprovalConfirmModal
-          suggestion={s}
-          messageMap={messageMap}
-          onClose={() => setShowApprovalModal(false)}
-          onSuccess={(msg) => {
-            setShowApprovalModal(false);
-            onToast(msg);
-            onClose();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
 // --- Approval Confirmation Modal ---
-function ApprovalConfirmModal({
+export function ApprovalConfirmModal({
   suggestion,
   messageMap,
   onClose,
@@ -1154,7 +731,7 @@ function ApprovalConfirmModal({
 }
 
 // --- Detail section helper ---
-function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
+export function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className={css((t) => ({ marginBottom: t.spacing(5) }))}>
       <h3

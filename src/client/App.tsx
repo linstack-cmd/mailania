@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
+import { Router, Route, Switch } from "wouter";
 import TriageSuggestions from "./TriageSuggestions";
+import SuggestionDetailPage from "./SuggestionDetailPage";
 
 interface InboxMessage {
   id: string;
@@ -156,6 +158,12 @@ export default function App() {
 
   // --- Main authenticated view ---
   return (
+    <Router>
+    <Switch>
+      <Route path="/suggestions/:runId/:index">
+        <SuggestionDetailPage />
+      </Route>
+      <Route>
     <div className={css((t) => ({ maxWidth: "1400px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
       {/* Header */}
       <header
@@ -385,6 +393,9 @@ export default function App() {
         </div>
       </div>
     </div>
+      </Route>
+    </Switch>
+    </Router>
   );
 }
 
