@@ -80,12 +80,13 @@ export function createChatRouter(): Router {
         [conv.id],
       );
 
-      // Fetch latest revision
+      // Fetch latest revision — order by created_at DESC, id DESC for robustness
+      // (revision_index may have bad values from prior string-concatenation bug)
       const revResult = await pool.query(
         `SELECT "id", "revision_index", "suggestion_json", "source", "created_at"
          FROM "suggestion_revision"
          WHERE "conversation_id" = $1
-         ORDER BY "revision_index" DESC
+         ORDER BY "created_at" DESC, "id" DESC
          LIMIT 1`,
         [conv.id],
       );
@@ -257,14 +258,15 @@ export function createChatRouter(): Router {
         config.anthropicModel,
       );
 
-      // Get current revision count
+      // Get current revision count — explicit Number() cast to prevent
+      // JS string concatenation bug (pg driver returns strings for aggregates)
       const revCountResult = await pool.query(
-        `SELECT COALESCE(MAX("revision_index"), -1) as max_idx
+        `SELECT COALESCE(MAX("revision_index"), -1)::int as max_idx
          FROM "suggestion_revision"
          WHERE "conversation_id" = $1`,
         [convId],
       );
-      const nextRevisionIndex = (revCountResult.rows[0].max_idx as number) + 1;
+      const nextRevisionIndex = Number(revCountResult.rows[0].max_idx) + 1;
 
       // Store revision
       await pool.query(

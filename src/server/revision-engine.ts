@@ -36,13 +36,29 @@ Your job: produce a REVISED suggestion that incorporates the user's feedback.
 
 RULES:
 - Output ONLY valid JSON matching the suggestion schema below. No markdown, no extra text.
-- You may change any field: kind, title, rationale, confidence, messageIds, filterDraft, questions.
+- You may change any field: kind, title, rationale, confidence, messageIds, filterDraft, questions, actionPlan.
 - Allowed "kind" values: "archive_bulk", "create_filter", "needs_user_input", "mark_read"
   - "mark_read": marks messages as read without archiving. Use when the user wants to acknowledge but keep in inbox.
 - Keep the suggestion actionable and specific.
 - If the user's intent is unclear, set kind to "needs_user_input" and add clarifying questions.
 - Preserve messageIds from the original unless the user explicitly asks to change scope.
 - Always include a rationale that explains what changed and why.
+
+MULTI-ACTION PLANS:
+When the user requests multiple distinct actions (e.g., "archive these AND create a filter AND label the rest"), include an "actionPlan" array. Each step is:
+  { "type": "<action_type>", "params": { ... }, "rationale": "why this step" }
+Allowed step types: "archive_bulk", "create_filter", "mark_read", "label_messages", "needs_user_input"
+- "label_messages" params: { "messageIds": [...], "label": "LabelName" }
+- "archive_bulk" params: { "messageIds": [...] }
+- "create_filter" params: { "from": "...", "label": "...", "archive": true, ... }
+- "mark_read" params: { "messageIds": [...] }
+- "needs_user_input" params: { "questions": ["..."] }
+
+Rules for actionPlan:
+- Only include actionPlan when the user's intent involves multiple distinct steps.
+- For single-action suggestions, omit actionPlan entirely (keep backward-compatible).
+- The top-level "kind" should reflect the primary/first action in the plan.
+- Steps are ordered — they will be presented and approved sequentially.
 
 SUGGESTION SCHEMA:
 {
@@ -52,7 +68,11 @@ SUGGESTION SCHEMA:
   "confidence": "low" | "medium" | "high",
   "messageIds": ["id1", "id2"],
   "filterDraft": { "from": "...", "subjectContains": "...", "hasWords": "...", "label": "...", "archive": true },
-  "questions": ["Only if kind is needs_user_input"]
+  "questions": ["Only if kind is needs_user_input"],
+  "actionPlan": [
+    { "type": "archive_bulk", "params": { "messageIds": ["id1"] }, "rationale": "Step 1 reason" },
+    { "type": "create_filter", "params": { "from": "x@y.com", "label": "L", "archive": true }, "rationale": "Step 2 reason" }
+  ]
 }
 
 Respond with the JSON object only.`;
@@ -93,7 +113,7 @@ export async function generateRevision(
 
   const revised = JSON.parse(jsonText) as TriageSuggestion;
 
-  // Validate
+  // Validate core fields
   const validKinds = new Set([
     "archive_bulk",
     "create_filter",
@@ -107,6 +127,36 @@ export async function generateRevision(
     revised.confidence = original.confidence;
   if (!revised.title) revised.title = original.title;
   if (!revised.rationale) revised.rationale = original.rationale;
+
+  // Validate actionPlan if present
+  if (revised.actionPlan) {
+    const validStepTypes = new Set([
+      "archive_bulk",
+      "create_filter",
+      "needs_user_input",
+      "mark_read",
+      "label_messages",
+    ]);
+
+    if (!Array.isArray(revised.actionPlan) || revised.actionPlan.length === 0) {
+      // Invalid actionPlan — remove it to fall back to single-action
+      delete revised.actionPlan;
+    } else {
+      // Filter out invalid steps, keep valid ones
+      revised.actionPlan = revised.actionPlan.filter(
+        (step) =>
+          step &&
+          typeof step === "object" &&
+          validStepTypes.has(step.type) &&
+          step.params &&
+          typeof step.params === "object",
+      );
+      // If all steps were invalid, remove actionPlan
+      if (revised.actionPlan.length === 0) {
+        delete revised.actionPlan;
+      }
+    }
+  }
 
   return revised;
 }

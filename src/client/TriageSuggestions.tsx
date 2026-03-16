@@ -19,6 +19,12 @@ export interface FilterDraft {
   archive?: boolean;
 }
 
+export interface ActionPlanStep {
+  type: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read" | "label_messages";
+  params: Record<string, unknown>;
+  rationale?: string;
+}
+
 export interface TriageSuggestion {
   kind: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read";
   title: string;
@@ -27,6 +33,7 @@ export interface TriageSuggestion {
   messageIds?: string[];
   filterDraft?: FilterDraft;
   questions?: string[];
+  actionPlan?: ActionPlanStep[];
 }
 
 export const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label: string; desc: string }> = {

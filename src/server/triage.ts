@@ -37,6 +37,16 @@ export type SuggestionKind =
   | "needs_user_input"
   | "mark_read";
 
+/**
+ * A single step in a multi-action plan.
+ * Each step describes one discrete action the agent recommends.
+ */
+export interface ActionPlanStep {
+  type: SuggestionKind | "label_messages";
+  params: Record<string, unknown>;
+  rationale?: string;
+}
+
 export interface TriageSuggestion {
   kind: SuggestionKind;
   title: string;
@@ -45,6 +55,15 @@ export interface TriageSuggestion {
   messageIds?: string[];
   filterDraft?: FilterDraft;
   questions?: string[];
+  /**
+   * Multi-action plan (optional). When present, describes an ordered sequence
+   * of actions the agent recommends. The top-level `kind` reflects the primary
+   * action; `actionPlan` provides the full breakdown.
+   *
+   * Backward-compatible: older clients that don't read this field still see
+   * a valid single-action suggestion via the top-level fields.
+   */
+  actionPlan?: ActionPlanStep[];
 }
 
 export interface TriageResult {

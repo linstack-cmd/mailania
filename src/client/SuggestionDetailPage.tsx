@@ -8,6 +8,7 @@ import {
   ApprovalConfirmModal,
   Toast,
   type TriageSuggestion,
+  type ActionPlanStep,
   type InboxMessage,
 } from "./TriageSuggestions";
 
@@ -361,6 +362,10 @@ export default function SuggestionDetailPage() {
         </DetailSection>
       )}
 
+      {suggestion.actionPlan && suggestion.actionPlan.length > 0 && (
+        <ActionPlanSection steps={suggestion.actionPlan} />
+      )}
+
       {suggestion.questions && suggestion.questions.length > 0 && (
         <DetailSection label="Questions for You">
           <ul className={css((t) => ({ paddingLeft: t.spacing(5), fontSize: "0.9rem", lineHeight: "1.7" }))}>
@@ -419,6 +424,11 @@ export default function SuggestionDetailPage() {
           <div className={css((t) => ({ fontSize: "0.85rem", lineHeight: "1.6", color: t.colors.textMuted }))}>
             {latestRevision.suggestion.rationale}
           </div>
+          {latestRevision.suggestion.actionPlan && latestRevision.suggestion.actionPlan.length > 0 && (
+            <div className={css((t) => ({ marginTop: t.spacing(3) }))}>
+              <ActionPlanSection steps={latestRevision.suggestion.actionPlan} compact />
+            </div>
+          )}
         </div>
       )}
 
@@ -660,6 +670,121 @@ export default function SuggestionDetailPage() {
       {/* Toast */}
       {toastMsg && <Toast message={toastMsg} onDone={() => setToastMsg(null)} />}
     </div>
+  );
+}
+
+// --- Action Plan Section ---
+const STEP_TYPE_LABELS: Record<string, { icon: string; label: string }> = {
+  archive_bulk: { icon: "📦", label: "Archive" },
+  create_filter: { icon: "🔀", label: "Create Filter" },
+  mark_read: { icon: "👁️", label: "Mark Read" },
+  label_messages: { icon: "🏷️", label: "Label" },
+  needs_user_input: { icon: "❓", label: "Needs Input" },
+};
+
+// Pre-computed styles to avoid runtime variables in css() (Flow CSS constraint)
+const actionPlanGapClass = css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2) }));
+const actionPlanGapCompactClass = css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(1.5) }));
+
+const stepCardClass = css((t) => ({
+  display: "flex",
+  alignItems: "flex-start",
+  gap: t.spacing(2.5),
+  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+  background: t.colors.bgAlt,
+  borderRadius: t.radiusSm,
+  border: `1px solid ${t.colors.borderLight}`,
+  fontSize: "0.88rem",
+}));
+
+const stepCardCompactClass = css((t) => ({
+  display: "flex",
+  alignItems: "flex-start",
+  gap: t.spacing(2.5),
+  padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
+  background: t.colors.bgAlt,
+  borderRadius: t.radiusSm,
+  border: `1px solid ${t.colors.borderLight}`,
+  fontSize: "0.82rem",
+}));
+
+const stepCircleClass = css((t) => ({
+  flexShrink: 0,
+  width: "26px",
+  height: "26px",
+  borderRadius: "50%",
+  background: t.colors.primary,
+  color: "#fff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "0.75rem",
+  fontWeight: "700",
+  marginTop: "1px",
+}));
+
+const stepCircleCompactClass = css((t) => ({
+  flexShrink: 0,
+  width: "22px",
+  height: "22px",
+  borderRadius: "50%",
+  background: t.colors.primary,
+  color: "#fff",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "0.7rem",
+  fontWeight: "700",
+  marginTop: "1px",
+}));
+
+const stepBodyClass = css({ flex: 1, minWidth: 0 });
+const stepHeaderClass = css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexWrap: "wrap" }));
+const stepLabelClass = css({ fontWeight: "600" });
+const stepLabelPillClass = css({
+  fontSize: "0.72rem",
+  padding: "1px 8px",
+  borderRadius: "999px",
+  background: "#eff6ff",
+  color: "#1e40af",
+  border: "1px solid #bfdbfe",
+  fontWeight: "600",
+});
+const stepRationaleClass = css((t) => ({ color: t.colors.textMuted, marginTop: t.spacing(0.5), lineHeight: "1.5" }));
+
+function ActionPlanSection({ steps, compact }: { steps: ActionPlanStep[]; compact?: boolean }) {
+  return (
+    <DetailSection label={`Action Plan (${steps.length} step${steps.length !== 1 ? "s" : ""})`}>
+      <div className={compact ? actionPlanGapCompactClass : actionPlanGapClass}>
+        {steps.map((step, i) => {
+          const typeInfo = STEP_TYPE_LABELS[step.type] ?? { icon: "⚙️", label: step.type };
+          return (
+            <div key={i} className={compact ? stepCardCompactClass : stepCardClass}>
+              <div className={compact ? stepCircleCompactClass : stepCircleClass}>
+                {i + 1}
+              </div>
+              <div className={stepBodyClass}>
+                <div className={stepHeaderClass}>
+                  <span className={stepLabelClass}>
+                    {typeInfo.icon} {typeInfo.label}
+                  </span>
+                  {step.params && step.type === "label_messages" && (step.params as any).label && (
+                    <span className={stepLabelPillClass}>
+                      {(step.params as any).label}
+                    </span>
+                  )}
+                </div>
+                {step.rationale && (
+                  <div className={stepRationaleClass}>
+                    {step.rationale}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DetailSection>
   );
 }
 

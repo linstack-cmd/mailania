@@ -520,6 +520,17 @@ Appends the user message, generates an assistant response, computes a revised su
 - `mark_read` is a new suggestion kind added in v1: marks messages as read without archiving. Backward-compatible — older UI code that doesn't recognize it will treat the suggestion as informational.
 - Revisions are append-only; each chat exchange produces a new revision with incrementing `revision_index`.
 - Source is `'llm'` for agent-generated revisions (future: `'manual'` for user overrides).
+- Latest revision is selected by `created_at DESC, id DESC` (not `revision_index`) for robustness.
+
+#### Revision index repair
+
+A prior bug caused `revision_index` to have bad values (e.g., -11, -111) due to JavaScript string concatenation when the pg driver returned aggregate results as strings. This has been fixed with explicit `Number()` casting and `::int` SQL casts. A repair script is available:
+
+```bash
+psql "$DATABASE_URL" -f scripts/repair-revision-index.sql
+```
+
+This re-numbers `revision_index` as 0..N-1 per conversation in `created_at` order. Safe to run multiple times (idempotent).
 
 ### UI
 
@@ -584,6 +595,50 @@ The `POST /api/suggestions/:runId/:index/chat` response now includes a `toolsUse
 | `result_summary` | TEXT | Human-readable summary of the result |
 | `duration_ms` | INT | Execution time in milliseconds |
 | `created_at` | TIMESTAMPTZ | When the tool was called |
+
+### Multi-Action Plans
+
+Suggestions can include an optional `actionPlan` array when the user's intent involves multiple distinct steps (e.g., "archive these newsletters AND create a filter for future ones AND label the rest as Low Priority").
+
+**Schema:**
+
+```json
+{
+  "kind": "archive_bulk",
+  "title": "Clean up & filter newsletters",
+  "rationale": "Archive existing, create filter for future, label remaining",
+  "confidence": "high",
+  "messageIds": ["id1", "id2"],
+  "actionPlan": [
+    {
+      "type": "archive_bulk",
+      "params": { "messageIds": ["id1", "id2"] },
+      "rationale": "Archive 2 old newsletters"
+    },
+    {
+      "type": "create_filter",
+      "params": { "from": "newsletter@example.com", "archive": true, "label": "Newsletters" },
+      "rationale": "Auto-archive future emails from this sender"
+    },
+    {
+      "type": "label_messages",
+      "params": { "messageIds": ["id3"], "label": "Low Priority" },
+      "rationale": "Label remaining message for later review"
+    }
+  ]
+}
+```
+
+**Allowed step types:** `archive_bulk`, `create_filter`, `mark_read`, `label_messages`, `needs_user_input`
+
+**Compatibility rules:**
+- `actionPlan` is optional. When absent, the suggestion is a single-action suggestion (backward-compatible).
+- The top-level `kind` reflects the primary action. Older clients that don't read `actionPlan` still see a valid single-action suggestion.
+- Steps are ordered and presented sequentially in the UI. Each step requires user approval before execution.
+- The revision engine only produces `actionPlan` when the user explicitly asks for multi-step flows in chat.
+
+**UI rendering:**
+The suggestion detail page renders `actionPlan` as numbered steps with type icons, labels, and per-step rationale. The revised suggestion banner also shows the plan when present.
 
 ### When to Add RAG (Future)
 
