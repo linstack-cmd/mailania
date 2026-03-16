@@ -12,16 +12,22 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
     "@flow-css/core": "^1.4.0",
+    "connect-pg-simple": "^10.0.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.0",
+    "express-session": "^1.19.0",
     "googleapis": "^144.0.0",
+    "pg": "^8.20.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@flow-css/vite": "^1.4.0",
+    "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "^5.0.0",
+    "@types/express-session": "^1.18.2",
     "@types/node": "^22.13.0",
+    "@types/pg": "^8.18.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

@@ -15,6 +15,8 @@ export interface AppConfig {
   inboxLimit: number;
   anthropicApiKey?: string;
   anthropicModel: string;
+  databaseUrl: string;
+  sessionSecret: string;
 }
 
 let _config: AppConfig | null = null;
@@ -51,6 +53,8 @@ export async function loadConfig(): Promise<AppConfig> {
       "FRONTEND_ORIGIN",
       "ANTHROPIC_API_KEY",
       "ANTHROPIC_MODEL",
+      "DATABASE_URL",
+      "SESSION_SECRET",
     ],
   );
 
@@ -61,6 +65,9 @@ export async function loadConfig(): Promise<AppConfig> {
   const frontendOrigin = secrets.get("FRONTEND_ORIGIN");
   const anthropicApiKey = secrets.get("ANTHROPIC_API_KEY");
   const anthropicModel = secrets.get("ANTHROPIC_MODEL");
+  const databaseUrl = secrets.get("DATABASE_URL") || process.env.DATABASE_URL;
+  const sessionSecret =
+    secrets.get("SESSION_SECRET") || process.env.SESSION_SECRET;
 
   if (!googleClientId || !googleClientSecret) {
     throw new Error(
@@ -69,8 +76,23 @@ export async function loadConfig(): Promise<AppConfig> {
     );
   }
 
+  if (!databaseUrl) {
+    throw new Error(
+      "Missing DATABASE_URL — add it to Secret Party or set as env var.",
+    );
+  }
+
+  if (!sessionSecret) {
+    throw new Error(
+      "Missing SESSION_SECRET — add it to Secret Party or set as env var. " +
+        "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
+    );
+  }
+
   if (anthropicApiKey) {
-    console.log("[Config] Anthropic API key loaded — triage suggestions enabled");
+    console.log(
+      "[Config] Anthropic API key loaded — triage suggestions enabled",
+    );
   } else {
     console.warn(
       "[Config] ANTHROPIC_API_KEY not found in Secret Party — " +
@@ -86,6 +108,8 @@ export async function loadConfig(): Promise<AppConfig> {
     inboxLimit: Number(process.env.INBOX_LIMIT) || 25,
     anthropicApiKey,
     anthropicModel: anthropicModel || "claude-sonnet-4-20250514",
+    databaseUrl,
+    sessionSecret,
   };
 
   return _config;

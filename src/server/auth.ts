@@ -1,10 +1,13 @@
 import { google } from "googleapis";
-import fs from "fs";
-import path from "path";
 import type { Request } from "express";
 import { getConfig } from "./config.js";
 
-const TOKEN_PATH = path.resolve("token.json");
+// Augment express-session to include our token data
+declare module "express-session" {
+  interface SessionData {
+    tokens?: Record<string, unknown>;
+  }
+}
 
 const SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"];
 
@@ -15,22 +18,13 @@ const CALLBACK_PATH = "/auth/callback";
  *
  * Protocol precedence (handles Cloudflare → origin HTTP scenario):
  *   1. `cf-visitor` JSON header — Cloudflare sets this with the *client-facing*
- *      scheme even when the origin connection is plain HTTP (e.g. Dokploy behind
- *      Cloudflare proxy with "Flexible" or "Full" SSL mode).
+ *      scheme even when the origin connection is plain HTTP.
  *   2. `x-forwarded-proto` — standard reverse-proxy header (Traefik / nginx).
  *   3. `req.protocol` — Express-detected protocol (fallback).
- *
- * Host is inferred from `x-forwarded-host` or `host`. Comma-separated lists
- * (multiple proxies) are handled by taking the first (leftmost) value.
- *
- * Never infers from query params or other untrusted user input.
  */
 export function resolveRedirectUri(req: Request): string {
-  // --- Protocol inference ---
   let proto: string | undefined;
 
-  // 1. Cloudflare cf-visitor header (JSON: {"scheme":"https"})
-  //    Robust parse — invalid JSON must not throw.
   const cfVisitor = req.get("cf-visitor");
   if (cfVisitor) {
     try {
@@ -39,11 +33,10 @@ export function resolveRedirectUri(req: Request): string {
         proto = parsed.scheme;
       }
     } catch {
-      // Malformed cf-visitor — fall through to next source
+      // Malformed cf-visitor — fall through
     }
   }
 
-  // 2. x-forwarded-proto (take first value if comma-separated)
   if (!proto) {
     const xfp = req.get("x-forwarded-proto");
     if (xfp) {
@@ -51,19 +44,14 @@ export function resolveRedirectUri(req: Request): string {
     }
   }
 
-  // 3. Express req.protocol (derives from connection / trust proxy)
   if (!proto) {
     proto = req.protocol;
   }
 
-  // --- Host inference ---
   const rawHost = req.get("x-forwarded-host") || req.get("host");
-
   if (!rawHost) {
     throw new Error("Cannot infer redirect URI: no Host header");
   }
-
-  // Take first value if comma-separated (multiple proxies)
   const host = rawHost.split(",")[0].trim();
 
   return `${proto}://${host}${CALLBACK_PATH}`;
@@ -79,10 +67,9 @@ function makeOAuth2Client(redirectUri: string) {
 }
 
 /**
- * Build an OAuth2 client using a placeholder redirect URI (for token loading only).
- * setCredentials doesn't use the redirect endpoint.
+ * Build an OAuth2 client with a placeholder redirect URI (for token loading).
  */
-export function getOAuth2Client() {
+function getOAuth2Client() {
   const cfg = getConfig();
   return new google.auth.OAuth2(
     cfg.googleClientId,
@@ -101,19 +88,34 @@ export function getAuthUrl(req: Request): string {
   });
 }
 
+/**
+ * Exchange OAuth code and store tokens in the session.
+ */
 export async function exchangeCode(code: string, req: Request) {
   const redirectUri = resolveRedirectUri(req);
   const client = makeOAuth2Client(redirectUri);
   const { tokens } = await client.getToken(code);
   client.setCredentials(tokens);
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+
+  // Store tokens in session (persisted to DB via connect-pg-simple)
+  req.session.tokens = tokens as Record<string, unknown>;
+
+  // Save session explicitly to ensure it's written before redirect
+  await new Promise<void>((resolve, reject) => {
+    req.session.save((err) => (err ? reject(err) : resolve()));
+  });
+
   return client;
 }
 
-export function loadToken() {
-  if (!fs.existsSync(TOKEN_PATH)) return null;
+/**
+ * Load OAuth2 client from session-stored tokens.
+ * Returns null if no tokens in session.
+ */
+export function loadToken(req: Request) {
+  const tokens = req.session?.tokens;
+  if (!tokens) return null;
   try {
-    const tokens = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf-8"));
     const client = getOAuth2Client();
     client.setCredentials(tokens);
     return client;
@@ -122,12 +124,18 @@ export function loadToken() {
   }
 }
 
-export function isAuthenticated(): boolean {
-  return fs.existsSync(TOKEN_PATH);
+/**
+ * Check if the current session is authenticated.
+ */
+export function isAuthenticated(req: Request): boolean {
+  return !!req.session?.tokens;
 }
 
-export function logout(): void {
-  if (fs.existsSync(TOKEN_PATH)) {
-    fs.unlinkSync(TOKEN_PATH);
-  }
+/**
+ * Clear tokens from session (logout).
+ */
+export function logout(req: Request): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    req.session.destroy((err) => (err ? reject(err) : resolve()));
+  });
 }

@@ -1,8 +1,17 @@
 import "dotenv/config";
 import express from "express";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import { loadConfig, getConfig } from "./config.js";
-import { getAuthUrl, exchangeCode, loadToken, isAuthenticated, logout } from "./auth.js";
+import { initDb, getPool } from "./db.js";
+import {
+  getAuthUrl,
+  exchangeCode,
+  loadToken,
+  isAuthenticated,
+  logout,
+} from "./auth.js";
 import { listInbox } from "./gmail.js";
 import { generateTriageSuggestions } from "./triage.js";
 
@@ -10,9 +19,36 @@ async function main() {
   // Load config (fetches secrets from Secret Party if configured)
   const config = await loadConfig();
 
+  // Initialize database and create tables
+  await initDb(config.databaseUrl);
+
   const app = express();
   app.set("trust proxy", true);
   app.use(express.json());
+
+  // --- Session middleware (DB-backed via connect-pg-simple) ---
+  const PgSession = connectPgSimple(session);
+
+  app.use(
+    session({
+      store: new PgSession({
+        pool: getPool(),
+        tableName: "session",
+        // Prune expired sessions every 15 minutes
+        pruneSessionInterval: 15 * 60,
+      }),
+      secret: config.sessionSecret,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        httpOnly: true,
+        secure: "auto",
+        sameSite: "lax",
+      },
+      name: "mailania.sid",
+    }),
+  );
 
   // --- API Routes ---
 
@@ -20,12 +56,12 @@ async function main() {
     res.json({ ok: true });
   });
 
-  app.get("/api/status", (_req, res) => {
-    res.json({ authenticated: isAuthenticated() });
+  app.get("/api/status", (req, res) => {
+    res.json({ authenticated: isAuthenticated(req) });
   });
 
-  app.get("/api/inbox", async (_req, res) => {
-    const auth = loadToken();
+  app.get("/api/inbox", async (req, res) => {
+    const auth = loadToken(req);
     if (!auth) {
       res.status(401).json({ error: "Not authenticated" });
       return;
@@ -36,7 +72,7 @@ async function main() {
       res.json({ messages });
     } catch (err: any) {
       if (err?.code === 401 || err?.response?.status === 401) {
-        logout();
+        await logout(req).catch(() => {});
         res.status(401).json({ error: "Token expired" });
         return;
       }
@@ -51,13 +87,14 @@ async function main() {
     // Check LLM availability
     if (!config.anthropicApiKey) {
       res.status(503).json({
-        error: "Triage suggestions unavailable — ANTHROPIC_API_KEY not configured",
+        error:
+          "Triage suggestions unavailable — ANTHROPIC_API_KEY not configured",
       });
       return;
     }
 
     // Check Gmail auth
-    const auth = loadToken();
+    const auth = loadToken(req);
     if (!auth) {
       res.status(401).json({ error: "Not authenticated" });
       return;
@@ -79,12 +116,11 @@ async function main() {
       res.json(result);
     } catch (err: any) {
       if (err?.code === 401 || err?.response?.status === 401) {
-        logout();
+        await logout(req).catch(() => {});
         res.status(401).json({ error: "Token expired" });
         return;
       }
 
-      // Anthropic API errors
       if (err?.status) {
         console.error("Anthropic API error:", err.status, err.message);
         res.status(502).json({
@@ -94,7 +130,6 @@ async function main() {
         return;
       }
 
-      // JSON parse errors from LLM response
       if (err instanceof SyntaxError) {
         console.error("Failed to parse LLM response:", err.message);
         res.status(502).json({
@@ -141,8 +176,12 @@ async function main() {
     }
   });
 
-  app.get("/auth/logout", (_req, res) => {
-    logout();
+  app.get("/auth/logout", async (req, res) => {
+    try {
+      await logout(req);
+    } catch {
+      // Session already gone — that's fine
+    }
     res.json({ ok: true });
   });
 

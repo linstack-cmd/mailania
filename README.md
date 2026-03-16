@@ -28,6 +28,7 @@ Mailania's goal is to give users a **fast way to organize inbox** through a coll
 - **Frontend:** React + Vite + Flow CSS (theme-driven, zero-class styling)
 - **Backend:** Express API server (OAuth flow, Gmail API proxy)
 - **Secrets:** [Secret Party](https://github.com/0916dhkim/secret-party) as single source of truth for encrypted secret management
+- **Sessions:** Database-backed via `connect-pg-simple` (CockroachDB/Postgres)
 - **Deploy:** Dockerfile included, Dokploy-ready
 
 ```
@@ -37,7 +38,8 @@ mailania/
 │   │   ├── index.ts          # Routes & server startup
 │   │   ├── config.ts         # Config loader (Secret Party for OAuth + LLM config)
 │   │   ├── secret-party.ts   # Secret Party API client & decryption
-│   │   ├── auth.ts           # OAuth2 token management
+│   │   ├── auth.ts           # OAuth2 token management (session-backed)
+│   │   ├── db.ts             # Database connection & table init
 │   │   ├── gmail.ts          # Gmail API wrapper
 │   │   └── triage.ts         # AI triage suggestions (Claude, read-only)
 │   └── client/
@@ -86,6 +88,8 @@ INBOX_LIMIT=25
 And make sure these keys exist in your Secret Party environment:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `DATABASE_URL` — CockroachDB or Postgres connection string
+- `SESSION_SECRET` — random hex string for signing session cookies (generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
 - `FRONTEND_ORIGIN` (optional)
 - `ANTHROPIC_API_KEY` (required for AI triage — see below)
 - `ANTHROPIC_MODEL` (optional, defaults to `claude-sonnet-4-20250514`)
@@ -100,7 +104,7 @@ npm run dev
 This starts both the API server (`:3001`) and Vite dev server (`:5173`) concurrently. Open [http://localhost:5173](http://localhost:5173).
 
 - Click **Sign in with Google** → authorize → see your inbox
-- Token persists in `token.json` across restarts
+- Session persists in CockroachDB/Postgres across restarts
 
 ### 4. Run (Production)
 
@@ -181,6 +185,38 @@ This works automatically behind Traefik / Dokploy without extra config.
 - **DEK unwrap:** RSA-OAEP (2048-bit, SHA-256) decrypt of per-environment DEK
 - **Secret unwrap:** AES-256-GCM decrypt of each secret value using the DEK
 - **No extra dependencies** — uses Node.js built-in `crypto` module
+
+---
+
+## Database Sessions
+
+Mailania stores OAuth tokens and session data in a CockroachDB/Postgres database via `connect-pg-simple`. This replaces the previous `token.json` file-based approach, enabling:
+
+- **Multi-user support:** Each browser session has its own OAuth tokens
+- **Persistence:** Sessions survive server restarts
+- **Scalability:** No local filesystem dependency for auth state
+
+### Schema
+
+A single `session` table is created automatically at startup (idempotent):
+
+```sql
+CREATE TABLE IF NOT EXISTS "session" (
+  "sid" VARCHAR NOT NULL PRIMARY KEY,
+  "sess" JSONB NOT NULL,
+  "expire" TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+```
+
+OAuth tokens are stored inside `sess.tokens` as part of the session JSON. Expired sessions are pruned every 15 minutes.
+
+### Required secrets
+
+- **`DATABASE_URL`** — Connection string (e.g., `postgresql://user:pass@host:26257/mailania?sslmode=verify-full`)
+- **`SESSION_SECRET`** — Random hex string for signing cookies
+
+Both can be stored in Secret Party or set as env vars (Secret Party takes precedence).
 
 ---
 
@@ -267,6 +303,6 @@ Content-Type: application/json
 
 - Uses `gmail.readonly` scope — Mailania can only read, never send or modify
 - Flow CSS handles all styling via theme tokens and `css()` calls — no class names or external CSS framework
-- Token stored in `token.json` (gitignored); delete to re-authenticate
+- OAuth tokens stored in database-backed sessions (no local `token.json`); each browser session is independent
 - In production, the Express server serves the Vite-built frontend as static files
 - Secret values are never logged; only key names appear in startup logs
