@@ -54,7 +54,72 @@ mailania/
 └── package.json
 ```
 
-## Setup
+## Quick Start (Local Dev — No Google Account)
+
+The fastest way to run Mailania locally. No Google OAuth, no Secret Party — just a Postgres database.
+
+### 1. Start Postgres
+
+```bash
+# Docker one-liner (or use an existing Postgres instance)
+docker run -d --name mailania-pg -p 5432:5432 \
+  -e POSTGRES_USER=mailania -e POSTGRES_PASSWORD=mailania -e POSTGRES_DB=mailania \
+  postgres:16
+```
+
+### 2. Configure
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+LOCAL_DEV_NO_AUTH=true
+DATABASE_URL=postgresql://mailania:mailania@localhost:5432/mailania
+PORT=3001
+```
+
+Optional — to test real LLM triage suggestions on mock data:
+
+```env
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+```
+
+Without `ANTHROPIC_API_KEY`, `POST /api/triage/suggest` returns deterministic mock suggestions (useful for UI development).
+
+### 3. Run
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) — you'll see a mock inbox with 10 realistic messages. No sign-in required.
+
+### What's different in local dev mode
+
+| Endpoint | Local Dev Behavior |
+|---|---|
+| `GET /api/status` | Always `{ authenticated: true, localDev: true }` |
+| `GET /api/inbox` | Returns 10 deterministic mock messages |
+| `POST /api/triage/suggest` | Uses mock inbox + real LLM (if key set) or mock suggestions |
+| `GET /api/triage/latest` | Works normally (reads from DB) |
+| `GET /auth/login` | Redirects to `/` (no Google redirect) |
+| `GET /auth/logout` | No-op, returns `{ ok: true }` |
+| `GET /healthz` | Returns `{ ok: true, localDev: true }` |
+
+### Safety guarantees
+
+- `LOCAL_DEV_NO_AUTH` defaults to `false` — production behavior is unchanged unless explicitly enabled
+- All dev-only code paths are isolated behind a single config flag check at startup
+- No Gmail mutation actions exist in any mode (app uses `gmail.readonly` scope)
+- Mock data is deterministic and hardcoded — no external calls when auth is bypassed
+
+---
+
+## Production Setup
 
 ### 1. Create Google Cloud OAuth Credentials
 

@@ -3,9 +3,14 @@
  *
  * Required secrets are fetched from Secret Party at startup.
  * Call loadConfig() once at startup before accepting requests.
+ *
+ * LOCAL DEV MODE:
+ *   Set LOCAL_DEV_NO_AUTH=true to skip Google OAuth and Secret Party entirely.
+ *   See README for details.
  */
 
 import { fetchSecrets } from "./secret-party.js";
+import crypto from "crypto";
 
 export interface AppConfig {
   googleClientId: string;
@@ -17,9 +22,58 @@ export interface AppConfig {
   anthropicModel: string;
   databaseUrl: string;
   sessionSecret: string;
+  /** When true, auth is bypassed and mock data is served. */
+  localDevNoAuth: boolean;
 }
 
 let _config: AppConfig | null = null;
+
+/**
+ * Check if local dev no-auth mode is enabled.
+ */
+export function isLocalDevMode(): boolean {
+  return process.env.LOCAL_DEV_NO_AUTH === "true";
+}
+
+/**
+ * Load config for LOCAL_DEV_NO_AUTH mode.
+ * Requires only DATABASE_URL and SESSION_SECRET (with sane defaults).
+ */
+function loadLocalDevConfig(): AppConfig {
+  console.log(
+    "[Config] ⚠️  LOCAL_DEV_NO_AUTH=true — running in local dev mode (no Google OAuth)",
+  );
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error(
+      "LOCAL_DEV_NO_AUTH requires DATABASE_URL. " +
+        "Set it in .env (e.g. postgresql://user:pass@localhost:5432/mailania)",
+    );
+  }
+
+  const sessionSecret =
+    process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+
+  if (!process.env.SESSION_SECRET) {
+    console.log(
+      "[Config] SESSION_SECRET not set — using random ephemeral secret (sessions won't persist across restarts)",
+    );
+  }
+
+  return {
+    googleClientId: "local-dev-placeholder",
+    googleClientSecret: "local-dev-placeholder",
+    frontendOrigin: process.env.FRONTEND_ORIGIN,
+    port: Number(process.env.PORT) || 3001,
+    inboxLimit: Number(process.env.INBOX_LIMIT) || 25,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    anthropicModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
+    databaseUrl,
+    sessionSecret,
+    localDevNoAuth: true,
+  };
+}
 
 /**
  * Load configuration strictly from Secret Party for OAuth-related values.
@@ -27,6 +81,12 @@ let _config: AppConfig | null = null;
  */
 export async function loadConfig(): Promise<AppConfig> {
   if (_config) return _config;
+
+  // --- Local dev mode: skip Secret Party entirely ---
+  if (isLocalDevMode()) {
+    _config = loadLocalDevConfig();
+    return _config;
+  }
 
   const spApiUrl = process.env.SECRET_PARTY_API_URL;
   const spEnvId = process.env.SECRET_PARTY_ENVIRONMENT_ID;
@@ -110,6 +170,7 @@ export async function loadConfig(): Promise<AppConfig> {
     anthropicModel: anthropicModel || "claude-sonnet-4-20250514",
     databaseUrl,
     sessionSecret,
+    localDevNoAuth: false,
   };
 
   return _config;
