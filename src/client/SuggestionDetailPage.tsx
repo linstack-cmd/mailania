@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { css } from "@flow-css/core/css";
 import { useParams, useLocation } from "wouter";
 import {
@@ -10,6 +10,21 @@ import {
   type TriageSuggestion,
   type InboxMessage,
 } from "./TriageSuggestions";
+
+// --- Chat types ---
+interface ChatMessageData {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  createdAt: string;
+}
+
+interface RevisionData {
+  revisionIndex: number;
+  suggestion: TriageSuggestion;
+  source: string;
+  createdAt?: string;
+}
 
 export default function SuggestionDetailPage() {
   const params = useParams<{ runId: string; index: string }>();
@@ -26,6 +41,16 @@ export default function SuggestionDetailPage() {
   const [isReviewed, setIsReviewed] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessageData[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [latestRevision, setLatestRevision] = useState<RevisionData | null>(null);
+  const [chatInitLoading, setChatInitLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   const messageMap = new Map<string, InboxMessage>();
   for (const m of messages) messageMap.set(m.id, m);
@@ -72,6 +97,71 @@ export default function SuggestionDetailPage() {
     }
     load();
   }, [runId, index]);
+
+  // Load chat data when suggestion is available
+  useEffect(() => {
+    if (!runId || isNaN(index) || !suggestion) return;
+    setChatInitLoading(true);
+    setChatError(null);
+    fetch(`/api/suggestions/${runId}/${index}/chat`)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to load chat");
+        return r.json();
+      })
+      .then((data) => {
+        setChatMessages(data.messages ?? []);
+        setLatestRevision(data.latestRevision ?? null);
+      })
+      .catch(() => setChatError("Failed to load chat history"))
+      .finally(() => setChatInitLoading(false));
+  }, [runId, index, suggestion]);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Send chat message
+  const sendChatMessage = useCallback(async () => {
+    if (!chatInput.trim() || chatLoading || !runId) return;
+    const msg = chatInput.trim();
+    setChatInput("");
+    setChatLoading(true);
+    setChatError(null);
+
+    // Optimistic: add user message immediately
+    const tempId = `temp-${Date.now()}`;
+    setChatMessages((prev) => [
+      ...prev,
+      { id: tempId, role: "user", content: msg, createdAt: new Date().toISOString() },
+    ]);
+
+    try {
+      const res = await fetch(`/api/suggestions/${runId}/${index}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to send message");
+      }
+
+      const data = await res.json();
+      setChatMessages(data.messages);
+      if (data.latestRevision) {
+        setLatestRevision(data.latestRevision);
+      }
+    } catch (err: any) {
+      setChatError(err.message || "Failed to send message");
+      // Remove optimistic message on error
+      setChatMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } finally {
+      setChatLoading(false);
+      chatInputRef.current?.focus();
+    }
+  }, [chatInput, chatLoading, runId, index]);
 
   // Keyboard: Escape goes back
   useEffect(() => {
@@ -289,6 +379,198 @@ export default function SuggestionDetailPage() {
         </DetailSection>
       )}
 
+      {/* Revised Suggestion Banner */}
+      {latestRevision && (
+        <div className={css((t) => ({
+          marginTop: t.spacing(5),
+          padding: t.spacing(4),
+          background: "#eff6ff",
+          border: "1px solid #bfdbfe",
+          borderRadius: t.radius,
+        }))}>
+          <div className={css((t) => ({
+            display: "flex",
+            alignItems: "center",
+            gap: t.spacing(2),
+            marginBottom: t.spacing(2),
+          }))}>
+            <span style={{ fontSize: "1.1rem" }}>🔄</span>
+            <span className={css({ fontWeight: "700", fontSize: "0.9rem", color: "#1e40af" })}>
+              Revised Suggestion (v{latestRevision.revisionIndex + 1})
+            </span>
+            {latestRevision.suggestion.kind !== suggestion.kind && (
+              <span className={css({
+                fontSize: "0.72rem",
+                fontWeight: "700",
+                textTransform: "uppercase",
+                padding: "2px 8px",
+                borderRadius: "999px",
+                background: "#fef3c7",
+                color: "#92400e",
+                border: "1px solid #fde68a",
+              })}>
+                Action changed: {KIND_LABELS[latestRevision.suggestion.kind]?.label ?? latestRevision.suggestion.kind}
+              </span>
+            )}
+          </div>
+          <div className={css((t) => ({ fontSize: "0.9rem", fontWeight: "600", marginBottom: t.spacing(1), color: t.colors.text }))}>
+            {latestRevision.suggestion.title}
+          </div>
+          <div className={css((t) => ({ fontSize: "0.85rem", lineHeight: "1.6", color: t.colors.textMuted }))}>
+            {latestRevision.suggestion.rationale}
+          </div>
+        </div>
+      )}
+
+      {/* Chat Panel */}
+      <div className={css((t) => ({
+        marginTop: t.spacing(5),
+        border: `1px solid ${t.colors.border}`,
+        borderRadius: t.radius,
+        overflow: "hidden",
+      }))}>
+        {/* Chat header */}
+        <div className={css((t) => ({
+          padding: `${t.spacing(3)} ${t.spacing(4)}`,
+          background: t.colors.bgAlt,
+          borderBottom: `1px solid ${t.colors.borderLight}`,
+          fontWeight: "700",
+          fontSize: "0.9rem",
+          display: "flex",
+          alignItems: "center",
+          gap: t.spacing(2),
+        }))}>
+          <span>💬</span>
+          <span>Discuss this suggestion</span>
+          {chatMessages.length > 0 && (
+            <span className={css((t) => ({
+              fontSize: "0.72rem",
+              color: t.colors.textMuted,
+              fontWeight: "500",
+            }))}>
+              ({chatMessages.length} message{chatMessages.length !== 1 ? "s" : ""})
+            </span>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div className={css((t) => ({
+          maxHeight: "400px",
+          overflowY: "auto",
+          padding: t.spacing(3),
+          display: "flex",
+          flexDirection: "column",
+          gap: t.spacing(2.5),
+          scrollbarWidth: "thin",
+          scrollbarColor: "#d1d5db transparent",
+        }))}>
+          {chatInitLoading && (
+            <div className={css((t) => ({ textAlign: "center", color: t.colors.textMuted, fontSize: "0.85rem", padding: t.spacing(4) }))}>
+              Loading chat…
+            </div>
+          )}
+
+          {!chatInitLoading && chatMessages.length === 0 && (
+            <div className={css((t) => ({ textAlign: "center", color: t.colors.textMuted, fontSize: "0.85rem", padding: t.spacing(4), lineHeight: "1.6" }))}>
+              No messages yet. Ask a question or suggest changes to refine this suggestion.
+            </div>
+          )}
+
+          {chatMessages.map((msg) => (
+            <ChatBubble key={msg.id} msg={msg} />
+          ))}
+
+          {chatLoading && (
+            <div className={css((t) => ({ display: "flex", alignItems: "flex-start" }))}>
+              <div className={css((t) => ({
+                padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+                background: t.colors.bgAlt,
+                border: `1px solid ${t.colors.borderLight}`,
+                borderRadius: "12px",
+                borderBottomLeftRadius: "4px",
+                fontSize: "0.88rem",
+                color: t.colors.textMuted,
+              }))}>
+                Thinking…
+              </div>
+            </div>
+          )}
+
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Chat error */}
+        {chatError && (
+          <div className={css((t) => ({
+            padding: `${t.spacing(2)} ${t.spacing(4)}`,
+            background: "#fef2f2",
+            color: t.colors.error,
+            fontSize: "0.82rem",
+            borderTop: `1px solid ${t.colors.borderLight}`,
+          }))}>
+            {chatError}
+          </div>
+        )}
+
+        {/* Input area */}
+        <div className={css((t) => ({
+          display: "flex",
+          gap: t.spacing(2),
+          padding: t.spacing(3),
+          borderTop: `1px solid ${t.colors.borderLight}`,
+          background: t.colors.bg,
+        }))}>
+          <textarea
+            ref={chatInputRef}
+            value={chatInput}
+            onChange={(e) => setChatInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+              }
+            }}
+            placeholder="Ask a question or suggest changes…"
+            rows={1}
+            disabled={chatLoading}
+            className={css((t) => ({
+              flex: 1,
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              border: `1px solid ${t.colors.border}`,
+              borderRadius: t.radiusSm,
+              fontSize: "0.88rem",
+              resize: "none",
+              fontFamily: "inherit",
+              lineHeight: "1.5",
+              outline: "none",
+              transition: "border-color 0.15s",
+              "&:focus": { borderColor: t.colors.primary },
+              "&:disabled": { opacity: 0.6 },
+            }))}
+          />
+          <button
+            onClick={sendChatMessage}
+            disabled={chatLoading || !chatInput.trim()}
+            className={css((t) => ({
+              padding: `${t.spacing(2)} ${t.spacing(3.5)}`,
+              border: "none",
+              borderRadius: t.radiusSm,
+              background: t.colors.primary,
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              transition: "background 0.15s, opacity 0.15s",
+              alignSelf: "flex-end",
+              "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+              "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+            }))}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+
       {/* Action bar */}
       <div
         className={css((t) => ({
@@ -395,6 +677,66 @@ function DetailPageSkeleton() {
       <div className={shimmerClass} style={{ width: "100%", height: "60px", marginBottom: "20px" }} />
       <div className={shimmerClass} style={{ width: "100%", height: "80px", marginBottom: "20px" }} />
       <div className={shimmerClass} style={{ width: "70%", height: "40px" }} />
+    </div>
+  );
+}
+
+// --- Chat bubble component (avoids runtime vars in css()) ---
+const chatRowUserClass = css((t) => ({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-end",
+  gap: t.spacing(0.5),
+}));
+
+const chatRowAssistantClass = css((t) => ({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: t.spacing(0.5),
+}));
+
+const chatBubbleUserClass = css((t) => ({
+  maxWidth: "85%",
+  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+  borderRadius: "12px",
+  borderBottomRightRadius: "4px",
+  fontSize: "0.88rem",
+  lineHeight: "1.6",
+  whiteSpace: "pre-wrap",
+  background: t.colors.primary,
+  color: "#fff",
+}));
+
+const chatBubbleAssistantClass = css((t) => ({
+  maxWidth: "85%",
+  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+  borderRadius: "12px",
+  borderBottomLeftRadius: "4px",
+  fontSize: "0.88rem",
+  lineHeight: "1.6",
+  whiteSpace: "pre-wrap",
+  background: t.colors.bgAlt,
+  color: t.colors.text,
+  border: `1px solid ${t.colors.borderLight}`,
+}));
+
+const chatMetaClass = css((t) => ({
+  fontSize: "0.7rem",
+  color: t.colors.textMuted,
+  padding: "0 4px",
+}));
+
+function ChatBubble({ msg }: { msg: ChatMessageData }) {
+  const isUser = msg.role === "user";
+  return (
+    <div className={isUser ? chatRowUserClass : chatRowAssistantClass}>
+      <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>
+        {msg.content}
+      </div>
+      <span className={chatMetaClass}>
+        {isUser ? "You" : "Mailania"} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+      </span>
     </div>
   );
 }

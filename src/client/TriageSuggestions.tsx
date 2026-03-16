@@ -20,7 +20,7 @@ export interface FilterDraft {
 }
 
 export interface TriageSuggestion {
-  kind: "archive_bulk" | "create_filter" | "needs_user_input";
+  kind: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read";
   title: string;
   rationale: string;
   confidence: "low" | "medium" | "high";
@@ -33,6 +33,7 @@ export const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label
   archive_bulk: { icon: "📦", label: "Archive", desc: "Bulk archive safe-to-dismiss messages" },
   create_filter: { icon: "🔀", label: "Filter", desc: "Create a Gmail filter for recurring patterns" },
   needs_user_input: { icon: "❓", label: "Needs Input", desc: "Requires your decision before proceeding" },
+  mark_read: { icon: "👁️", label: "Mark Read", desc: "Mark messages as read without archiving" },
 };
 
 export const CONFIDENCE_STYLES: Record<string, { bg: string; text: string; border: string }> = {

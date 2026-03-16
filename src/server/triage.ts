@@ -23,8 +23,22 @@ export interface FilterDraft {
   archive?: boolean;
 }
 
+/**
+ * Suggestion kind union.
+ *
+ * "mark_read" was added in v1 chat-revision to allow the agent to recommend
+ * marking messages as read instead of archiving. It is non-destructive and
+ * backward-compatible: older clients that don't recognise the kind will
+ * treat the suggestion as informational (same as needs_user_input).
+ */
+export type SuggestionKind =
+  | "archive_bulk"
+  | "create_filter"
+  | "needs_user_input"
+  | "mark_read";
+
 export interface TriageSuggestion {
-  kind: "archive_bulk" | "create_filter" | "needs_user_input";
+  kind: SuggestionKind;
   title: string;
   rationale: string;
   confidence: "low" | "medium" | "high";
@@ -140,7 +154,7 @@ export async function generateTriageSuggestions(
   }
 
   // Sanitize: ensure every suggestion has required fields
-  const validKinds = new Set(["archive_bulk", "create_filter", "needs_user_input"]);
+  const validKinds = new Set(["archive_bulk", "create_filter", "needs_user_input", "mark_read"]);
   const validConfidences = new Set(["low", "medium", "high"]);
 
   parsed.suggestions = parsed.suggestions.filter((s) => {

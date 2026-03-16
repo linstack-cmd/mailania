@@ -125,6 +125,62 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
 
   console.log("[DB] Suggestion feedback table ready");
 
+  // --- Suggestion conversation (chat threads per suggestion) ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "suggestion_conversation" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "run_id" UUID NOT NULL,
+      "suggestion_index" INT NOT NULL,
+      "session_id" VARCHAR NOT NULL,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await _pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_suggestion_conversation_unique"
+    ON "suggestion_conversation" ("run_id", "suggestion_index", "session_id")
+  `);
+
+  console.log("[DB] Suggestion conversation table ready");
+
+  // --- Suggestion messages (chat messages within a conversation) ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "suggestion_message" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "conversation_id" UUID NOT NULL REFERENCES "suggestion_conversation"("id") ON DELETE CASCADE,
+      "role" VARCHAR(16) NOT NULL,
+      "content" TEXT NOT NULL,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_suggestion_message_conversation"
+    ON "suggestion_message" ("conversation_id", "created_at" ASC)
+  `);
+
+  console.log("[DB] Suggestion message table ready");
+
+  // --- Suggestion revisions (revised suggestion JSON from chat) ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "suggestion_revision" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "conversation_id" UUID NOT NULL REFERENCES "suggestion_conversation"("id") ON DELETE CASCADE,
+      "revision_index" INT NOT NULL,
+      "suggestion_json" JSONB NOT NULL,
+      "source" VARCHAR(16) NOT NULL DEFAULT 'llm',
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_suggestion_revision_conversation"
+    ON "suggestion_revision" ("conversation_id", "revision_index" DESC)
+  `);
+
+  console.log("[DB] Suggestion revision table ready");
+
   return _pool;
 }
 

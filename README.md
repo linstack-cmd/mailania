@@ -490,6 +490,58 @@ The triage suggestion detail modal includes an **⚡ Execute** button for `archi
 
 ---
 
+## Suggestion Chat & Revision (v1)
+
+Users can discuss individual suggestions with an AI agent directly on the suggestion detail page. Conversations are persisted in the database and used to generate revised suggestions.
+
+### Data Model
+
+| Table | Purpose |
+|---|---|
+| `suggestion_conversation` | One row per (run_id, suggestion_index, session_id). Links chat threads to specific suggestions. |
+| `suggestion_message` | Individual chat messages (role: user/assistant/system). Ordered by created_at. |
+| `suggestion_revision` | Revised suggestion JSON produced after each chat exchange. Tracks revision_index and source (llm/manual). |
+
+All tables are created idempotently at startup in `db.ts`.
+
+### API Endpoints
+
+**`GET /api/suggestions/:runId/:index/chat`**
+Returns the conversation, messages, latest revision, and original suggestion. Returns `null` conversation if no chat exists yet.
+
+**`POST /api/suggestions/:runId/:index/chat`**
+Body: `{ "message": "user text" }`
+Appends the user message, generates an assistant response, computes a revised suggestion, persists everything, and returns the full state.
+
+### Revision Behavior
+
+- The revision engine receives the original suggestion + full chat transcript and outputs a revised suggestion.
+- The `kind` field can change (e.g., `archive_bulk` → `mark_read`) if the user expresses preference.
+- `mark_read` is a new suggestion kind added in v1: marks messages as read without archiving. Backward-compatible — older UI code that doesn't recognize it will treat the suggestion as informational.
+- Revisions are append-only; each chat exchange produces a new revision with incrementing `revision_index`.
+- Source is `'llm'` for agent-generated revisions (future: `'manual'` for user overrides).
+
+### UI
+
+The suggestion detail page includes a chat panel below the suggestion details:
+- Message list with user/assistant bubbles
+- Text input with Enter-to-send
+- Revised suggestion banner showing updated title, rationale, and action change indicator
+- Loading and error states handled
+
+### When to Add RAG (Future)
+
+v1 uses direct transcript context — the full chat history is sent to the LLM on each turn. This works well for short conversations (< ~20 messages). Consider adding RAG when:
+
+- **Cross-thread retrieval**: user references decisions from other suggestion conversations
+- **Large history summarization**: single conversation exceeds ~8k tokens of transcript
+- **Pattern learning**: the system should learn user preferences across sessions (e.g., "always mark newsletter X as read")
+- **Multi-session memory**: conversations span multiple login sessions
+
+Implementation path: embed messages with a vector model, store in pgvector, retrieve relevant context instead of full transcript.
+
+---
+
 ## Notes
 
 - Uses `gmail.readonly`, `gmail.modify`, and `gmail.settings.basic` scopes — read-only by default, mutations only through approval tokens
