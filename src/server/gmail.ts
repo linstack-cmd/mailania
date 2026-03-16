@@ -93,14 +93,21 @@ export async function getMessage(
   };
 }
 
+export interface SearchMessagesResult {
+  messages: InboxMessage[];
+  count: number;
+  resultSizeEstimate: number | null;
+}
+
 /**
  * Search messages with a Gmail query string.
+ * Returns messages along with count (page length) and Gmail's resultSizeEstimate.
  */
 export async function searchMessages(
   auth: OAuth2Client,
   query: string,
   maxResults: number = 25,
-): Promise<InboxMessage[]> {
+): Promise<SearchMessagesResult> {
   const gmail = google.gmail({ version: "v1", auth });
 
   const res = await gmail.users.messages.list({
@@ -110,6 +117,7 @@ export async function searchMessages(
   });
 
   const messages = res.data.messages ?? [];
+  const resultSizeEstimate = res.data.resultSizeEstimate ?? null;
 
   const details = await Promise.all(
     messages.map(async (msg) => {
@@ -133,7 +141,11 @@ export async function searchMessages(
     }),
   );
 
-  return details;
+  return {
+    messages: details,
+    count: details.length,
+    resultSizeEstimate,
+  };
 }
 
 // ---------------------------------------------------------------------------

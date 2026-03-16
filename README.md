@@ -379,7 +379,7 @@ Mailania exposes structured JSON endpoints under `/api/tools/` for both read-onl
 |---|---|---|
 | `/api/tools/list_inbox` | POST | List inbox messages. Body: `{ maxResults?: number }` |
 | `/api/tools/get_message` | POST | Get single message by ID. Body: `{ messageId: string }` |
-| `/api/tools/search_messages` | POST | Search with Gmail query. Body: `{ query: string, maxResults?: number }` |
+| `/api/tools/search_messages` | POST | Search with Gmail query. Body: `{ query: string, maxResults?: number }`. Returns `{ messages, count, resultSizeEstimate }` — `count` is the returned page length, `resultSizeEstimate` is Gmail's total match estimate (null in local dev mode). |
 | `/api/tools/draft_filter_rule` | POST | Draft a filter rule (no mutation). Body: `{ from?, subject?, hasTheWord?, label?, archive?, markRead? }` |
 | `/api/tools/draft_bulk_action_plan` | POST | Draft a bulk action plan. Body: `{ action: "archive"\|"label"\|"unarchive", messageIds: [...], rationale: string, label?: string }` |
 | `/api/tools/save_suggestion_feedback` | POST | Save thumbs up/down. Body: `{ runId?: string, suggestionIndex: number, vote: "up"\|"down", note?: string }` |

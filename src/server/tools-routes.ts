@@ -145,16 +145,24 @@ export function createToolsRouter(): Router {
             m.subject.toLowerCase().includes(q) ||
             m.from.toLowerCase().includes(q) ||
             m.snippet.toLowerCase().includes(q),
-        );
-        res.json({ messages: results.slice(0, maxResults ?? 25) });
+        ).slice(0, maxResults ?? 25);
+        res.json({
+          messages: results,
+          count: results.length,
+          resultSizeEstimate: null,
+        });
         return;
       }
 
       const auth = loadToken(req);
       if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
 
-      const messages = await searchMessages(auth, query, maxResults ?? 25);
-      res.json({ messages });
+      const result = await searchMessages(auth, query, maxResults ?? 25);
+      res.json({
+        messages: result.messages,
+        count: result.count,
+        resultSizeEstimate: result.resultSizeEstimate,
+      });
     } catch (err: any) {
       console.error("[tools/search_messages]", err);
       res.status(500).json({ error: "Failed to search messages", detail: err.message });
