@@ -114,7 +114,7 @@ export default function App() {
   // --- Loading state ---
   if (authenticated === null || (loading && authenticated)) {
     return (
-      <div className={css({ maxWidth: "1400px", margin: "0 auto", padding: (t) => `${t.spacing(6)} ${t.spacing(4)}` })}>
+      <div className={css((t) => ({ maxWidth: "1400px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(4)}` }))}>
         <div className={css((t) => ({ paddingBottom: t.spacing(4), marginBottom: t.spacing(4), borderBottom: `2px solid ${t.colors.border}` }))}>
           <SkeletonLine width="180px" height="24px" />
         </div>
@@ -128,7 +128,7 @@ export default function App() {
   // --- Login screen ---
   if (!authenticated) {
     return (
-      <div className={css({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: (t) => t.spacing(4) })}>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
         <h1 className={css({ fontSize: "2rem", fontWeight: "700" })}>📬 Mailania</h1>
         <p className={css((t) => ({ color: t.colors.textMuted }))}>
           Sign in with Google to view your inbox.
@@ -156,7 +156,7 @@ export default function App() {
 
   // --- Main authenticated view ---
   return (
-    <div className={css({ maxWidth: "1400px", margin: "0 auto", padding: (t) => `${t.spacing(6)} ${t.spacing(5)}` })}>
+    <div className={css((t) => ({ maxWidth: "1400px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
       {/* Header */}
       <header
         className={css((t) => ({
@@ -171,7 +171,7 @@ export default function App() {
         <h1 className={css({ fontSize: "1.5rem", fontWeight: "700" })}>
           📬 Mailania
         </h1>
-        <div className={css({ display: "flex", gap: (t) => t.spacing(3) })}>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(3) }))}>
           <button
             onClick={fetchInbox}
             className={css((t) => ({
@@ -230,14 +230,14 @@ export default function App() {
 
       {/* 2-column layout: TRIAGE primary (left, wider) + INBOX secondary (right, narrower) */}
       <div
-        className={css({
+        className={css((t) => ({
           display: "flex",
-          gap: (t) => t.spacing(5),
+          gap: t.spacing(5),
           alignItems: "flex-start",
           "@media (max-width: 960px)": {
             flexDirection: "column",
           },
-        })}
+        }))}
       >
         {/* Triage column — PRIMARY focus, takes majority of space */}
         {!loading && (
@@ -364,7 +364,7 @@ export default function App() {
                     padding: `${t.spacing(8)} ${t.spacing(4)}`,
                   }))}
                 >
-                  <div className={css({ fontSize: "2rem", marginBottom: (t) => t.spacing(2) })}>🎉</div>
+                  <div className={css((t) => ({ fontSize: "2rem", marginBottom: t.spacing(2) }))}>🎉</div>
                   <p className={css({ fontWeight: "600", fontSize: "0.95rem" })}>Inbox zero!</p>
                   <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.85rem", marginTop: t.spacing(1) }))}>
                     Check back later or run triage.
@@ -436,23 +436,23 @@ const msgFromReadClass = css({
   minWidth: 0,
 });
 
-const msgSubjectUnreadClass = css({
+const msgSubjectUnreadClass = css((t) => ({
   fontSize: "0.88rem",
   fontWeight: "600",
-  marginTop: (t) => t.spacing(0.5),
+  marginTop: t.spacing(0.5),
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-});
+}));
 
-const msgSubjectReadClass = css({
+const msgSubjectReadClass = css((t) => ({
   fontSize: "0.88rem",
   fontWeight: "400",
-  marginTop: (t) => t.spacing(0.5),
+  marginTop: t.spacing(0.5),
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
-});
+}));
 
 const msgSnippetUnreadClass = css((t) => ({
   color: t.colors.textMuted,
@@ -489,7 +489,7 @@ function MessageRow({ msg }: { msg: InboxMessage }) {
         {isUnread && <div className={unreadDotClass} />}
       </div>
       <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
-        <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: (t) => t.spacing(2) })}>
+        <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2) }))}>
           <span className={isUnread ? msgFromUnreadClass : msgFromReadClass}>
             {formatFrom(msg.from)}
           </span>

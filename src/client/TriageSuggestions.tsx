@@ -164,7 +164,7 @@ export default function TriageSuggestions({
   return (
     <section>
       {/* Header row */}
-      <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: (t) => t.spacing(3) })}>
+      <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: t.spacing(3) }))}>
         <div>
           <h2 className={css({ fontSize: "1.25rem", fontWeight: "700", margin: "0" })}>🧹 Triage Suggestions</h2>
           <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
@@ -252,7 +252,7 @@ export default function TriageSuggestions({
             marginTop: t.spacing(4),
           }))}
         >
-          <div className={css({ fontSize: "2.5rem", marginBottom: (t) => t.spacing(2) })}>✨</div>
+          <div className={css((t) => ({ fontSize: "2.5rem", marginBottom: t.spacing(2) }))}>✨</div>
           <p className={css({ fontWeight: "600", fontSize: "1.05rem" })}>Your inbox looks good!</p>
           <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", marginTop: t.spacing(1) }))}>
             No suggestions right now — check back later.
@@ -394,7 +394,7 @@ function SuggestionCard({
       style={isReviewed ? { borderColor: "#10b981", background: "#f0fdf4" } : undefined}
     >
       {/* Top row: kind badge + confidence pill */}
-      <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: (t) => t.spacing(2) })}>
+      <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: t.spacing(2) }))}>
         <span
           className={css((t) => ({
             display: "inline-flex",
@@ -455,7 +455,7 @@ function SuggestionCard({
           gap: t.spacing(2),
         }))}
       >
-        <div className={css({ display: "flex", alignItems: "center", gap: (t) => t.spacing(2) })}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
           {msgCount > 0 && (
             <span className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted }))}>
               {msgCount} message{msgCount !== 1 ? "s" : ""}
@@ -575,7 +575,7 @@ function SuggestionDetailModal({
         >
           <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
             {/* Kind + confidence */}
-            <div className={css({ display: "flex", alignItems: "center", gap: (t) => t.spacing(2), flexWrap: "wrap" })}>
+            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), flexWrap: "wrap" }))}>
               <span
                 className={css((t) => ({
                   display: "inline-flex",
@@ -665,7 +665,7 @@ function SuggestionDetailModal({
                       fontSize: "0.85rem",
                     }))}
                   >
-                    <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: (t) => t.spacing(2) })}>
+                    <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2) }))}>
                       <span className={css({ fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 })}>
                         {msg.from.match(/^"?([^"<]+)"?\s*</)?.[1]?.trim() ?? msg.from}
                       </span>
@@ -1022,7 +1022,7 @@ function ApprovalConfirmModal({
         }))}
       >
         {/* Header */}
-        <div className={css({ display: "flex", alignItems: "center", gap: (t) => t.spacing(2) })}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
           <span className={css({ fontSize: "1.4rem" })}>{kindInfo.icon}</span>
           <h3 className={css({ fontSize: "1.1rem", fontWeight: "700", margin: 0, lineHeight: "1.3" })}>
             Confirm: {suggestion.title}
