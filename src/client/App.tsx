@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
+import TriageSuggestions from "./TriageSuggestions";
 
 interface InboxMessage {
   id: string;
@@ -223,6 +224,9 @@ export default function App() {
             </div>
           </div>
         ))}
+
+      {/* Triage Suggestions */}
+      {!loading && <TriageSuggestions onAuthLost={() => { setAuthenticated(false); setMessages([]); }} />}
     </div>
   );
 }
