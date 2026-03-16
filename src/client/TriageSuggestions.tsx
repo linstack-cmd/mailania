@@ -89,6 +89,7 @@ export default function TriageSuggestions({
   const [error, setError] = useState<string | null>(null);
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Build messageId → subject lookup from inbox
   const subjectMap = new Map<string, string>();
@@ -257,11 +258,46 @@ export default function TriageSuggestions({
               subjectMap={subjectMap}
               isReviewed={reviewedIds.has(i)}
               onMarkReviewed={() => markReviewed(i)}
+              onToast={setToastMsg}
             />
           ))}
         </div>
       )}
+
+      {/* Toast */}
+      {toastMsg && <Toast message={toastMsg} onDone={() => setToastMsg(null)} />}
     </section>
+  );
+}
+
+// --- Toast component ---
+function Toast({ message, onDone }: { message: string; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2500);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  return (
+    <div
+      className={css((t) => ({
+        position: "fixed",
+        bottom: "24px",
+        left: "50%",
+        transform: "translateX(-50%)",
+        background: "#1e293b",
+        color: "#fff",
+        padding: `${t.spacing(3)} ${t.spacing(5)}`,
+        borderRadius: t.radius,
+        fontSize: "0.88rem",
+        fontWeight: "500",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+        zIndex: 9999,
+        animation: "toast-in 0.25s ease-out",
+        pointerEvents: "none",
+      }))}
+    >
+      {message}
+    </div>
   );
 }
 
@@ -270,11 +306,13 @@ function SuggestionCard({
   subjectMap,
   isReviewed,
   onMarkReviewed,
+  onToast,
 }: {
   suggestion: TriageSuggestion;
   subjectMap: Map<string, string>;
   isReviewed: boolean;
   onMarkReviewed: () => void;
+  onToast: (msg: string) => void;
 }) {
   const kindInfo = KIND_LABELS[s.kind];
   const confStyle = CONFIDENCE_STYLES[s.confidence] ?? CONFIDENCE_STYLES.low;
@@ -288,16 +326,19 @@ function SuggestionCard({
   return (
     <div
       tabIndex={0}
+      role="article"
+      aria-label={s.title}
       className={css((t) => ({
         padding: t.spacing(4),
         border: `1px solid ${t.colors.border}`,
         borderRadius: t.radius,
         background: t.colors.bg,
         boxShadow: t.shadow,
-        transition: "border-color 0.2s, background 0.2s",
+        transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
         "&:focus-visible": {
           outline: `2px solid ${t.colors.primary}`,
           outlineOffset: "2px",
+          boxShadow: "0 0 0 4px rgba(37,99,235,0.12)",
         },
       }))}
       style={isReviewed ? { borderColor: "#10b981", background: "#f0fdf4" } : undefined}
@@ -432,6 +473,7 @@ function SuggestionCard({
         </button>
         {s.kind !== "needs_user_input" && (
           <button
+            onClick={() => onToast(`📋 Previewing: ${s.title}`)}
             className={css((t) => ({
               padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
               border: `1px solid ${t.colors.border}`,
@@ -451,6 +493,7 @@ function SuggestionCard({
         )}
         {s.kind === "needs_user_input" && (
           <button
+            onClick={() => onToast("✏️ Draft response — coming soon!")}
             className={css((t) => ({
               padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
               border: `1px solid ${t.colors.primary}`,

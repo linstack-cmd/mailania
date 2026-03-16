@@ -305,11 +305,21 @@ export default function App() {
               top: (t) => t.spacing(4),
               maxHeight: "calc(100vh - 120px)",
               overflowY: "auto",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#d1d5db transparent",
+              maskImage: "linear-gradient(to bottom, black calc(100% - 32px), transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, black calc(100% - 32px), transparent 100%)",
+              "&:hover": {
+                maskImage: "none",
+                WebkitMaskImage: "none",
+              },
               "@media (max-width: 860px)": {
                 flex: "1 1 auto",
                 position: "static",
                 maxHeight: "none",
                 width: "100%",
+                maskImage: "none",
+                WebkitMaskImage: "none",
               },
             })}
           >
@@ -336,8 +346,12 @@ const msgRowClass = css((t) => ({
   alignItems: "flex-start",
   gap: t.spacing(3),
   minHeight: "64px",
-  transition: "background 0.12s",
-  "&:hover": { background: t.colors.bgAlt },
+  transition: "background 0.15s, border-left-color 0.15s",
+  borderLeft: "3px solid transparent",
+  "&:hover": {
+    background: "#eef2ff",
+    borderLeftColor: t.colors.primary,
+  },
   "&:focus-visible": {
     outline: `2px solid ${t.colors.primary}`,
     outlineOffset: "-2px",
