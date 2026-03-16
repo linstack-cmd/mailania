@@ -7,6 +7,7 @@ export interface InboxMessage {
   from: string;
   date: string;
   snippet: string;
+  isRead?: boolean;
 }
 
 function getHeader(

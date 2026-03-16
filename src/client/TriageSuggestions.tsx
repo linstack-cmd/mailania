@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
 
+interface InboxMessage {
+  id: string;
+  subject: string;
+  from: string;
+  date: string;
+  snippet: string;
+  isRead?: boolean;
+}
+
 interface FilterDraft {
   from?: string;
   subjectContains?: string;
@@ -25,18 +34,67 @@ const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label: strin
   needs_user_input: { icon: "❓", label: "Needs Input" },
 };
 
-const CONFIDENCE_COLORS: Record<string, string> = {
-  high: "#10b981",
-  medium: "#f59e0b",
-  low: "#ef4444",
+const CONFIDENCE_STYLES: Record<string, { bg: string; text: string }> = {
+  high: { bg: "#ecfdf5", text: "#065f46" },
+  medium: { bg: "#fffbeb", text: "#92400e" },
+  low: { bg: "#fef2f2", text: "#991b1b" },
 };
 
-export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => void }) {
+// --- Skeleton shimmer (keyframes in styles.css) ---
+const skeletonLineClass = css({
+  borderRadius: "4px",
+  background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+  backgroundSize: "200px 100%",
+  animation: "skeleton-shimmer 1.5s ease-in-out infinite",
+});
+
+function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; height?: string }) {
+  return <div className={skeletonLineClass} style={{ width, height }} />;
+}
+
+function TriageSkeletonCard() {
+  return (
+    <div
+      className={css((t) => ({
+        padding: t.spacing(4),
+        border: `1px solid ${t.colors.borderLight}`,
+        borderRadius: t.radius,
+        display: "flex",
+        flexDirection: "column",
+        gap: t.spacing(3),
+        animation: "skeleton-pulse 2s ease-in-out infinite",
+      }))}
+    >
+      <div className={css({ display: "flex", justifyContent: "space-between" })}>
+        <SkeletonLine width="80px" height="14px" />
+        <SkeletonLine width="100px" height="14px" />
+      </div>
+      <SkeletonLine width="85%" height="16px" />
+      <SkeletonLine width="100%" height="11px" />
+      <SkeletonLine width="60%" height="11px" />
+    </div>
+  );
+}
+
+export default function TriageSuggestions({
+  messages,
+  onAuthLost,
+}: {
+  messages: InboxMessage[];
+  onAuthLost: () => void;
+}) {
   const [suggestions, setSuggestions] = useState<TriageSuggestion[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+  const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
+
+  // Build messageId → subject lookup from inbox
+  const subjectMap = new Map<string, string>();
+  for (const m of messages) {
+    subjectMap.set(m.id, m.subject);
+  }
 
   // Load persisted suggestions on mount
   useEffect(() => {
@@ -68,6 +126,7 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
     setError(null);
     setSuggestions(null);
     setLastRunAt(null);
+    setReviewedIds(new Set());
     try {
       const res = await fetch("/api/triage/suggest", { method: "POST" });
       if (res.status === 401) {
@@ -88,18 +147,21 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
     }
   }
 
+  function markReviewed(index: number) {
+    setReviewedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
   return (
-    <section
-      className={css((t) => ({
-        marginTop: t.spacing(6),
-        paddingTop: t.spacing(4),
-        borderTop: `2px solid ${t.colors.border}`,
-      }))}
-    >
+    <section>
       {/* Header row */}
       <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: (t) => t.spacing(3) })}>
         <div>
-          <h2 className={css({ fontSize: "1.15rem", fontWeight: "700", margin: "0" })}>🧹 Triage Suggestions</h2>
+          <h2 className={css({ fontSize: "1.15rem", fontWeight: "700", margin: "0" })}>🧹 Triage</h2>
           {lastRunAt && !loading && (
             <p className={css((t) => ({ fontSize: "0.75rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
               Last run: {new Date(lastRunAt).toLocaleString()}
@@ -114,7 +176,7 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
               padding: `${t.spacing(2)} ${t.spacing(4)}`,
               border: "none",
               borderRadius: t.radiusSm,
-              fontSize: "0.9rem",
+              fontSize: "0.85rem",
               fontWeight: "600",
               transition: "background 0.15s",
             })),
@@ -123,7 +185,7 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
               : css((t) => ({ background: t.colors.primary, color: "#fff", cursor: "pointer", "&:hover": { background: t.colors.primaryHover } })),
           ].join(" ")}
         >
-          {loading ? "Analyzing…" : suggestions ? "Regenerate" : "Generate Triage Suggestions"}
+          {loading ? "Analyzing…" : suggestions ? "Regenerate" : "Generate Triage"}
         </button>
       </div>
 
@@ -137,24 +199,39 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
             borderRadius: t.radius,
             color: t.colors.error,
             fontSize: "0.9rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: t.spacing(3),
           }))}
         >
-          {error}
+          <span>{error}</span>
+          <button
+            onClick={fetchSuggestions}
+            className={css((t) => ({
+              padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+              border: `1px solid ${t.colors.error}`,
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: t.colors.error,
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              fontWeight: "600",
+              flexShrink: 0,
+              "&:hover": { background: "rgba(239,68,68,0.08)" },
+            }))}
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <p
-          className={css((t) => ({
-            textAlign: "center",
-            padding: t.spacing(8),
-            color: t.colors.textMuted,
-            fontSize: "0.95rem",
-          }))}
-        >
-          Analyzing your inbox — this may take a moment…
-        </p>
+      {/* Loading skeleton */}
+      {(loading || initialLoading) && (
+        <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3), marginTop: t.spacing(4) }))}>
+          <TriageSkeletonCard />
+          <TriageSkeletonCard />
+        </div>
       )}
 
       {/* Empty result */}
@@ -174,7 +251,13 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
       {suggestions && suggestions.length > 0 && !loading && (
         <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3), marginTop: t.spacing(4) }))}>
           {suggestions.map((s, i) => (
-            <SuggestionCard key={i} suggestion={s} />
+            <SuggestionCard
+              key={i}
+              suggestion={s}
+              subjectMap={subjectMap}
+              isReviewed={reviewedIds.has(i)}
+              onMarkReviewed={() => markReviewed(i)}
+            />
           ))}
         </div>
       )}
@@ -182,21 +265,44 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
   );
 }
 
-function SuggestionCard({ suggestion: s }: { suggestion: TriageSuggestion }) {
+function SuggestionCard({
+  suggestion: s,
+  subjectMap,
+  isReviewed,
+  onMarkReviewed,
+}: {
+  suggestion: TriageSuggestion;
+  subjectMap: Map<string, string>;
+  isReviewed: boolean;
+  onMarkReviewed: () => void;
+}) {
   const kindInfo = KIND_LABELS[s.kind];
-  const confColor = CONFIDENCE_COLORS[s.confidence] ?? CONFIDENCE_COLORS.low;
+  const confStyle = CONFIDENCE_STYLES[s.confidence] ?? CONFIDENCE_STYLES.low;
+
+  // Resolve messageIds to subject previews where available
+  const messageSubjects = s.messageIds
+    ?.map((id) => subjectMap.get(id))
+    .filter((subj): subj is string => !!subj)
+    .map((subj) => (subj.length > 45 ? subj.slice(0, 42) + "…" : subj));
 
   return (
     <div
+      tabIndex={0}
       className={css((t) => ({
         padding: t.spacing(4),
         border: `1px solid ${t.colors.border}`,
         borderRadius: t.radius,
         background: t.colors.bg,
         boxShadow: t.shadow,
+        transition: "border-color 0.2s, background 0.2s",
+        "&:focus-visible": {
+          outline: `2px solid ${t.colors.primary}`,
+          outlineOffset: "2px",
+        },
       }))}
+      style={isReviewed ? { borderColor: "#10b981", background: "#f0fdf4" } : undefined}
     >
-      {/* Top row: kind badge + confidence */}
+      {/* Top row: kind badge + confidence pill */}
       <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: (t) => t.spacing(2) })}>
         <span
           className={css((t) => ({
@@ -213,10 +319,17 @@ function SuggestionCard({ suggestion: s }: { suggestion: TriageSuggestion }) {
           {kindInfo.icon} {kindInfo.label}
         </span>
         <span
-          className={css({ fontSize: "0.7rem", fontWeight: "700", textTransform: "uppercase" })}
-          style={{ color: confColor }}
+          className={css({
+            fontSize: "0.75rem",
+            fontWeight: "700",
+            textTransform: "uppercase",
+            padding: "2px 10px",
+            borderRadius: "999px",
+            letterSpacing: "0.02em",
+          })}
+          style={{ background: confStyle.bg, color: confStyle.text }}
         >
-          {s.confidence} confidence
+          {s.confidence}
         </span>
       </div>
 
@@ -226,14 +339,23 @@ function SuggestionCard({ suggestion: s }: { suggestion: TriageSuggestion }) {
       {/* Rationale */}
       <p className={css((t) => ({ fontSize: "0.88rem", color: t.colors.textMuted, marginTop: t.spacing(1), lineHeight: "1.5" }))}>{s.rationale}</p>
 
-      {/* Message IDs */}
+      {/* Message references — show subjects if available, otherwise IDs */}
       {s.messageIds && s.messageIds.length > 0 && (
         <div className={css((t) => ({ marginTop: t.spacing(3), fontSize: "0.82rem", color: t.colors.textMuted }))}>
           <strong>{s.messageIds.length} message{s.messageIds.length !== 1 ? "s" : ""}</strong>
-          <span className={css((t) => ({ marginLeft: t.spacing(1), fontFamily: "monospace", fontSize: "0.75rem" }))}>
-            ({s.messageIds.slice(0, 5).join(", ")}
-            {s.messageIds.length > 5 ? `, +${s.messageIds.length - 5} more` : ""})
-          </span>
+          {messageSubjects && messageSubjects.length > 0 ? (
+            <ul className={css((t) => ({ margin: `${t.spacing(1)} 0 0`, paddingLeft: t.spacing(4), fontSize: "0.8rem", lineHeight: "1.6" }))}>
+              {messageSubjects.slice(0, 5).map((subj, i) => (
+                <li key={i}>{subj}</li>
+              ))}
+              {messageSubjects.length > 5 && <li>+{messageSubjects.length - 5} more</li>}
+            </ul>
+          ) : (
+            <span className={css((t) => ({ marginLeft: t.spacing(1), fontFamily: "monospace", fontSize: "0.75rem" }))}>
+              ({s.messageIds.slice(0, 5).join(", ")}
+              {s.messageIds.length > 5 ? `, +${s.messageIds.length - 5} more` : ""})
+            </span>
+          )}
         </div>
       )}
 
@@ -277,6 +399,75 @@ function SuggestionCard({ suggestion: s }: { suggestion: TriageSuggestion }) {
           ))}
         </ul>
       )}
+
+      {/* Action affordances — local UI state only, no Gmail mutations */}
+      <div
+        className={css((t) => ({
+          marginTop: t.spacing(3),
+          paddingTop: t.spacing(3),
+          borderTop: `1px solid ${t.colors.borderLight}`,
+          display: "flex",
+          alignItems: "center",
+          gap: t.spacing(2),
+          flexWrap: "wrap",
+        }))}
+      >
+        <button
+          onClick={onMarkReviewed}
+          className={css((t) => ({
+            padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+            border: `1px solid ${t.colors.border}`,
+            borderRadius: t.radiusSm,
+            background: "transparent",
+            color: t.colors.text,
+            cursor: "pointer",
+            fontSize: "0.82rem",
+            fontWeight: "600",
+            transition: "all 0.15s",
+            "&:hover": { background: t.colors.bgAlt },
+          }))}
+          style={isReviewed ? { borderColor: "#10b981", background: "#ecfdf5", color: "#10b981" } : undefined}
+        >
+          {isReviewed ? "✓ Reviewed" : "Mark reviewed"}
+        </button>
+        {s.kind !== "needs_user_input" && (
+          <button
+            className={css((t) => ({
+              padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+              border: `1px solid ${t.colors.border}`,
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: t.colors.textMuted,
+              cursor: "pointer",
+              fontSize: "0.82rem",
+              fontWeight: "500",
+              transition: "background 0.15s",
+              "&:hover": { background: t.colors.bgAlt },
+            }))}
+            title="Preview what this action would do (no changes applied)"
+          >
+            Review suggestion
+          </button>
+        )}
+        {s.kind === "needs_user_input" && (
+          <button
+            className={css((t) => ({
+              padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+              border: `1px solid ${t.colors.primary}`,
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: t.colors.primary,
+              cursor: "pointer",
+              fontSize: "0.82rem",
+              fontWeight: "600",
+              transition: "background 0.15s",
+              "&:hover": { background: "rgba(37,99,235,0.06)" },
+            }))}
+          >
+            Draft response
+          </button>
+        )}
+      </div>
     </div>
   );
 }

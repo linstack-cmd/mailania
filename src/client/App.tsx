@@ -8,6 +8,7 @@ interface InboxMessage {
   from: string;
   date: string;
   snippet: string;
+  isRead?: boolean;
 }
 
 function formatFrom(raw: string): string {
@@ -28,6 +29,40 @@ function formatDate(raw: string): string {
   } catch {
     return raw;
   }
+}
+
+// --- Skeleton shimmer (keyframes defined in styles.css) ---
+const skeletonLineClass = css({
+  borderRadius: "4px",
+  background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+  backgroundSize: "200px 100%",
+  animation: "skeleton-shimmer 1.5s ease-in-out infinite",
+});
+
+function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; height?: string }) {
+  return <div className={skeletonLineClass} style={{ width, height }} />;
+}
+
+function InboxSkeletonRow() {
+  return (
+    <div
+      className={css((t) => ({
+        padding: `${t.spacing(4)} ${t.spacing(4)}`,
+        borderBottom: `1px solid ${t.colors.borderLight}`,
+        display: "flex",
+        flexDirection: "column",
+        gap: t.spacing(2),
+        minHeight: "72px",
+      }))}
+    >
+      <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "center" })}>
+        <SkeletonLine width="35%" height="14px" />
+        <SkeletonLine width="60px" height="12px" />
+      </div>
+      <SkeletonLine width="70%" height="13px" />
+      <SkeletonLine width="90%" height="11px" />
+    </div>
+  );
 }
 
 export default function App() {
@@ -74,12 +109,21 @@ export default function App() {
     setMessages([]);
   }
 
+  const unreadCount = messages.filter((m) => m.isRead === false).length;
+
   // --- Render ---
 
   if (authenticated === null || (loading && authenticated)) {
     return (
-      <div className={css({ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" })}>
-        <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "1.1rem" }))}>Loading…</p>
+      <div className={css({ maxWidth: "1200px", margin: "0 auto", padding: (t) => `${t.spacing(6)} ${t.spacing(4)}` })}>
+        {/* Skeleton header */}
+        <div className={css((t) => ({ paddingBottom: t.spacing(4), marginBottom: t.spacing(4), borderBottom: `2px solid ${t.colors.border}` }))}>
+          <SkeletonLine width="180px" height="24px" />
+        </div>
+        {/* Skeleton inbox rows */}
+        {Array.from({ length: 5 }).map((_, i) => (
+          <InboxSkeletonRow key={i} />
+        ))}
       </div>
     );
   }
@@ -113,7 +157,7 @@ export default function App() {
   }
 
   return (
-    <div className={css({ maxWidth: "900px", margin: "0 auto", padding: (t) => `${t.spacing(6)} ${t.spacing(4)}` })}>
+    <div className={css({ maxWidth: "1200px", margin: "0 auto", padding: (t) => `${t.spacing(6)} ${t.spacing(4)}` })}>
       {/* Header */}
       <header
         className={css((t) => ({
@@ -138,6 +182,8 @@ export default function App() {
                 fontSize: "0.8rem",
                 verticalAlign: "middle",
               }))}
+              title={`${messages.length} messages${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+              aria-label={`${messages.length} messages${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
             >
               {messages.length}
             </span>
@@ -178,55 +224,229 @@ export default function App() {
 
       {/* Error */}
       {error && (
-        <div className={css((t) => ({ padding: t.spacing(4), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, marginBottom: t.spacing(4) }))}>
-          {error}
+        <div className={css((t) => ({ padding: t.spacing(4), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, marginBottom: t.spacing(4), display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3) }))}>
+          <span>{error}</span>
+          <button
+            onClick={fetchInbox}
+            className={css((t) => ({
+              padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+              border: `1px solid ${t.colors.error}`,
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: t.colors.error,
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              fontWeight: "600",
+              flexShrink: 0,
+              "&:hover": { background: "rgba(239,68,68,0.08)" },
+            }))}
+          >
+            Retry
+          </button>
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <p className={css((t) => ({ textAlign: "center", padding: t.spacing(8), color: t.colors.textMuted }))}>
-          Loading inbox…
-        </p>
-      )}
+      {/* 2-column layout: inbox + triage on desktop */}
+      <div
+        className={css({
+          display: "flex",
+          gap: (t) => t.spacing(5),
+          alignItems: "flex-start",
+          "@media (max-width: 860px)": {
+            flexDirection: "column",
+          },
+        })}
+      >
+        {/* Inbox column */}
+        <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
+          {/* Loading skeleton */}
+          {loading && (
+            <div>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <InboxSkeletonRow key={i} />
+              ))}
+            </div>
+          )}
 
-      {/* Empty */}
-      {!loading && messages.length === 0 && !error && (
-        <p className={css((t) => ({ textAlign: "center", padding: t.spacing(8), color: t.colors.textMuted }))}>
-          Your inbox is empty.
-        </p>
-      )}
+          {/* Empty */}
+          {!loading && messages.length === 0 && !error && (
+            <div
+              className={css((t) => ({
+                textAlign: "center",
+                padding: `${t.spacing(10)} ${t.spacing(4)}`,
+                background: t.colors.bgAlt,
+                borderRadius: t.radius,
+              }))}
+            >
+              <div className={css({ fontSize: "2.5rem", marginBottom: (t) => t.spacing(3) })}>🎉</div>
+              <p className={css({ fontWeight: "600", fontSize: "1.05rem" })}>Inbox zero — nice work!</p>
+              <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.9rem", marginTop: t.spacing(2) }))}>
+                Check back later or run triage on your older messages.
+              </p>
+            </div>
+          )}
 
-      {/* Messages */}
-      {!loading &&
-        messages.map((msg) => (
+          {/* Messages */}
+          {!loading && messages.length > 0 && (
+            <div role="list" aria-label="Inbox messages">
+              {messages.map((msg) => (
+                <MessageRow key={msg.id} msg={msg} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Triage column — visible alongside inbox on desktop */}
+        {!loading && (
           <div
-            key={msg.id}
-            className={css((t) => ({
-              padding: `${t.spacing(4)} 0`,
-              borderBottom: `1px solid ${t.colors.borderLight}`,
-              "&:last-child": { borderBottom: "none" },
-            }))}
+            className={css({
+              flex: "0 0 380px",
+              position: "sticky",
+              top: (t) => t.spacing(4),
+              maxHeight: "calc(100vh - 120px)",
+              overflowY: "auto",
+              "@media (max-width: 860px)": {
+                flex: "1 1 auto",
+                position: "static",
+                maxHeight: "none",
+                width: "100%",
+              },
+            })}
           >
-            <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: (t) => t.spacing(3) })}>
-              <span className={css({ fontWeight: "600", fontSize: "0.95rem" })}>
-                {formatFrom(msg.from)}
-              </span>
-              <span className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", flexShrink: "0" }))}>
-                {formatDate(msg.date)}
-              </span>
-            </div>
-            <div className={css({ fontSize: "0.95rem", marginTop: (t) => t.spacing(1) })}>
-              {msg.subject}
-            </div>
-            <div className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.85rem", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>
-              {msg.snippet}
-            </div>
+            <TriageSuggestions
+              messages={messages}
+              onAuthLost={() => {
+                setAuthenticated(false);
+                setMessages([]);
+              }}
+            />
           </div>
-        ))}
+        )}
+      </div>
+    </div>
+  );
+}
 
-      {/* Triage Suggestions */}
-      {!loading && <TriageSuggestions onAuthLost={() => { setAuthenticated(false); setMessages([]); }} />}
+// --- Pre-defined classes for message rows (Flow CSS is static) ---
+const msgRowClass = css((t) => ({
+  padding: `${t.spacing(3)} ${t.spacing(4)}`,
+  borderBottom: `1px solid ${t.colors.borderLight}`,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "flex-start",
+  gap: t.spacing(3),
+  minHeight: "64px",
+  transition: "background 0.12s",
+  "&:hover": { background: t.colors.bgAlt },
+  "&:focus-visible": {
+    outline: `2px solid ${t.colors.primary}`,
+    outlineOffset: "-2px",
+    borderRadius: t.radiusSm,
+  },
+  "&:last-child": { borderBottom: "none" },
+}));
+
+const unreadDotClass = css((t) => ({
+  width: "8px",
+  height: "8px",
+  borderRadius: "50%",
+  background: t.colors.primary,
+}));
+
+const msgFromUnreadClass = css({
+  fontWeight: "700",
+  fontSize: "0.95rem",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  minWidth: 0,
+});
+
+const msgFromReadClass = css({
+  fontWeight: "500",
+  fontSize: "0.95rem",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  minWidth: 0,
+});
+
+const msgSubjectUnreadClass = css({
+  fontSize: "0.95rem",
+  fontWeight: "600",
+  marginTop: (t) => t.spacing(1),
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+
+const msgSubjectReadClass = css({
+  fontSize: "0.95rem",
+  fontWeight: "400",
+  marginTop: (t) => t.spacing(1),
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+});
+
+const msgSnippetUnreadClass = css((t) => ({
+  color: t.colors.textMuted,
+  fontSize: "0.85rem",
+  marginTop: t.spacing(1),
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+}));
+
+const msgSnippetReadClass = css((t) => ({
+  color: "#9ca3af",
+  fontSize: "0.85rem",
+  marginTop: t.spacing(1),
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+}));
+
+const msgDateClass = css((t) => ({
+  color: t.colors.textMuted,
+  fontSize: "0.8rem",
+  flexShrink: 0,
+  minWidth: "56px",
+  textAlign: "right",
+  "@media (max-width: 480px)": {
+    fontSize: "0.75rem",
+    minWidth: "48px",
+  },
+}));
+
+// --- Message row component ---
+function MessageRow({ msg }: { msg: InboxMessage }) {
+  const isUnread = msg.isRead === false;
+
+  return (
+    <div role="listitem" tabIndex={0} className={msgRowClass}>
+      {/* Unread indicator */}
+      <div className={css({ width: "8px", flexShrink: 0, paddingTop: "6px" })}>
+        {isUnread && <div className={unreadDotClass} />}
+      </div>
+
+      {/* Message content */}
+      <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
+        <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: (t) => t.spacing(3) })}>
+          <span className={isUnread ? msgFromUnreadClass : msgFromReadClass}>
+            {formatFrom(msg.from)}
+          </span>
+          <span className={msgDateClass}>
+            {formatDate(msg.date)}
+          </span>
+        </div>
+        <div className={isUnread ? msgSubjectUnreadClass : msgSubjectReadClass}>
+          {msg.subject}
+        </div>
+        <div className={isUnread ? msgSnippetUnreadClass : msgSnippetReadClass}>
+          {msg.snippet}
+        </div>
+      </div>
     </div>
   );
 }
