@@ -529,6 +529,62 @@ The suggestion detail page includes a chat panel below the suggestion details:
 - Revised suggestion banner showing updated title, rationale, and action change indicator
 - Loading and error states handled
 
+### Tool-Calling in Chat
+
+The chat agent can call read-only Gmail tools during conversation to answer questions with concrete mailbox data. When a user asks about impact ("how many emails are affected?"), sender patterns, or specific messages, the model can query Gmail directly and respond with real counts and sample evidence.
+
+**How it works:**
+
+1. User sends a message in the suggestion chat
+2. The LLM receives the message along with tool definitions
+3. If the model decides it needs mailbox data, it emits a `tool_use` request
+4. The backend executes the tool server-side and feeds the result back to the model
+5. The model incorporates the tool result into its final response
+6. The loop repeats up to 5 rounds per user message (safety cap)
+
+**Allowed tools (read-only only):**
+
+| Tool | Description |
+|---|---|
+| `search_messages` | Search Gmail with query syntax. Returns messages + `resultSizeEstimate` (approximate total). |
+| `list_inbox` | List current inbox messages (most recent first). |
+| `get_message` | Get details for a single message by ID. |
+
+**Safety boundaries:**
+- Only read-only tools are in the allowlist — no mutations are callable from chat
+- The allowlist is enforced server-side at execution time (not just by prompt)
+- Tool-call loop is capped at 5 rounds to prevent runaway API usage
+- All tool executions are traced in the `chat_tool_trace` DB table for audit/debug
+- In local dev mode, tools return mock data (same as `/api/tools/*` endpoints)
+
+**Response payload:**
+The `POST /api/suggestions/:runId/:index/chat` response now includes a `toolsUsed` array:
+
+```json
+{
+  "assistantMessage": "I found approximately 47 emails from that sender...",
+  "toolsUsed": [
+    {
+      "tool": "search_messages",
+      "summary": "search \"from:noreply@github.com\": 25 returned, ~47 estimated",
+      "durationMs": 342
+    }
+  ],
+  ...
+}
+```
+
+**Database audit table:**
+
+| Column | Type | Description |
+|---|---|---|
+| `conversation_id` | UUID | Links to the suggestion conversation |
+| `tool_name` | VARCHAR(64) | Name of the tool called |
+| `args` | JSONB | Arguments passed to the tool |
+| `result_summary` | TEXT | Human-readable summary of the result |
+| `duration_ms` | INT | Execution time in milliseconds |
+| `created_at` | TIMESTAMPTZ | When the tool was called |
+
 ### When to Add RAG (Future)
 
 v1 uses direct transcript context — the full chat history is sent to the LLM on each turn. This works well for short conversations (< ~20 messages). Consider adding RAG when:

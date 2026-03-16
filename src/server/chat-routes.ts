@@ -8,12 +8,15 @@
 import { Router } from "express";
 import { getPool } from "./db.js";
 import { getConfig } from "./config.js";
+import { loadToken } from "./auth.js";
 import type { TriageSuggestion } from "./triage.js";
 import {
   generateChatResponse,
   generateRevision,
   type ChatMessage,
+  type ChatResponseWithTools,
 } from "./revision-engine.js";
+import type { ToolTrace } from "./chat-tools.js";
 
 export function createChatRouter(): Router {
   const router = Router();
@@ -199,14 +202,21 @@ export function createChatRouter(): Router {
         [convId, message.trim()],
       );
 
-      // Generate assistant response
-      const assistantResponse = await generateChatResponse(
+      // Get OAuth client for tool execution (null in local dev mode)
+      const auth = config.localDevNoAuth ? null : loadToken(req);
+
+      // Generate assistant response (with tool-calling loop)
+      const chatResult = await generateChatResponse(
         originalSuggestion,
         chatHistory,
         message.trim(),
         config.anthropicApiKey,
         config.anthropicModel,
+        auth,
+        config.localDevNoAuth,
       );
+
+      const assistantResponse = chatResult.assistantText;
 
       // Store assistant message
       await pool.query(
@@ -214,6 +224,24 @@ export function createChatRouter(): Router {
          VALUES ($1, 'assistant', $2)`,
         [convId, assistantResponse],
       );
+
+      // Persist tool traces for audit/debug
+      if (chatResult.toolTraces.length > 0) {
+        for (const trace of chatResult.toolTraces) {
+          await pool.query(
+            `INSERT INTO "chat_tool_trace"
+               ("conversation_id", "tool_name", "args", "result_summary", "duration_ms")
+             VALUES ($1, $2, $3, $4, $5)`,
+            [
+              convId,
+              trace.toolName,
+              JSON.stringify(trace.args),
+              trace.resultSummary,
+              trace.durationMs,
+            ],
+          );
+        }
+      }
 
       // Generate revised suggestion
       const fullHistory: ChatMessage[] = [
@@ -274,6 +302,11 @@ export function createChatRouter(): Router {
           source: "llm",
         },
         originalSuggestion,
+        toolsUsed: chatResult.toolTraces.map((t) => ({
+          tool: t.toolName,
+          summary: t.resultSummary,
+          durationMs: t.durationMs,
+        })),
       });
     } catch (err: any) {
       console.error("Chat POST error:", err);

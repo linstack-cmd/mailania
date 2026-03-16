@@ -10,11 +10,22 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import type { OAuth2Client } from "google-auth-library";
 import type { TriageSuggestion } from "./triage.js";
+import {
+  CHAT_TOOL_DEFINITIONS,
+  executeTool,
+  type ToolTrace,
+} from "./chat-tools.js";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+}
+
+export interface ChatResponseWithTools {
+  assistantText: string;
+  toolTraces: ToolTrace[];
 }
 
 const REVISION_SYSTEM_PROMPT = `You are Mailania's suggestion revision assistant. You are given:
@@ -102,6 +113,11 @@ export async function generateRevision(
 
 /**
  * Generate an assistant chat response to the user's message about a suggestion.
+ *
+ * Supports tool-calling: the model can invoke read-only Gmail tools
+ * (search_messages, list_inbox, get_message) to answer questions with
+ * concrete mailbox data. The tool-calling loop runs server-side with
+ * a safety cap of MAX_TOOL_ROUNDS iterations.
  */
 export async function generateChatResponse(
   original: TriageSuggestion,
@@ -109,7 +125,9 @@ export async function generateChatResponse(
   userMessage: string,
   apiKey: string,
   model: string,
-): Promise<string> {
+  auth: OAuth2Client | null = null,
+  localDev: boolean = false,
+): Promise<ChatResponseWithTools> {
   const client = new Anthropic({ apiKey });
 
   const systemPrompt = `You are Mailania's triage assistant having a conversation about a specific email suggestion. You help the user refine what action to take.
@@ -123,9 +141,16 @@ RULES:
 - Explain trade-offs when relevant
 - You can suggest alternative actions: archive_bulk, create_filter, needs_user_input, mark_read
 - Never execute actions — you only discuss and refine suggestions
-- Keep responses under 200 words`;
+- Keep responses under 200 words
 
-  const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
+TOOL USAGE:
+- You have access to read-only Gmail tools: search_messages, list_inbox, get_message
+- Use search_messages to answer impact questions ("how many?", "which messages?", "show me examples")
+- When reporting counts, always cite resultSizeEstimate (approximate total) and include 2-3 sample messages as evidence
+- Use tools proactively when the user asks about email volume, patterns, or specific messages
+- Do NOT use tools for every message — only when mailbox data would genuinely help the answer`;
+
+  const messages: Anthropic.MessageParam[] = [];
   for (const m of chatHistory) {
     if (m.role === "user" || m.role === "assistant") {
       messages.push({ role: m.role, content: m.content });
@@ -133,17 +158,120 @@ RULES:
   }
   messages.push({ role: "user", content: userMessage });
 
-  const response = await client.messages.create({
+  const MAX_TOOL_ROUNDS = 5;
+  const toolTraces: ToolTrace[] = [];
+
+  let response = await client.messages.create({
     model,
-    max_tokens: 512,
+    max_tokens: 1024,
     system: systemPrompt,
     messages,
+    tools: CHAT_TOOL_DEFINITIONS,
   });
 
+  // Tool-calling loop: model may request tool calls, we execute and feed back
+  let rounds = 0;
+  while (response.stop_reason === "tool_use" && rounds < MAX_TOOL_ROUNDS) {
+    rounds++;
+
+    // Collect all tool_use blocks from the response
+    const toolUseBlocks = response.content.filter(
+      (block) => block.type === "tool_use",
+    );
+
+    if (toolUseBlocks.length === 0) break;
+
+    // Add the assistant's response (with tool_use blocks) to messages
+    messages.push({
+      role: "assistant",
+      content: response.content.map((block) => {
+        if (block.type === "tool_use") {
+          return {
+            type: "tool_use" as const,
+            id: block.id,
+            name: block.name,
+            input: block.input as Record<string, unknown>,
+          };
+        }
+        return { type: "text" as const, text: (block as any).text ?? "" };
+      }),
+    });
+
+    // Execute each tool and build tool_result blocks
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const toolBlock of toolUseBlocks) {
+      // We know these are tool_use blocks
+      const tb = toolBlock as { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
+      try {
+        const execResult = await executeTool(
+          auth,
+          localDev,
+          tb.name,
+          tb.input,
+        );
+        toolTraces.push(execResult.trace);
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tb.id,
+          content: JSON.stringify(execResult.result),
+        });
+      } catch (err: any) {
+        toolTraces.push({
+          toolName: tb.name,
+          args: tb.input,
+          resultSummary: `error: ${err.message}`,
+          durationMs: 0,
+        });
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tb.id,
+          content: JSON.stringify({ error: err.message }),
+          is_error: true,
+        });
+      }
+    }
+
+    // Add tool results to messages and request next response
+    messages.push({ role: "user", content: toolResults });
+
+    response = await client.messages.create({
+      model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+      tools: CHAT_TOOL_DEFINITIONS,
+    });
+  }
+
+  // Extract final text response
   const textBlock = response.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("No text response from LLM");
   }
 
-  return textBlock.text.trim();
+  return {
+    assistantText: textBlock.text.trim(),
+    toolTraces,
+  };
+}
+
+/**
+ * Legacy wrapper for backward compatibility (without tool-calling).
+ * Used only if you need the plain string response.
+ */
+export async function generateChatResponseSimple(
+  original: TriageSuggestion,
+  chatHistory: ChatMessage[],
+  userMessage: string,
+  apiKey: string,
+  model: string,
+): Promise<string> {
+  const result = await generateChatResponse(
+    original,
+    chatHistory,
+    userMessage,
+    apiKey,
+    model,
+  );
+  return result.assistantText;
 }

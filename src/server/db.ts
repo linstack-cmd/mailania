@@ -181,6 +181,26 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
 
   console.log("[DB] Suggestion revision table ready");
 
+  // --- Chat tool traces (audit/debug for tool-calling in chat) ---
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "chat_tool_trace" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "conversation_id" UUID NOT NULL REFERENCES "suggestion_conversation"("id") ON DELETE CASCADE,
+      "tool_name" VARCHAR(64) NOT NULL,
+      "args" JSONB NOT NULL,
+      "result_summary" TEXT NOT NULL,
+      "duration_ms" INT NOT NULL DEFAULT 0,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_chat_tool_trace_conversation"
+    ON "chat_tool_trace" ("conversation_id", "created_at" ASC)
+  `);
+
+  console.log("[DB] Chat tool trace table ready");
+
   return _pool;
 }
 
