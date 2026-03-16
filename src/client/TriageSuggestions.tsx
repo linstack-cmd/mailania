@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
 
 interface FilterDraft {
@@ -34,12 +34,40 @@ const CONFIDENCE_COLORS: Record<string, string> = {
 export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => void }) {
   const [suggestions, setSuggestions] = useState<TriageSuggestion[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+
+  // Load persisted suggestions on mount
+  useEffect(() => {
+    async function loadLatest() {
+      try {
+        const res = await fetch("/api/triage/latest");
+        if (res.status === 401) {
+          onAuthLost();
+          return;
+        }
+        if (res.ok) {
+          const data = await res.json();
+          if (data.suggestions) {
+            setSuggestions(data.suggestions);
+            setLastRunAt(data.createdAt);
+          }
+        }
+      } catch {
+        // Silently ignore — user can still generate fresh suggestions
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+    loadLatest();
+  }, []);
 
   async function fetchSuggestions() {
     setLoading(true);
     setError(null);
     setSuggestions(null);
+    setLastRunAt(null);
     try {
       const res = await fetch("/api/triage/suggest", { method: "POST" });
       if (res.status === 401) {
@@ -52,6 +80,7 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
       }
       const data = await res.json();
       setSuggestions(data.suggestions ?? []);
+      setLastRunAt(data.createdAt ?? null);
     } catch (e: any) {
       setError(e.message || "Failed to generate suggestions");
     } finally {
@@ -69,10 +98,17 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
     >
       {/* Header row */}
       <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: (t) => t.spacing(3) })}>
-        <h2 className={css({ fontSize: "1.15rem", fontWeight: "700" })}>🧹 Triage Suggestions</h2>
+        <div>
+          <h2 className={css({ fontSize: "1.15rem", fontWeight: "700", margin: "0" })}>🧹 Triage Suggestions</h2>
+          {lastRunAt && !loading && (
+            <p className={css((t) => ({ fontSize: "0.75rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
+              Last run: {new Date(lastRunAt).toLocaleString()}
+            </p>
+          )}
+        </div>
         <button
           onClick={fetchSuggestions}
-          disabled={loading}
+          disabled={loading || initialLoading}
           className={[
             css((t) => ({
               padding: `${t.spacing(2)} ${t.spacing(4)}`,
@@ -82,7 +118,7 @@ export default function TriageSuggestions({ onAuthLost }: { onAuthLost: () => vo
               fontWeight: "600",
               transition: "background 0.15s",
             })),
-            loading
+            loading || initialLoading
               ? css((t) => ({ background: t.colors.borderLight, color: t.colors.textMuted, cursor: "not-allowed" }))
               : css((t) => ({ background: t.colors.primary, color: "#fff", cursor: "pointer", "&:hover": { background: t.colors.primaryHover } })),
           ].join(" ")}

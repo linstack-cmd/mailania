@@ -14,6 +14,7 @@ import {
 } from "./auth.js";
 import { listInbox } from "./gmail.js";
 import { generateTriageSuggestions } from "./triage.js";
+import type { TriageSuggestion } from "./triage.js";
 
 async function main() {
   // Load config (fetches secrets from Secret Party if configured)
@@ -113,7 +114,21 @@ async function main() {
         config.anthropicModel,
       );
 
-      res.json(result);
+      // Persist the triage run to the database
+      const sessionId = req.sessionID;
+      const row = await getPool().query(
+        `INSERT INTO "triage_run" ("session_id", "suggestions", "source_messages")
+         VALUES ($1, $2, $3)
+         RETURNING "id", "created_at"`,
+        [sessionId, JSON.stringify(result.suggestions), JSON.stringify(messages)],
+      );
+
+      const run = row.rows[0];
+      res.json({
+        ...result,
+        runId: run.id,
+        createdAt: run.created_at,
+      });
     } catch (err: any) {
       if (err?.code === 401 || err?.response?.status === 401) {
         await logout(req).catch(() => {});
@@ -140,6 +155,42 @@ async function main() {
 
       console.error("Triage suggestion error:", err);
       res.status(500).json({ error: "Failed to generate triage suggestions" });
+    }
+  });
+
+  // --- Latest Triage Run (read persisted suggestions) ---
+
+  app.get("/api/triage/latest", async (req, res) => {
+    if (!isAuthenticated(req)) {
+      res.status(401).json({ error: "Not authenticated" });
+      return;
+    }
+
+    try {
+      const sessionId = req.sessionID;
+      const result = await getPool().query(
+        `SELECT "id", "created_at", "suggestions"
+         FROM "triage_run"
+         WHERE "session_id" = $1
+         ORDER BY "created_at" DESC
+         LIMIT 1`,
+        [sessionId],
+      );
+
+      if (result.rows.length === 0) {
+        res.json({ suggestions: null, runId: null, createdAt: null });
+        return;
+      }
+
+      const run = result.rows[0];
+      res.json({
+        suggestions: run.suggestions as TriageSuggestion[],
+        runId: run.id,
+        createdAt: run.created_at,
+      });
+    } catch (err) {
+      console.error("Triage latest fetch error:", err);
+      res.status(500).json({ error: "Failed to fetch latest triage run" });
     }
   });
 

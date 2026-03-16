@@ -50,6 +50,24 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
   `);
 
   console.log("[DB] Session table ready");
+
+  // Create triage_run table for persisting AI triage suggestion runs
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "triage_run" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "session_id" VARCHAR NOT NULL,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "suggestions" JSONB NOT NULL,
+      "source_messages" JSONB
+    )
+  `);
+
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_triage_run_session"
+    ON "triage_run" ("session_id", "created_at" DESC)
+  `);
+
+  console.log("[DB] Triage run table ready");
   return _pool;
 }
 
