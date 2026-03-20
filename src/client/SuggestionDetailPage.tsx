@@ -222,11 +222,15 @@ export default function SuggestionDetailPage() {
 
   if (!suggestion) return null;
 
-  const kindInfo = KIND_LABELS[suggestion.kind];
-  const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
-  const isExecutable = suggestion.kind === "archive_bulk" || suggestion.kind === "create_filter";
+  // Use the latest revision as the "active" suggestion when available
+  const activeSuggestion: TriageSuggestion = latestRevision?.suggestion ?? suggestion;
+  const isRevised = latestRevision !== null;
 
-  const resolvedMessages = suggestion.messageIds
+  const kindInfo = KIND_LABELS[activeSuggestion.kind];
+  const confStyle = CONFIDENCE_STYLES[activeSuggestion.confidence] ?? CONFIDENCE_STYLES.low;
+  const isExecutable = activeSuggestion.kind === "archive_bulk" || activeSuggestion.kind === "create_filter";
+
+  const resolvedMessages = activeSuggestion.messageIds
     ?.map((id) => messageMap.get(id))
     .filter((m): m is InboxMessage => !!m);
 
@@ -274,15 +278,32 @@ export default function SuggestionDetailPage() {
             className={confPillClass}
             style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
           >
-            {suggestion.confidence} confidence
+            {activeSuggestion.confidence} confidence
           </span>
         </div>
         <h1 className={css((t) => ({ fontSize: "1.4rem", fontWeight: "700", lineHeight: "1.3", color: t.colors.text }))}>
-          {suggestion.title}
+          {activeSuggestion.title}
         </h1>
         <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, marginTop: t.spacing(1.5), fontStyle: "italic" }))}>
           {kindInfo.desc}
         </p>
+        {isRevised && (
+          <div className={css((t) => ({
+            display: "inline-flex",
+            alignItems: "center",
+            gap: t.spacing(1),
+            marginTop: t.spacing(2),
+            padding: `${t.spacing(1)} ${t.spacing(2.5)}`,
+            background: "#eff6ff",
+            border: "1px solid #bfdbfe",
+            borderRadius: "999px",
+            fontSize: "0.75rem",
+            fontWeight: "600",
+            color: "#1e40af",
+          }))}>
+            🔄 Revised (v{latestRevision!.revisionIndex + 1}) via chat
+          </div>
+        )}
       </div>
 
       {/* Divider */}
@@ -290,7 +311,7 @@ export default function SuggestionDetailPage() {
 
       {/* Body sections */}
       <DetailSection label="Rationale">
-        <p className={css({ fontSize: "0.92rem", lineHeight: "1.7" })}>{suggestion.rationale}</p>
+        <p className={css({ fontSize: "0.92rem", lineHeight: "1.7" })}>{activeSuggestion.rationale}</p>
       </DetailSection>
 
       {resolvedMessages && resolvedMessages.length > 0 && (
@@ -324,23 +345,23 @@ export default function SuggestionDetailPage() {
               </div>
             ))}
           </div>
-          {suggestion.messageIds && suggestion.messageIds.length > resolvedMessages.length && (
+          {activeSuggestion.messageIds && activeSuggestion.messageIds.length > resolvedMessages.length && (
             <p className={css((t) => ({ fontSize: "0.8rem", color: t.colors.textMuted, marginTop: t.spacing(2) }))}>
-              + {suggestion.messageIds.length - resolvedMessages.length} message{suggestion.messageIds.length - resolvedMessages.length !== 1 ? "s" : ""} not in current inbox view
+              + {activeSuggestion.messageIds.length - resolvedMessages.length} message{activeSuggestion.messageIds.length - resolvedMessages.length !== 1 ? "s" : ""} not in current inbox view
             </p>
           )}
         </DetailSection>
       )}
 
-      {suggestion.messageIds && suggestion.messageIds.length > 0 && (!resolvedMessages || resolvedMessages.length === 0) && (
-        <DetailSection label={`Message IDs (${suggestion.messageIds.length})`}>
+      {activeSuggestion.messageIds && activeSuggestion.messageIds.length > 0 && (!resolvedMessages || resolvedMessages.length === 0) && (
+        <DetailSection label={`Message IDs (${activeSuggestion.messageIds.length})`}>
           <div className={css((t) => ({ fontFamily: "monospace", fontSize: "0.8rem", color: t.colors.textMuted, lineHeight: "1.7", wordBreak: "break-all" }))}>
-            {suggestion.messageIds.join(", ")}
+            {activeSuggestion.messageIds.join(", ")}
           </div>
         </DetailSection>
       )}
 
-      {suggestion.filterDraft && (
+      {activeSuggestion.filterDraft && (
         <DetailSection label="Filter Draft">
           <div
             className={css((t) => ({
@@ -353,23 +374,23 @@ export default function SuggestionDetailPage() {
               lineHeight: "1.7",
             }))}
           >
-            {suggestion.filterDraft.from && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>from:</span> {suggestion.filterDraft.from}</div>}
-            {suggestion.filterDraft.subjectContains && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>subject contains:</span> {suggestion.filterDraft.subjectContains}</div>}
-            {suggestion.filterDraft.hasWords && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>has words:</span> {suggestion.filterDraft.hasWords}</div>}
-            {suggestion.filterDraft.label && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>label:</span> {suggestion.filterDraft.label}</div>}
-            {suggestion.filterDraft.archive !== undefined && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>archive:</span> {suggestion.filterDraft.archive ? "yes" : "no"}</div>}
+            {activeSuggestion.filterDraft.from && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>from:</span> {activeSuggestion.filterDraft.from}</div>}
+            {activeSuggestion.filterDraft.subjectContains && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>subject contains:</span> {activeSuggestion.filterDraft.subjectContains}</div>}
+            {activeSuggestion.filterDraft.hasWords && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>has words:</span> {activeSuggestion.filterDraft.hasWords}</div>}
+            {activeSuggestion.filterDraft.label && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>label:</span> {activeSuggestion.filterDraft.label}</div>}
+            {activeSuggestion.filterDraft.archive !== undefined && <div><span className={css((t) => ({ color: t.colors.textMuted }))}>archive:</span> {activeSuggestion.filterDraft.archive ? "yes" : "no"}</div>}
           </div>
         </DetailSection>
       )}
 
-      {suggestion.actionPlan && suggestion.actionPlan.length > 0 && (
-        <ActionPlanSection steps={suggestion.actionPlan} />
+      {activeSuggestion.actionPlan && activeSuggestion.actionPlan.length > 0 && (
+        <ActionPlanSection steps={activeSuggestion.actionPlan} />
       )}
 
-      {suggestion.questions && suggestion.questions.length > 0 && (
+      {activeSuggestion.questions && activeSuggestion.questions.length > 0 && (
         <DetailSection label="Questions for You">
           <ul className={css((t) => ({ paddingLeft: t.spacing(5), fontSize: "0.9rem", lineHeight: "1.7" }))}>
-            {suggestion.questions.map((q, i) => <li key={i}>{q}</li>)}
+            {activeSuggestion.questions.map((q, i) => <li key={i}>{q}</li>)}
           </ul>
         </DetailSection>
       )}
@@ -378,58 +399,10 @@ export default function SuggestionDetailPage() {
         <DetailSection label="Run Metadata">
           <div className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, lineHeight: "1.6" }))}>
             <div>Generated: {new Date(lastRunAt).toLocaleString()}</div>
-            <div>Kind: {suggestion.kind}</div>
-            <div>Confidence: {suggestion.confidence}</div>
+            <div>Kind: {activeSuggestion.kind}</div>
+            <div>Confidence: {activeSuggestion.confidence}</div>
           </div>
         </DetailSection>
-      )}
-
-      {/* Revised Suggestion Banner */}
-      {latestRevision && (
-        <div className={css((t) => ({
-          marginTop: t.spacing(5),
-          padding: t.spacing(4),
-          background: "#eff6ff",
-          border: "1px solid #bfdbfe",
-          borderRadius: t.radius,
-        }))}>
-          <div className={css((t) => ({
-            display: "flex",
-            alignItems: "center",
-            gap: t.spacing(2),
-            marginBottom: t.spacing(2),
-          }))}>
-            <span style={{ fontSize: "1.1rem" }}>🔄</span>
-            <span className={css({ fontWeight: "700", fontSize: "0.9rem", color: "#1e40af" })}>
-              Revised Suggestion (v{latestRevision.revisionIndex + 1})
-            </span>
-            {latestRevision.suggestion.kind !== suggestion.kind && (
-              <span className={css({
-                fontSize: "0.72rem",
-                fontWeight: "700",
-                textTransform: "uppercase",
-                padding: "2px 8px",
-                borderRadius: "999px",
-                background: "#fef3c7",
-                color: "#92400e",
-                border: "1px solid #fde68a",
-              })}>
-                Action changed: {KIND_LABELS[latestRevision.suggestion.kind]?.label ?? latestRevision.suggestion.kind}
-              </span>
-            )}
-          </div>
-          <div className={css((t) => ({ fontSize: "0.9rem", fontWeight: "600", marginBottom: t.spacing(1), color: t.colors.text }))}>
-            {latestRevision.suggestion.title}
-          </div>
-          <div className={css((t) => ({ fontSize: "0.85rem", lineHeight: "1.6", color: t.colors.textMuted }))}>
-            {latestRevision.suggestion.rationale}
-          </div>
-          {latestRevision.suggestion.actionPlan && latestRevision.suggestion.actionPlan.length > 0 && (
-            <div className={css((t) => ({ marginTop: t.spacing(3) }))}>
-              <ActionPlanSection steps={latestRevision.suggestion.actionPlan} compact />
-            </div>
-          )}
-        </div>
       )}
 
       {/* Chat Panel */}
@@ -629,11 +602,11 @@ export default function SuggestionDetailPage() {
             }))}
             title="Execute this action (requires confirmation)"
           >
-            ⚡ Execute
+            ⚡ Execute{isRevised ? " (revised)" : ""}
           </button>
         )}
 
-        {suggestion.kind === "needs_user_input" && (
+        {activeSuggestion.kind === "needs_user_input" && (
           <button
             onClick={() => setToastMsg("✏️ Draft response — coming soon!")}
             className={css((t) => ({
@@ -657,7 +630,7 @@ export default function SuggestionDetailPage() {
       {/* Approval modal */}
       {showApprovalModal && (
         <ApprovalConfirmModal
-          suggestion={suggestion}
+          suggestion={activeSuggestion}
           messageMap={messageMap}
           onClose={() => setShowApprovalModal(false)}
           onSuccess={(msg) => {
