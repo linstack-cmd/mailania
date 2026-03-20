@@ -2,32 +2,32 @@
 
 Minimal Gmail web client with AI-powered inbox triage. Built with React, Express, [Flow CSS](https://github.com/0916dhkim/flow-css), and Vite.
 
-## Auth Architecture (v2)
+## Auth Architecture (v3 — Passkey-Only)
 
-Mailania uses **first-class user accounts** as the primary identity model:
+Mailania uses **passkey-only authentication**. Google OAuth is used exclusively for connecting Gmail accounts after login.
 
-- **Mailania User Accounts** — central identity (`mailania_user` table) with display name and email
-- **Passkey (WebAuthn) Login** — passwordless login via FIDO2/passkeys. Register after first login, then use passkeys for fast re-authentication
-- **Multiple Gmail Accounts** — each user can link multiple Gmail accounts (`gmail_account` table). Switch between them from the Account Settings page
-- **Google OAuth** — used to connect Gmail accounts (tokens stored per-account in DB, not on session)
+- **Mailania User Accounts** — central identity (`mailania_user` table) with display name
+- **Passkey (WebAuthn) Auth** — the only way to create an account or sign in. FIDO2/passkeys via discoverable credentials
+- **Multiple Gmail Accounts** — each user can link multiple Gmail accounts (`gmail_account` table) via Google OAuth after login
+- **Google OAuth** — used **only** to connect Gmail accounts (not for login/signup)
 - **Session** — stores `userId` and `activeGmailAccountId` only. No raw tokens on session
 
 ### Identity Model
 
 ```
 mailania_user (1)
-  ├── passkey_credential (0..N) — WebAuthn credentials for passwordless login
+  ├── passkey_credential (1..N) — WebAuthn credentials (required, passkey-only auth)
   └── gmail_account (0..N) — linked Gmail accounts with OAuth tokens
         └── triage_run, approval_token, action_log, etc. — all keyed by user_id
 ```
 
-All application data (`triage_run`, `approval_token`, `action_log`, `suggestion_*`, etc.) is keyed by `user_id`, not `session_id`.
+All application data is keyed by `user_id`, not `session_id`.
 
-### Login Flow
+### Auth Flows
 
-1. **New user via Google OAuth**: Click "Sign in with Google" → OAuth flow → user created from Google profile → Gmail account linked automatically
-2. **Returning user via passkey**: Click "Sign in with Passkey" → WebAuthn ceremony → session established → primary Gmail account activated
-3. **Add Gmail account**: From Account Settings, click "Add Gmail Account" → OAuth flow → new Gmail account linked to existing user
+1. **New user signup**: Enter display name → "Create Account with Passkey" → WebAuthn registration ceremony → account created + logged in → connect Gmail
+2. **Returning user login**: "Sign in with Passkey" → WebAuthn authentication ceremony → session established → primary Gmail account activated
+3. **Connect Gmail**: From Account Settings (or post-signup prompt), click "Connect Gmail Account" → Google OAuth flow → Gmail account linked to user
 
 ### Environment Variables (Auth)
 
@@ -150,10 +150,12 @@ npm start
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/status` | GET | Auth status + user info + gmail accounts + passkey status |
-| `/auth/login` | GET | Start Google OAuth flow (login or add Gmail account) |
+| `/auth/login` | GET | Start Google OAuth flow (connect Gmail — requires login) |
 | `/auth/callback` | GET | OAuth callback |
 | `/auth/logout` | GET | Destroy session |
-| `/auth/passkey/register-options` | POST | Start passkey registration (must be logged in) |
+| `/auth/passkey/signup-options` | POST | Start passkey-first account creation (no login required) |
+| `/auth/passkey/signup-verify` | POST | Complete signup + create account + log in |
+| `/auth/passkey/register-options` | POST | Add another passkey (must be logged in) |
 | `/auth/passkey/register-verify` | POST | Complete passkey registration |
 | `/auth/passkey/login-options` | POST | Start passkey login |
 | `/auth/passkey/login-verify` | POST | Complete passkey login |
@@ -201,8 +203,10 @@ All tables created idempotently at startup. Use `RESET_DB=true` for clean slate.
 
 ## Notes
 
+- **Passkey-only auth**: Google OAuth is NOT a login method. Users must create an account and sign in with passkeys
 - OAuth scopes: `gmail.readonly`, `gmail.modify`, `gmail.settings.basic`, `userinfo.email`, `userinfo.profile`
 - Tokens are stored in DB per Gmail account, not on session — enables multi-account and proper refresh
 - Token refresh is handled automatically via `google-auth-library` event listener
 - Passkeys use discoverable credentials (resident keys) — browser shows all available passkeys
+- Signup requires `residentKey: "required"` and `userVerification: "required"` for strong identity
 - All application data is owned by `user_id`, enabling clean multi-device/multi-session access

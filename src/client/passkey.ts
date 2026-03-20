@@ -2,6 +2,7 @@
  * Client-side passkey (WebAuthn) helpers.
  *
  * Uses @simplewebauthn/browser for the browser-side ceremony.
+ * Supports: login, registration (add passkey to existing account), and signup (new account).
  */
 
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
@@ -77,6 +78,46 @@ export async function loginWithPasskey(): Promise<{
   if (!verifyRes.ok) {
     const err = await verifyRes.json().catch(() => ({}));
     throw new Error(err.error || "Authentication failed");
+  }
+
+  return verifyRes.json();
+}
+
+/**
+ * Sign up with a new passkey — creates a Mailania account and registers a passkey in one flow.
+ * Returns the user info on success, throws on failure.
+ */
+export async function signupWithPasskey(displayName: string): Promise<{
+  verified: boolean;
+  user: { id: string; displayName: string; email: string };
+}> {
+  // Step 1: Get signup registration options from server
+  const optionsRes = await fetch("/auth/passkey/signup-options", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ displayName }),
+  });
+
+  if (!optionsRes.ok) {
+    const err = await optionsRes.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to get signup options");
+  }
+
+  const options = await optionsRes.json();
+
+  // Step 2: Start browser-side registration ceremony
+  const credential = await startRegistration({ optionsJSON: options });
+
+  // Step 3: Send credential to server for verification + account creation
+  const verifyRes = await fetch("/auth/passkey/signup-verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credential),
+  });
+
+  if (!verifyRes.ok) {
+    const err = await verifyRes.json().catch(() => ({}));
+    throw new Error(err.error || "Signup verification failed");
   }
 
   return verifyRes.json();

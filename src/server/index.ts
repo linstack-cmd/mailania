@@ -437,7 +437,14 @@ async function main() {
 
     // --- Auth routes ---
 
+    // Google OAuth is ONLY for connecting Gmail accounts (user must be logged in)
     app.get("/auth/login", (req, res) => {
+      if (!isAuthenticated(req)) {
+        // Not logged in — redirect to home (login screen)
+        const redirectUrl = config.frontendOrigin || "/";
+        res.redirect(redirectUrl);
+        return;
+      }
       res.redirect(getAuthUrl(req));
     });
 
@@ -445,6 +452,11 @@ async function main() {
       const code = req.query.code as string;
       if (!code) {
         res.status(400).json({ error: "Missing authorization code" });
+        return;
+      }
+
+      if (!isAuthenticated(req)) {
+        res.status(401).json({ error: "Must be logged in to connect a Gmail account" });
         return;
       }
 
@@ -466,7 +478,7 @@ async function main() {
         res.redirect("/");
       } catch (err) {
         console.error("OAuth callback error:", err);
-        res.status(500).json({ error: "Authentication failed" });
+        res.status(500).json({ error: "Failed to connect Gmail account" });
       }
     });
 

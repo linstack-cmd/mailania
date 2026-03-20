@@ -224,7 +224,7 @@ export default function AccountSettings({
             "&:hover": { background: t.colors.bgAlt, borderColor: t.colors.primary },
           }))}
         >
-          + Add Gmail Account
+          📧 Connect Gmail Account
         </a>
       </Section>
 

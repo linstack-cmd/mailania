@@ -21,6 +21,8 @@ declare module "express-session" {
     activeGmailAccountId?: string;
     /** Passkey registration challenge (ephemeral) */
     passkeyChallenge?: string;
+    /** User ID for in-progress passkey signup (ephemeral) */
+    passkeySignupUserId?: string;
     /** Legacy: tokens stored directly (removed in v2) */
     tokens?: Record<string, unknown>;
   }
@@ -89,9 +91,8 @@ function makeOAuth2Client(redirectUri: string) {
 // -----------------------------------------------------------------------
 
 /**
- * Build the Google OAuth consent URL.
- * If the user is already logged in (has userId), we're adding a Gmail account.
- * If not logged in, we'll create/find user from Google profile after callback.
+ * Build the Google OAuth consent URL for connecting a Gmail account.
+ * User MUST be logged in — Google OAuth is not a login method.
  */
 export function getAuthUrl(req: Request): string {
   const redirectUri = resolveRedirectUri(req);
@@ -104,9 +105,8 @@ export function getAuthUrl(req: Request): string {
 }
 
 /**
- * Exchange OAuth code, fetch Google profile, and:
- * - If user is already logged in → link Gmail account to existing user
- * - If not logged in → find/create user by email, then link Gmail account
+ * Exchange OAuth code and link Gmail account to the logged-in user.
+ * Requires an active session (userId). Throws if not logged in.
  */
 export async function exchangeCode(code: string, req: Request) {
   const redirectUri = resolveRedirectUri(req);
@@ -118,33 +118,16 @@ export async function exchangeCode(code: string, req: Request) {
   const oauth2 = google.oauth2({ version: "v2", auth: client });
   const profileRes = await oauth2.userinfo.get();
   const googleEmail = profileRes.data.email;
-  const googleName = profileRes.data.name || profileRes.data.email || "User";
 
   if (!googleEmail) {
     throw new Error("Could not retrieve email from Google profile");
   }
 
   const pool = getPool();
-  let userId = req.session.userId;
+  const userId = req.session.userId;
 
   if (!userId) {
-    // Not logged in — find or create user by email
-    const existing = await pool.query(
-      `SELECT "id" FROM "mailania_user" WHERE "email" = $1`,
-      [googleEmail],
-    );
-
-    if (existing.rows.length > 0) {
-      userId = existing.rows[0].id;
-    } else {
-      const created = await pool.query(
-        `INSERT INTO "mailania_user" ("display_name", "email")
-         VALUES ($1, $2)
-         RETURNING "id"`,
-        [googleName, googleEmail],
-      );
-      userId = created.rows[0].id;
-    }
+    throw new Error("Must be logged in to connect a Gmail account");
   }
 
   // Upsert Gmail account
@@ -159,8 +142,7 @@ export async function exchangeCode(code: string, req: Request) {
 
   const gmailAccountId = upsertResult.rows[0].id;
 
-  // Set session
-  req.session.userId = userId;
+  // Set active Gmail account
   req.session.activeGmailAccountId = gmailAccountId;
 
   // Save session explicitly

@@ -3,7 +3,7 @@ import { css } from "@flow-css/core/css";
 import { Router, Route, Switch } from "wouter";
 import TriageSuggestions from "./TriageSuggestions";
 import SuggestionDetailPage from "./SuggestionDetailPage";
-import { loginWithPasskey, isPasskeySupported } from "./passkey";
+import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
 import AccountSettings from "./AccountSettings";
 
 interface InboxMessage {
@@ -100,6 +100,8 @@ export default function App() {
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [signupName, setSignupName] = useState("");
 
   useEffect(() => {
     fetch("/api/status")
@@ -153,10 +155,26 @@ export default function App() {
     setPasskeyError(null);
     try {
       await loginWithPasskey();
-      // Refresh status after successful login
       await refreshStatus();
     } catch (err: any) {
       setPasskeyError(err.message || "Passkey login failed");
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
+  async function handlePasskeySignup() {
+    if (!signupName.trim()) {
+      setPasskeyError("Please enter a display name");
+      return;
+    }
+    setPasskeyLoading(true);
+    setPasskeyError(null);
+    try {
+      await signupWithPasskey(signupName.trim());
+      await refreshStatus();
+    } catch (err: any) {
+      setPasskeyError(err.message || "Passkey signup failed");
     } finally {
       setPasskeyLoading(false);
     }
@@ -180,74 +198,140 @@ export default function App() {
     );
   }
 
-  // --- Login screen ---
+  // --- Login screen (passkey-only) ---
   if (!authenticated) {
+    const tabBaseClass = css((t) => ({
+      flex: "1",
+      padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
+      border: "none",
+      borderBottom: "2px solid transparent",
+      background: "transparent",
+      color: t.colors.textMuted,
+      fontWeight: "500",
+      fontSize: "0.92rem",
+      cursor: "pointer",
+      transition: "color 0.15s, border-color 0.15s",
+      "&:hover": { color: t.colors.primary },
+    }));
+    const tabActiveClass = css((t) => ({
+      borderBottomColor: t.colors.primary,
+      color: t.colors.primary,
+      fontWeight: "700",
+    }));
+
     return (
       <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
         <h1 className={css({ fontSize: "2rem", fontWeight: "700" })}>📬 Mailania</h1>
-        <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "360px" }))}>
-          Sign in with a passkey or connect your Google account.
-        </p>
 
-        <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3), width: "280px" }))}>
-          {/* Passkey login */}
-          {isPasskeySupported() && (
-            <button
-              onClick={handlePasskeyLogin}
-              disabled={passkeyLoading}
-              className={css((t) => ({
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: t.spacing(2),
-                padding: `${t.spacing(3)} ${t.spacing(6)}`,
-                background: t.colors.primary,
-                color: "#fff",
-                borderRadius: t.radius,
-                border: "none",
-                fontWeight: "600",
-                fontSize: "1rem",
-                cursor: "pointer",
-                transition: "background 0.15s",
-                "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-                "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
-              }))}
-            >
-              🔑 {passkeyLoading ? "Authenticating…" : "Sign in with Passkey"}
-            </button>
-          )}
-
-          {/* Google OAuth login */}
-          <a
-            href="/auth/login"
-            className={css((t) => ({
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: t.spacing(2),
-              padding: `${t.spacing(3)} ${t.spacing(6)}`,
-              background: "#fff",
-              color: t.colors.text,
-              borderRadius: t.radius,
-              textDecoration: "none",
-              fontWeight: "600",
-              fontSize: "1rem",
-              border: `1px solid ${t.colors.border}`,
-              transition: "background 0.15s, border-color 0.15s",
-              "&:hover": { background: t.colors.bgAlt, borderColor: t.colors.primary },
-            }))}
-          >
-            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-            Sign in with Google
-          </a>
-
-          {/* Passkey error */}
-          {passkeyError && (
-            <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: "0.85rem", textAlign: "center" }))}>
-              {passkeyError}
+        {!isPasskeySupported() ? (
+          <div className={css((t) => ({ textAlign: "center", maxWidth: "360px", padding: t.spacing(4) }))}>
+            <p className={css((t) => ({ color: t.colors.error, fontSize: "0.92rem", lineHeight: "1.6" }))}>
+              Your browser does not support passkeys. Mailania requires a browser with WebAuthn support (Chrome, Safari, Firefox, Edge).
+            </p>
+          </div>
+        ) : (
+          <div className={css((t) => ({ width: "320px", display: "flex", flexDirection: "column", gap: t.spacing(3) }))}>
+            {/* Tab switcher */}
+            <div className={css((t) => ({ display: "flex", borderBottom: `1px solid ${t.colors.borderLight}` }))}>
+              <button
+                className={`${tabBaseClass}${authMode === "login" ? ` ${tabActiveClass}` : ""}`}
+                onClick={() => { setAuthMode("login"); setPasskeyError(null); }}
+              >
+                Sign In
+              </button>
+              <button
+                className={`${tabBaseClass}${authMode === "signup" ? ` ${tabActiveClass}` : ""}`}
+                onClick={() => { setAuthMode("signup"); setPasskeyError(null); }}
+              >
+                Create Account
+              </button>
             </div>
-          )}
-        </div>
+
+            {authMode === "login" ? (
+              <>
+                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", textAlign: "center", lineHeight: "1.5" }))}>
+                  Use your passkey to sign in.
+                </p>
+                <button
+                  onClick={handlePasskeyLogin}
+                  disabled={passkeyLoading}
+                  className={css((t) => ({
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: t.spacing(2),
+                    padding: `${t.spacing(3)} ${t.spacing(6)}`,
+                    background: t.colors.primary,
+                    color: "#fff",
+                    borderRadius: t.radius,
+                    border: "none",
+                    fontWeight: "600",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+                  }))}
+                >
+                  🔑 {passkeyLoading ? "Authenticating…" : "Sign in with Passkey"}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", textAlign: "center", lineHeight: "1.5" }))}>
+                  Create your account with a passkey. You'll connect Gmail after.
+                </p>
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={signupName}
+                  onChange={(e) => setSignupName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !passkeyLoading) handlePasskeySignup(); }}
+                  autoFocus
+                  className={css((t) => ({
+                    padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+                    borderRadius: t.radius,
+                    border: `1px solid ${t.colors.border}`,
+                    fontSize: "0.95rem",
+                    outline: "none",
+                    transition: "border-color 0.15s",
+                    "&:focus": { borderColor: t.colors.primary },
+                  }))}
+                />
+                <button
+                  onClick={handlePasskeySignup}
+                  disabled={passkeyLoading || !signupName.trim()}
+                  className={css((t) => ({
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: t.spacing(2),
+                    padding: `${t.spacing(3)} ${t.spacing(6)}`,
+                    background: t.colors.primary,
+                    color: "#fff",
+                    borderRadius: t.radius,
+                    border: "none",
+                    fontWeight: "600",
+                    fontSize: "1rem",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                    "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+                    "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+                  }))}
+                >
+                  🔑 {passkeyLoading ? "Creating account…" : "Create Account with Passkey"}
+                </button>
+              </>
+            )}
+
+            {/* Error */}
+            {passkeyError && (
+              <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: "0.85rem", textAlign: "center" }))}>
+                {passkeyError}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -257,8 +341,8 @@ export default function App() {
     return (
       <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
         <h1 className={css({ fontSize: "1.5rem", fontWeight: "700" })}>📬 Mailania</h1>
-        <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px" }))}>
-          Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect your Gmail account to get started.
+        <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
+          Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
         </p>
 
         <a
@@ -278,7 +362,7 @@ export default function App() {
             "&:hover": { background: t.colors.primaryHover },
           }))}
         >
-          Connect Gmail Account
+          📧 Connect Gmail Account
         </a>
 
         <button

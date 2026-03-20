@@ -1,11 +1,13 @@
 /**
  * Passkey (WebAuthn) authentication routes.
  *
- * Provides registration and authentication flows using @simplewebauthn/server.
+ * Provides registration, signup, and authentication flows using @simplewebauthn/server.
  *
  * Routes:
- *   POST /auth/passkey/register-options  — start registration (logged-in user)
- *   POST /auth/passkey/register-verify   — complete registration
+ *   POST /auth/passkey/register-options  — start registration (logged-in user adds a passkey)
+ *   POST /auth/passkey/register-verify   — complete registration (logged-in user)
+ *   POST /auth/passkey/signup-options    — start passkey-first account creation (no login required)
+ *   POST /auth/passkey/signup-verify     — complete signup + create user + set session
  *   POST /auth/passkey/login-options     — start authentication
  *   POST /auth/passkey/login-verify      — complete authentication
  */
@@ -176,6 +178,140 @@ export function createPasskeyRouter(): Router {
     } catch (err: any) {
       console.error("[Passkey] Register verify error:", err);
       res.status(500).json({ error: "Registration verification failed" });
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // POST /auth/passkey/signup-options
+  // Start passkey-first account creation (no login required)
+  // Body: { displayName: string }
+  // -----------------------------------------------------------------------
+  router.post("/signup-options", async (req, res) => {
+    try {
+      const { displayName } = req.body;
+      if (!displayName || typeof displayName !== "string" || displayName.trim().length === 0) {
+        res.status(400).json({ error: "Display name is required" });
+        return;
+      }
+
+      const pool = getPool();
+      const config = getConfig();
+      const { rpId, rpName } = getRpConfig(config);
+
+      // Create the user record now (we'll need the ID for WebAuthn userID)
+      const created = await pool.query(
+        `INSERT INTO "mailania_user" ("display_name")
+         VALUES ($1)
+         RETURNING "id"`,
+        [displayName.trim()],
+      );
+      const userId = created.rows[0].id;
+
+      const options = await generateRegistrationOptions({
+        rpName,
+        rpID: rpId,
+        userName: displayName.trim(),
+        userDisplayName: displayName.trim(),
+        userID: new TextEncoder().encode(userId),
+        excludeCredentials: [],
+        authenticatorSelection: {
+          residentKey: "required",
+          userVerification: "required",
+        },
+        attestationType: "none",
+      });
+
+      // Store challenge and pending user ID in session
+      req.session.passkeyChallenge = options.challenge;
+      req.session.passkeySignupUserId = userId;
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+
+      res.json(options);
+    } catch (err: any) {
+      console.error("[Passkey] Signup options error:", err);
+      res.status(500).json({ error: "Failed to generate signup options" });
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // POST /auth/passkey/signup-verify
+  // Complete passkey signup — verify credential, log in the new user
+  // -----------------------------------------------------------------------
+  router.post("/signup-verify", async (req, res) => {
+    try {
+      const challenge = req.session.passkeyChallenge;
+      const pendingUserId = req.session.passkeySignupUserId;
+      if (!challenge || !pendingUserId) {
+        res.status(400).json({ error: "No signup challenge found — start over" });
+        return;
+      }
+
+      const config = getConfig();
+      const { rpId, origin } = getRpConfig(config);
+      const pool = getPool();
+
+      const verification = await verifyRegistrationResponse({
+        response: req.body,
+        expectedChallenge: challenge,
+        expectedOrigin: origin,
+        expectedRPID: rpId,
+      });
+
+      if (!verification.verified || !verification.registrationInfo) {
+        // Clean up the orphaned user
+        await pool.query(`DELETE FROM "mailania_user" WHERE "id" = $1`, [pendingUserId]);
+        res.status(400).json({ error: "Registration verification failed" });
+        return;
+      }
+
+      const { credential, credentialDeviceType, credentialBackedUp } =
+        verification.registrationInfo;
+
+      // Store credential
+      await pool.query(
+        `INSERT INTO "passkey_credential"
+           ("id", "user_id", "public_key", "counter", "device_type", "backed_up", "transports")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          credential.id,
+          pendingUserId,
+          Buffer.from(credential.publicKey),
+          credential.counter,
+          credentialDeviceType,
+          credentialBackedUp,
+          JSON.stringify(credential.transports ?? []),
+        ],
+      );
+
+      // Log the user in
+      req.session.userId = pendingUserId;
+      delete req.session.passkeyChallenge;
+      delete req.session.passkeySignupUserId;
+
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+      });
+
+      // Fetch user for response
+      const userResult = await pool.query(
+        `SELECT "id", "display_name", "email" FROM "mailania_user" WHERE "id" = $1`,
+        [pendingUserId],
+      );
+      const user = userResult.rows[0];
+
+      res.json({
+        verified: true,
+        user: {
+          id: user.id,
+          displayName: user.display_name,
+          email: user.email,
+        },
+      });
+    } catch (err: any) {
+      console.error("[Passkey] Signup verify error:", err);
+      res.status(500).json({ error: "Signup verification failed" });
     }
   });
 
