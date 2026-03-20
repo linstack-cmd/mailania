@@ -1,8 +1,11 @@
 /**
- * Database connection module.
+ * Database connection module — v2 (user-centric model).
  *
  * Uses DATABASE_URL (CockroachDB/Postgres compatible) fetched from Secret Party.
  * Provides a shared Pool instance and startup table initialization.
+ *
+ * BREAKING CHANGE: This replaces the session_id-centric model with proper
+ * user accounts. Run with RESET_DB=true or drop tables manually on first deploy.
  */
 
 import pg from "pg";
@@ -35,7 +38,29 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
     client.release();
   }
 
-  // Create session table used by connect-pg-simple (idempotent)
+  // Optional: reset all tables for clean migration
+  if (process.env.RESET_DB === "true") {
+    console.log("[DB] ⚠️  RESET_DB=true — dropping all application tables…");
+    await _pool.query(`
+      DROP TABLE IF EXISTS "chat_tool_trace" CASCADE;
+      DROP TABLE IF EXISTS "suggestion_revision" CASCADE;
+      DROP TABLE IF EXISTS "suggestion_message" CASCADE;
+      DROP TABLE IF EXISTS "suggestion_conversation" CASCADE;
+      DROP TABLE IF EXISTS "suggestion_feedback" CASCADE;
+      DROP TABLE IF EXISTS "action_log" CASCADE;
+      DROP TABLE IF EXISTS "approval_token" CASCADE;
+      DROP TABLE IF EXISTS "triage_run" CASCADE;
+      DROP TABLE IF EXISTS "gmail_account" CASCADE;
+      DROP TABLE IF EXISTS "passkey_credential" CASCADE;
+      DROP TABLE IF EXISTS "mailania_user" CASCADE;
+      DROP TABLE IF EXISTS "session" CASCADE;
+    `);
+    console.log("[DB] All tables dropped. Recreating…");
+  }
+
+  // =====================================================================
+  // Session table (connect-pg-simple)
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "session" (
       "sid" VARCHAR NOT NULL PRIMARY KEY,
@@ -43,57 +68,120 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "expire" TIMESTAMPTZ NOT NULL
     )
   `);
-
-  // Index for session expiry cleanup
   await _pool.query(`
     CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
   `);
-
   console.log("[DB] Session table ready");
 
-  // Create triage_run table for persisting AI triage suggestion runs
+  // =====================================================================
+  // Core: mailania_user — first-class user accounts
+  // =====================================================================
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "mailania_user" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "display_name" VARCHAR(255) NOT NULL,
+      "email" VARCHAR(320),
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await _pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_mailania_user_email"
+    ON "mailania_user" ("email") WHERE "email" IS NOT NULL
+  `);
+  console.log("[DB] User table ready");
+
+  // =====================================================================
+  // Passkey credentials (WebAuthn)
+  // =====================================================================
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "passkey_credential" (
+      "id" VARCHAR(512) PRIMARY KEY,
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
+      "public_key" BYTEA NOT NULL,
+      "counter" BIGINT NOT NULL DEFAULT 0,
+      "device_type" VARCHAR(32) NOT NULL DEFAULT 'singleDevice',
+      "backed_up" BOOLEAN NOT NULL DEFAULT false,
+      "transports" JSONB,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_passkey_credential_user"
+    ON "passkey_credential" ("user_id")
+  `);
+  console.log("[DB] Passkey credential table ready");
+
+  // =====================================================================
+  // Gmail accounts — multiple per user
+  // =====================================================================
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "gmail_account" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
+      "email" VARCHAR(320) NOT NULL,
+      "tokens" JSONB NOT NULL,
+      "is_primary" BOOLEAN NOT NULL DEFAULT false,
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await _pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_gmail_account_user_email"
+    ON "gmail_account" ("user_id", "email")
+  `);
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_gmail_account_user"
+    ON "gmail_account" ("user_id")
+  `);
+  console.log("[DB] Gmail account table ready");
+
+  // =====================================================================
+  // Triage runs — now keyed by user_id
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "triage_run" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "session_id" VARCHAR NOT NULL,
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
+      "gmail_account_id" UUID REFERENCES "gmail_account"("id") ON DELETE SET NULL,
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
       "suggestions" JSONB NOT NULL,
       "source_messages" JSONB
     )
   `);
-
   await _pool.query(`
-    CREATE INDEX IF NOT EXISTS "IDX_triage_run_session"
-    ON "triage_run" ("session_id", "created_at" DESC)
+    CREATE INDEX IF NOT EXISTS "IDX_triage_run_user"
+    ON "triage_run" ("user_id", "created_at" DESC)
   `);
-
   console.log("[DB] Triage run table ready");
 
-  // --- Approval tokens (Phase 2 safety gate) ---
+  // =====================================================================
+  // Approval tokens — now keyed by user_id
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "approval_token" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "scope" VARCHAR(64) NOT NULL,
       "payload_hash" VARCHAR(128) NOT NULL,
-      "session_id" VARCHAR NOT NULL,
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
       "expires_at" TIMESTAMPTZ NOT NULL,
       "consumed_at" TIMESTAMPTZ,
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   await _pool.query(`
-    CREATE INDEX IF NOT EXISTS "IDX_approval_token_session"
-    ON "approval_token" ("session_id", "created_at" DESC)
+    CREATE INDEX IF NOT EXISTS "IDX_approval_token_user"
+    ON "approval_token" ("user_id", "created_at" DESC)
   `);
-
   console.log("[DB] Approval token table ready");
 
-  // --- Action audit log (Phase 2 auditability) ---
+  // =====================================================================
+  // Action audit log — now keyed by user_id
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "action_log" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "session_id" VARCHAR NOT NULL,
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
       "action" VARCHAR(64) NOT NULL,
       "status" VARCHAR(16) NOT NULL,
       "target_summary" JSONB,
@@ -102,19 +190,19 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   await _pool.query(`
-    CREATE INDEX IF NOT EXISTS "IDX_action_log_session"
-    ON "action_log" ("session_id", "created_at" DESC)
+    CREATE INDEX IF NOT EXISTS "IDX_action_log_user"
+    ON "action_log" ("user_id", "created_at" DESC)
   `);
-
   console.log("[DB] Action log table ready");
 
-  // --- Suggestion feedback ---
+  // =====================================================================
+  // Suggestion feedback — now keyed by user_id
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "suggestion_feedback" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "session_id" VARCHAR NOT NULL,
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
       "run_id" UUID,
       "suggestion_index" INT NOT NULL,
       "vote" VARCHAR(8) NOT NULL,
@@ -122,29 +210,30 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   console.log("[DB] Suggestion feedback table ready");
 
-  // --- Suggestion conversation (chat threads per suggestion) ---
+  // =====================================================================
+  // Suggestion conversation — now keyed by user_id
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "suggestion_conversation" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "run_id" UUID NOT NULL,
       "suggestion_index" INT NOT NULL,
-      "session_id" VARCHAR NOT NULL,
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
       "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   await _pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS "IDX_suggestion_conversation_unique"
-    ON "suggestion_conversation" ("run_id", "suggestion_index", "session_id")
+    ON "suggestion_conversation" ("run_id", "suggestion_index", "user_id")
   `);
-
   console.log("[DB] Suggestion conversation table ready");
 
-  // --- Suggestion messages (chat messages within a conversation) ---
+  // =====================================================================
+  // Suggestion messages (unchanged schema, FK to conversation)
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "suggestion_message" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -154,15 +243,15 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   await _pool.query(`
     CREATE INDEX IF NOT EXISTS "IDX_suggestion_message_conversation"
     ON "suggestion_message" ("conversation_id", "created_at" ASC)
   `);
-
   console.log("[DB] Suggestion message table ready");
 
-  // --- Suggestion revisions (revised suggestion JSON from chat) ---
+  // =====================================================================
+  // Suggestion revisions (unchanged schema, FK to conversation)
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "suggestion_revision" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -173,15 +262,15 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   await _pool.query(`
     CREATE INDEX IF NOT EXISTS "IDX_suggestion_revision_conversation"
     ON "suggestion_revision" ("conversation_id", "revision_index" DESC)
   `);
-
   console.log("[DB] Suggestion revision table ready");
 
-  // --- Chat tool traces (audit/debug for tool-calling in chat) ---
+  // =====================================================================
+  // Chat tool traces (unchanged schema, FK to conversation)
+  // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "chat_tool_trace" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -193,12 +282,10 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
-
   await _pool.query(`
     CREATE INDEX IF NOT EXISTS "IDX_chat_tool_trace_conversation"
     ON "chat_tool_trace" ("conversation_id", "created_at" ASC)
   `);
-
   console.log("[DB] Chat tool trace table ready");
 
   return _pool;

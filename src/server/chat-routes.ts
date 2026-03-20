@@ -1,5 +1,5 @@
 /**
- * Chat API routes for suggestion conversations.
+ * Chat API routes for suggestion conversations (v2: user-centric).
  *
  * GET  /api/suggestions/:runId/:index/chat  — load conversation + messages + latest revision
  * POST /api/suggestions/:runId/:index/chat  — send user message, get agent response + revision
@@ -8,15 +8,13 @@
 import { Router } from "express";
 import { getPool } from "./db.js";
 import { getConfig } from "./config.js";
-import { loadToken } from "./auth.js";
+import { loadGmailClient, getUserId } from "./auth.js";
 import type { TriageSuggestion } from "./triage.js";
 import {
   generateChatResponse,
   generateRevision,
   type ChatMessage,
-  type ChatResponseWithTools,
 } from "./revision-engine.js";
-import type { ToolTrace } from "./chat-tools.js";
 
 export function createChatRouter(): Router {
   const router = Router();
@@ -28,14 +26,17 @@ export function createChatRouter(): Router {
     try {
       const { runId, index } = req.params;
       const suggestionIndex = parseInt(index, 10);
-      const sessionId = req.sessionID;
+      const config = getConfig();
+      const userId = config.localDevNoAuth ? req.session.userId : getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
       const pool = getPool();
 
-      // Verify the triage run exists and belongs to this session
+      // Verify the triage run exists and belongs to this user
       const runResult = await pool.query(
         `SELECT "id", "suggestions" FROM "triage_run"
-         WHERE "id" = $1 AND "session_id" = $2`,
-        [runId, sessionId],
+         WHERE "id" = $1 AND "user_id" = $2`,
+        [runId, userId],
       );
 
       if (runResult.rows.length === 0) {
@@ -55,8 +56,8 @@ export function createChatRouter(): Router {
       const convResult = await pool.query(
         `SELECT "id", "created_at", "updated_at"
          FROM "suggestion_conversation"
-         WHERE "run_id" = $1 AND "suggestion_index" = $2 AND "session_id" = $3`,
-        [runId, suggestionIndex, sessionId],
+         WHERE "run_id" = $1 AND "suggestion_index" = $2 AND "user_id" = $3`,
+        [runId, suggestionIndex, userId],
       );
 
       if (convResult.rows.length === 0) {
@@ -71,7 +72,6 @@ export function createChatRouter(): Router {
 
       const conv = convResult.rows[0];
 
-      // Fetch messages
       const msgResult = await pool.query(
         `SELECT "id", "role", "content", "created_at"
          FROM "suggestion_message"
@@ -80,8 +80,6 @@ export function createChatRouter(): Router {
         [conv.id],
       );
 
-      // Fetch latest revision — order by created_at DESC, id DESC for robustness
-      // (revision_index may have bad values from prior string-concatenation bug)
       const revResult = await pool.query(
         `SELECT "id", "revision_index", "suggestion_json", "source", "created_at"
          FROM "suggestion_revision"
@@ -127,8 +125,10 @@ export function createChatRouter(): Router {
     try {
       const { runId, index } = req.params;
       const suggestionIndex = parseInt(index, 10);
-      const sessionId = req.sessionID;
       const { message } = req.body;
+      const config = getConfig();
+      const userId = config.localDevNoAuth ? req.session.userId : getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
 
       if (!message || typeof message !== "string" || !message.trim()) {
         res.status(400).json({ error: "Message is required" });
@@ -136,7 +136,6 @@ export function createChatRouter(): Router {
       }
 
       const pool = getPool();
-      const config = getConfig();
 
       if (!config.anthropicApiKey) {
         res.status(503).json({ error: "LLM not configured" });
@@ -146,8 +145,8 @@ export function createChatRouter(): Router {
       // Verify run
       const runResult = await pool.query(
         `SELECT "id", "suggestions" FROM "triage_run"
-         WHERE "id" = $1 AND "session_id" = $2`,
-        [runId, sessionId],
+         WHERE "id" = $1 AND "user_id" = $2`,
+        [runId, userId],
       );
 
       if (runResult.rows.length === 0) {
@@ -167,23 +166,23 @@ export function createChatRouter(): Router {
       let convId: string;
       const existingConv = await pool.query(
         `SELECT "id" FROM "suggestion_conversation"
-         WHERE "run_id" = $1 AND "suggestion_index" = $2 AND "session_id" = $3`,
-        [runId, suggestionIndex, sessionId],
+         WHERE "run_id" = $1 AND "suggestion_index" = $2 AND "user_id" = $3`,
+        [runId, suggestionIndex, userId],
       );
 
       if (existingConv.rows.length > 0) {
         convId = existingConv.rows[0].id;
       } else {
         const newConv = await pool.query(
-          `INSERT INTO "suggestion_conversation" ("run_id", "suggestion_index", "session_id")
+          `INSERT INTO "suggestion_conversation" ("run_id", "suggestion_index", "user_id")
            VALUES ($1, $2, $3)
            RETURNING "id"`,
-          [runId, suggestionIndex, sessionId],
+          [runId, suggestionIndex, userId],
         );
         convId = newConv.rows[0].id;
       }
 
-      // Fetch existing messages for context
+      // Fetch existing messages
       const existingMsgs = await pool.query(
         `SELECT "role", "content" FROM "suggestion_message"
          WHERE "conversation_id" = $1
@@ -203,10 +202,10 @@ export function createChatRouter(): Router {
         [convId, message.trim()],
       );
 
-      // Get OAuth client for tool execution (null in local dev mode)
-      const auth = config.localDevNoAuth ? null : loadToken(req);
+      // Get OAuth client for tool execution
+      const auth = config.localDevNoAuth ? null : await loadGmailClient(req);
 
-      // Generate assistant response (with tool-calling loop)
+      // Generate assistant response
       const chatResult = await generateChatResponse(
         originalSuggestion,
         chatHistory,
@@ -219,27 +218,20 @@ export function createChatRouter(): Router {
 
       const assistantResponse = chatResult.assistantText;
 
-      // Store assistant message
       await pool.query(
         `INSERT INTO "suggestion_message" ("conversation_id", "role", "content")
          VALUES ($1, 'assistant', $2)`,
         [convId, assistantResponse],
       );
 
-      // Persist tool traces for audit/debug
+      // Persist tool traces
       if (chatResult.toolTraces.length > 0) {
         for (const trace of chatResult.toolTraces) {
           await pool.query(
             `INSERT INTO "chat_tool_trace"
                ("conversation_id", "tool_name", "args", "result_summary", "duration_ms")
              VALUES ($1, $2, $3, $4, $5)`,
-            [
-              convId,
-              trace.toolName,
-              JSON.stringify(trace.args),
-              trace.resultSummary,
-              trace.durationMs,
-            ],
+            [convId, trace.toolName, JSON.stringify(trace.args), trace.resultSummary, trace.durationMs],
           );
         }
       }
@@ -258,8 +250,6 @@ export function createChatRouter(): Router {
         config.anthropicModel,
       );
 
-      // Get current revision count — explicit Number() cast to prevent
-      // JS string concatenation bug (pg driver returns strings for aggregates)
       const revCountResult = await pool.query(
         `SELECT COALESCE(MAX("revision_index"), -1)::int as max_idx
          FROM "suggestion_revision"
@@ -268,20 +258,17 @@ export function createChatRouter(): Router {
       );
       const nextRevisionIndex = Number(revCountResult.rows[0].max_idx) + 1;
 
-      // Store revision
       await pool.query(
         `INSERT INTO "suggestion_revision" ("conversation_id", "revision_index", "suggestion_json", "source")
          VALUES ($1, $2, $3, 'llm')`,
         [convId, nextRevisionIndex, JSON.stringify(revisedSuggestion)],
       );
 
-      // Update conversation timestamp
       await pool.query(
         `UPDATE "suggestion_conversation" SET "updated_at" = now() WHERE "id" = $1`,
         [convId],
       );
 
-      // Fetch all messages for response
       const allMsgs = await pool.query(
         `SELECT "id", "role", "content", "created_at"
          FROM "suggestion_message"

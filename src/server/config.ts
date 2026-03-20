@@ -24,6 +24,10 @@ export interface AppConfig {
   sessionSecret: string;
   /** When true, auth is bypassed and mock data is served. */
   localDevNoAuth: boolean;
+  /** WebAuthn Relying Party ID (domain, e.g. "mailania.example.com"). Defaults to hostname from FRONTEND_ORIGIN or "localhost". */
+  webauthnRpId?: string;
+  /** WebAuthn expected origin (e.g. "https://mailania.example.com"). Defaults to FRONTEND_ORIGIN or http://localhost:PORT. */
+  webauthnOrigin?: string;
 }
 
 let _config: AppConfig | null = null;
@@ -72,6 +76,8 @@ function loadLocalDevConfig(): AppConfig {
     databaseUrl,
     sessionSecret,
     localDevNoAuth: true,
+    webauthnRpId: process.env.WEBAUTHN_RP_ID,
+    webauthnOrigin: process.env.WEBAUTHN_ORIGIN,
   };
 }
 
@@ -171,6 +177,8 @@ export async function loadConfig(): Promise<AppConfig> {
     databaseUrl,
     sessionSecret,
     localDevNoAuth: false,
+    webauthnRpId: process.env.WEBAUTHN_RP_ID,
+    webauthnOrigin: process.env.WEBAUTHN_ORIGIN,
   };
 
   return _config;

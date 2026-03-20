@@ -1,5 +1,5 @@
 /**
- * Approval Token system — Phase 2 safety gate.
+ * Approval Token system — Phase 2 safety gate (v2: user-centric).
  *
  * Every Gmail mutation requires a valid, unexpired, unconsumed approval token
  * whose scope and payload hash match the requested action. Tokens are single-use
@@ -22,7 +22,7 @@ export interface ApprovalTokenRow {
   id: string;
   scope: ApprovalScope;
   payload_hash: string;
-  session_id: string;
+  user_id: string;
   expires_at: string;
   consumed_at: string | null;
   created_at: string;
@@ -30,7 +30,6 @@ export interface ApprovalTokenRow {
 
 /**
  * Deterministic hash of the action payload.
- * Used to ensure the token matches exactly what the user approved.
  */
 export function hashPayload(payload: unknown): string {
   const canonical = JSON.stringify(payload, Object.keys(payload as any).sort());
@@ -41,7 +40,7 @@ export function hashPayload(payload: unknown): string {
  * Create an approval token for a given scope + payload.
  */
 export async function createApprovalToken(
-  sessionId: string,
+  userId: string,
   scope: ApprovalScope,
   payload: unknown,
 ): Promise<ApprovalTokenRow> {
@@ -49,10 +48,10 @@ export async function createApprovalToken(
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
 
   const result = await getPool().query(
-    `INSERT INTO "approval_token" ("scope", "payload_hash", "session_id", "expires_at")
+    `INSERT INTO "approval_token" ("scope", "payload_hash", "user_id", "expires_at")
      VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [scope, payloadHash, sessionId, expiresAt],
+    [scope, payloadHash, userId, expiresAt],
   );
 
   return result.rows[0];
@@ -70,9 +69,7 @@ export interface TokenValidationSuccess {
 }
 
 /**
- * Validate and consume an approval token. Single-use: once consumed, cannot be reused.
- *
- * Checks: exists, correct scope, matching payload hash, not expired, not already consumed.
+ * Validate and consume an approval token. Single-use.
  */
 export async function validateAndConsumeToken(
   tokenId: string,
@@ -109,7 +106,6 @@ export async function validateAndConsumeToken(
     return { valid: false, code: "TOKEN_CONSUMED", message: "Approval token has already been used" };
   }
 
-  // Consume the token (atomic update with re-check)
   const update = await pool.query(
     `UPDATE "approval_token"
      SET "consumed_at" = now()

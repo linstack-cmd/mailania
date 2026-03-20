@@ -1,18 +1,13 @@
 /**
- * Tool API routes — /api/tools/*
+ * Tool API routes — /api/tools/* (v2: user-centric)
  *
- * PHASE 1: Read-only endpoints (list_inbox, get_message, search_messages,
- *          draft_filter_rule, draft_bulk_action_plan, save_suggestion_feedback)
- *
+ * PHASE 1: Read-only endpoints
  * PHASE 2: Mutation endpoints requiring approval tokens
- *          (apply_archive_bulk, create_filter, label_messages, unarchive)
- *
- * All endpoints return structured JSON suitable for tool-calling agents.
  */
 
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { loadToken, isAuthenticated } from "./auth.js";
+import { loadGmailClient, isAuthenticated, getUserId } from "./auth.js";
 import { getConfig } from "./config.js";
 import {
   listInbox,
@@ -25,7 +20,6 @@ import {
   type FilterRule,
 } from "./gmail.js";
 import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
-import { generateTriageSuggestions } from "./triage.js";
 import {
   createApprovalToken,
   validateAndConsumeToken,
@@ -43,34 +37,30 @@ export function createToolsRouter(): Router {
   // Auth helper — returns OAuth2Client or sends 401
   // -----------------------------------------------------------------------
 
-  function getAuth(req: Request, res: Response) {
+  async function getGmailAuth(req: Request, res: Response) {
     if (config.localDevNoAuth) return null; // Mock mode
-    const auth = loadToken(req);
+    const auth = await loadGmailClient(req);
     if (!auth) {
-      res.status(401).json({ error: "Not authenticated" });
+      res.status(401).json({ error: "No Gmail account connected" });
       return undefined; // Signal: response already sent
     }
     return auth;
   }
 
-  function requireAuth(req: Request, res: Response) {
-    if (config.localDevNoAuth) return "local-dev";
-    const auth = loadToken(req);
-    if (!auth) {
+  function requireUserId(req: Request, res: Response): string | undefined {
+    if (config.localDevNoAuth) return req.session.userId || "dev-user";
+    const userId = getUserId(req);
+    if (!userId) {
       res.status(401).json({ error: "Not authenticated" });
       return undefined;
     }
-    return auth;
+    return userId;
   }
 
   // =====================================================================
   // PHASE 1 — Read-only / suggestion endpoints
   // =====================================================================
 
-  /**
-   * POST /api/tools/list_inbox
-   * Returns inbox messages. Body: { maxResults?: number }
-   */
   router.post("/list_inbox", async (req, res) => {
     try {
       const maxResults = req.body?.maxResults ?? config.inboxLimit;
@@ -80,8 +70,8 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const messages = await listInbox(auth, maxResults);
       res.json({ messages });
@@ -91,10 +81,6 @@ export function createToolsRouter(): Router {
     }
   });
 
-  /**
-   * POST /api/tools/get_message
-   * Returns a single message by ID. Body: { messageId: string }
-   */
   router.post("/get_message", async (req, res) => {
     try {
       const { messageId } = req.body ?? {};
@@ -110,8 +96,8 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const message = await getMessage(auth, messageId);
       res.json({ message });
@@ -125,10 +111,6 @@ export function createToolsRouter(): Router {
     }
   });
 
-  /**
-   * POST /api/tools/search_messages
-   * Search messages with Gmail query syntax. Body: { query: string, maxResults?: number }
-   */
   router.post("/search_messages", async (req, res) => {
     try {
       const { query, maxResults } = req.body ?? {};
@@ -138,7 +120,6 @@ export function createToolsRouter(): Router {
       }
 
       if (config.localDevNoAuth) {
-        // Basic mock search: filter by subject/from/snippet containing the query
         const q = query.toLowerCase();
         const results = MOCK_INBOX_MESSAGES.filter(
           (m) =>
@@ -146,33 +127,21 @@ export function createToolsRouter(): Router {
             m.from.toLowerCase().includes(q) ||
             m.snippet.toLowerCase().includes(q),
         ).slice(0, maxResults ?? 25);
-        res.json({
-          messages: results,
-          count: results.length,
-          resultSizeEstimate: null,
-        });
+        res.json({ messages: results, count: results.length, resultSizeEstimate: null });
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const result = await searchMessages(auth, query, maxResults ?? 25);
-      res.json({
-        messages: result.messages,
-        count: result.count,
-        resultSizeEstimate: result.resultSizeEstimate,
-      });
+      res.json({ messages: result.messages, count: result.count, resultSizeEstimate: result.resultSizeEstimate });
     } catch (err: any) {
       console.error("[tools/search_messages]", err);
       res.status(500).json({ error: "Failed to search messages", detail: err.message });
     }
   });
 
-  /**
-   * POST /api/tools/draft_filter_rule
-   * Returns a filter rule draft — no Gmail mutation. Body: { from?, subject?, hasTheWord?, label?, archive?, markRead? }
-   */
   router.post("/draft_filter_rule", async (req, res) => {
     try {
       const { from, subject, hasTheWord, label, archive, markRead } = req.body ?? {};
@@ -202,11 +171,6 @@ export function createToolsRouter(): Router {
     }
   });
 
-  /**
-   * POST /api/tools/draft_bulk_action_plan
-   * Returns candidate messageIds + rationale for a bulk action. No mutation.
-   * Body: { action: "archive"|"label"|"unarchive", messageIds: string[], rationale: string, label?: string }
-   */
   router.post("/draft_bulk_action_plan", async (req, res) => {
     try {
       const { action, messageIds, rationale, label } = req.body ?? {};
@@ -230,7 +194,6 @@ export function createToolsRouter(): Router {
 
       const plan = { action, messageIds, rationale, ...(label ? { label } : {}) };
 
-      // Map to approval scope
       const scopeMap: Record<string, ApprovalScope> = {
         archive: "archive_bulk",
         label: "label_messages",
@@ -249,11 +212,6 @@ export function createToolsRouter(): Router {
     }
   });
 
-  /**
-   * POST /api/tools/save_suggestion_feedback
-   * Persist user feedback on a triage suggestion.
-   * Body: { runId?: string, suggestionIndex: number, vote: "up"|"down", note?: string }
-   */
   router.post("/save_suggestion_feedback", async (req, res) => {
     try {
       const { runId, suggestionIndex, vote, note } = req.body ?? {};
@@ -267,13 +225,14 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const sessionId = req.sessionID;
+      const userId = requireUserId(req, res);
+      if (!userId) return;
 
       const result = await getPool().query(
-        `INSERT INTO "suggestion_feedback" ("session_id", "run_id", "suggestion_index", "vote", "note")
+        `INSERT INTO "suggestion_feedback" ("user_id", "run_id", "suggestion_index", "vote", "note")
          VALUES ($1, $2, $3, $4, $5)
          RETURNING "id", "created_at"`,
-        [sessionId, runId ?? null, suggestionIndex, vote, note ?? null],
+        [userId, runId ?? null, suggestionIndex, vote, note ?? null],
       );
 
       res.json({ id: result.rows[0].id, createdAt: result.rows[0].created_at });
@@ -287,14 +246,11 @@ export function createToolsRouter(): Router {
   // Approval token management
   // =====================================================================
 
-  /**
-   * POST /api/tools/request_approval
-   * Generate an approval token for a Phase 2 action.
-   * Body: { scope: ApprovalScope, payload: object }
-   */
   router.post("/request_approval", async (req, res) => {
     try {
       const { scope, payload } = req.body ?? {};
+      const userId = requireUserId(req, res);
+      if (!userId) return;
 
       const validScopes: ApprovalScope[] = ["archive_bulk", "create_filter", "label_messages", "unarchive"];
       if (!scope || !validScopes.includes(scope)) {
@@ -306,7 +262,7 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const token = await createApprovalToken(req.sessionID, scope, payload);
+      const token = await createApprovalToken(userId, scope, payload);
 
       res.json({
         tokenId: token.id,
@@ -322,16 +278,13 @@ export function createToolsRouter(): Router {
   });
 
   // =====================================================================
-  // PHASE 2 — Mutation endpoints (require approval token)
+  // PHASE 2 — Mutation endpoints
   // =====================================================================
 
-  /**
-   * POST /api/tools/apply_archive_bulk
-   * Archive messages by removing INBOX label.
-   * Body: { messageIds: string[], approvalToken: string }
-   */
   router.post("/apply_archive_bulk", async (req, res) => {
-    const sessionId = req.sessionID;
+    const userId = requireUserId(req, res);
+    if (!userId) return;
+
     try {
       const { messageIds, approvalToken } = req.body ?? {};
 
@@ -348,41 +301,38 @@ export function createToolsRouter(): Router {
       const validation = await validateAndConsumeToken(approvalToken, "archive_bulk", payload);
 
       if (!validation.valid) {
-        await logAction({ sessionId, action: "archive_bulk", status: "denied", targetSummary: { messageIds }, tokenId: approvalToken, error: validation.message });
+        await logAction({ userId, action: "archive_bulk", status: "denied", targetSummary: { messageIds }, tokenId: approvalToken, error: validation.message });
         res.status(403).json({ error: validation.message, code: validation.code });
         return;
       }
 
-      await logAction({ sessionId, action: "archive_bulk", status: "approved", targetSummary: { messageIds }, tokenId: validation.token.id });
+      await logAction({ userId, action: "archive_bulk", status: "approved", targetSummary: { messageIds }, tokenId: validation.token.id });
 
       if (config.localDevNoAuth) {
-        await logAction({ sessionId, action: "archive_bulk", status: "success", targetSummary: { messageIds }, tokenId: validation.token.id });
+        await logAction({ userId, action: "archive_bulk", status: "success", targetSummary: { messageIds }, tokenId: validation.token.id });
         res.json({ archived: messageIds, errors: [], mock: true });
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const result = await archiveMessages(auth, messageIds);
       const status = result.errors.length === 0 ? "success" : "failure";
-      await logAction({ sessionId, action: "archive_bulk", status, targetSummary: result, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
+      await logAction({ userId, action: "archive_bulk", status, targetSummary: result, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
 
       res.json(result);
     } catch (err: any) {
-      await logAction({ sessionId, action: "archive_bulk", status: "failure", error: err.message }).catch(() => {});
+      await logAction({ userId, action: "archive_bulk", status: "failure", error: err.message }).catch(() => {});
       console.error("[tools/apply_archive_bulk]", err);
       res.status(500).json({ error: "Failed to archive messages", detail: err.message });
     }
   });
 
-  /**
-   * POST /api/tools/create_filter
-   * Create a Gmail filter.
-   * Body: { rule: FilterRule, approvalToken: string }
-   */
   router.post("/create_filter", async (req, res) => {
-    const sessionId = req.sessionID;
+    const userId = requireUserId(req, res);
+    if (!userId) return;
+
     try {
       const { rule, approvalToken } = req.body ?? {};
 
@@ -398,40 +348,37 @@ export function createToolsRouter(): Router {
       const validation = await validateAndConsumeToken(approvalToken, "create_filter", rule);
 
       if (!validation.valid) {
-        await logAction({ sessionId, action: "create_filter", status: "denied", targetSummary: rule, tokenId: approvalToken, error: validation.message });
+        await logAction({ userId, action: "create_filter", status: "denied", targetSummary: rule, tokenId: approvalToken, error: validation.message });
         res.status(403).json({ error: validation.message, code: validation.code });
         return;
       }
 
-      await logAction({ sessionId, action: "create_filter", status: "approved", targetSummary: rule, tokenId: validation.token.id });
+      await logAction({ userId, action: "create_filter", status: "approved", targetSummary: rule, tokenId: validation.token.id });
 
       if (config.localDevNoAuth) {
-        await logAction({ sessionId, action: "create_filter", status: "success", targetSummary: rule, tokenId: validation.token.id });
+        await logAction({ userId, action: "create_filter", status: "success", targetSummary: rule, tokenId: validation.token.id });
         res.json({ filterId: "mock-filter-id", mock: true });
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const result = await createGmailFilter(auth, rule);
-      await logAction({ sessionId, action: "create_filter", status: "success", targetSummary: { ...rule, filterId: result.filterId }, tokenId: validation.token.id });
+      await logAction({ userId, action: "create_filter", status: "success", targetSummary: { ...rule, filterId: result.filterId }, tokenId: validation.token.id });
 
       res.json(result);
     } catch (err: any) {
-      await logAction({ sessionId, action: "create_filter", status: "failure", error: err.message }).catch(() => {});
+      await logAction({ userId: userId!, action: "create_filter", status: "failure", error: err.message }).catch(() => {});
       console.error("[tools/create_filter]", err);
       res.status(500).json({ error: "Failed to create filter", detail: err.message });
     }
   });
 
-  /**
-   * POST /api/tools/label_messages
-   * Apply a label to messages.
-   * Body: { messageIds: string[], label: string, approvalToken: string }
-   */
   router.post("/label_messages", async (req, res) => {
-    const sessionId = req.sessionID;
+    const userId = requireUserId(req, res);
+    if (!userId) return;
+
     try {
       const { messageIds, label, approvalToken } = req.body ?? {};
 
@@ -452,41 +399,38 @@ export function createToolsRouter(): Router {
       const validation = await validateAndConsumeToken(approvalToken, "label_messages", payload);
 
       if (!validation.valid) {
-        await logAction({ sessionId, action: "label_messages", status: "denied", targetSummary: payload, tokenId: approvalToken, error: validation.message });
+        await logAction({ userId, action: "label_messages", status: "denied", targetSummary: payload, tokenId: approvalToken, error: validation.message });
         res.status(403).json({ error: validation.message, code: validation.code });
         return;
       }
 
-      await logAction({ sessionId, action: "label_messages", status: "approved", targetSummary: payload, tokenId: validation.token.id });
+      await logAction({ userId, action: "label_messages", status: "approved", targetSummary: payload, tokenId: validation.token.id });
 
       if (config.localDevNoAuth) {
-        await logAction({ sessionId, action: "label_messages", status: "success", targetSummary: payload, tokenId: validation.token.id });
+        await logAction({ userId, action: "label_messages", status: "success", targetSummary: payload, tokenId: validation.token.id });
         res.json({ labeled: messageIds, labelId: "mock-label-id", errors: [], mock: true });
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const result = await labelMessages(auth, messageIds, label);
       const status = result.errors.length === 0 ? "success" : "failure";
-      await logAction({ sessionId, action: "label_messages", status, targetSummary: { ...payload, labelId: result.labelId }, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
+      await logAction({ userId, action: "label_messages", status, targetSummary: { ...payload, labelId: result.labelId }, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
 
       res.json(result);
     } catch (err: any) {
-      await logAction({ sessionId, action: "label_messages", status: "failure", error: err.message }).catch(() => {});
+      await logAction({ userId: userId!, action: "label_messages", status: "failure", error: err.message }).catch(() => {});
       console.error("[tools/label_messages]", err);
       res.status(500).json({ error: "Failed to label messages", detail: err.message });
     }
   });
 
-  /**
-   * POST /api/tools/unarchive
-   * Move messages back to inbox.
-   * Body: { messageIds: string[], approvalToken: string }
-   */
   router.post("/unarchive", async (req, res) => {
-    const sessionId = req.sessionID;
+    const userId = requireUserId(req, res);
+    if (!userId) return;
+
     try {
       const { messageIds, approvalToken } = req.body ?? {};
 
@@ -503,29 +447,29 @@ export function createToolsRouter(): Router {
       const validation = await validateAndConsumeToken(approvalToken, "unarchive", payload);
 
       if (!validation.valid) {
-        await logAction({ sessionId, action: "unarchive", status: "denied", targetSummary: payload, tokenId: approvalToken, error: validation.message });
+        await logAction({ userId, action: "unarchive", status: "denied", targetSummary: payload, tokenId: approvalToken, error: validation.message });
         res.status(403).json({ error: validation.message, code: validation.code });
         return;
       }
 
-      await logAction({ sessionId, action: "unarchive", status: "approved", targetSummary: payload, tokenId: validation.token.id });
+      await logAction({ userId, action: "unarchive", status: "approved", targetSummary: payload, tokenId: validation.token.id });
 
       if (config.localDevNoAuth) {
-        await logAction({ sessionId, action: "unarchive", status: "success", targetSummary: payload, tokenId: validation.token.id });
+        await logAction({ userId, action: "unarchive", status: "success", targetSummary: payload, tokenId: validation.token.id });
         res.json({ unarchived: messageIds, errors: [], mock: true });
         return;
       }
 
-      const auth = loadToken(req);
-      if (!auth) { res.status(401).json({ error: "Not authenticated" }); return; }
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const result = await unarchiveMessages(auth, messageIds);
       const status = result.errors.length === 0 ? "success" : "failure";
-      await logAction({ sessionId, action: "unarchive", status, targetSummary: result, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
+      await logAction({ userId, action: "unarchive", status, targetSummary: result, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
 
       res.json(result);
     } catch (err: any) {
-      await logAction({ sessionId, action: "unarchive", status: "failure", error: err.message }).catch(() => {});
+      await logAction({ userId: userId!, action: "unarchive", status: "failure", error: err.message }).catch(() => {});
       console.error("[tools/unarchive]", err);
       res.status(500).json({ error: "Failed to unarchive messages", detail: err.message });
     }
