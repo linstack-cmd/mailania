@@ -109,10 +109,7 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
   `);
   // Migration: add name column if table already exists without it
   await _pool.query(`
-    DO $$ BEGIN
-      ALTER TABLE "passkey_credential" ADD COLUMN IF NOT EXISTS "name" VARCHAR(255);
-    EXCEPTION WHEN duplicate_column THEN NULL;
-    END $$
+    ALTER TABLE "passkey_credential" ADD COLUMN IF NOT EXISTS "name" VARCHAR(255)
   `);
   await _pool.query(`
     CREATE INDEX IF NOT EXISTS "IDX_passkey_credential_user"
