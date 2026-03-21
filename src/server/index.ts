@@ -17,10 +17,10 @@ import {
   unlinkGmailAccount,
   logout,
 } from "./auth.js";
-import { listInbox } from "./gmail.js";
-import { generateTriageSuggestions } from "./triage.js";
+import { listInbox, listUnreadInbox } from "./gmail.js";
+import { generateTriageSuggestions, generateTriageSuggestionsStreaming } from "./triage.js";
 import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
-import type { TriageSuggestion } from "./triage.js";
+import type { TriageSuggestion, TriageProgressEvent } from "./triage.js";
 import { createToolsRouter } from "./tools-routes.js";
 import { createChatRouter } from "./chat-routes.js";
 import { createPasskeyRouter } from "./passkey-routes.js";
@@ -122,10 +122,10 @@ async function main() {
     });
 
     app.post("/api/triage/suggest", async (req, res) => {
-      let messages = req.body?.messages;
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        messages = MOCK_INBOX_MESSAGES;
-      }
+      // Use unread-only messages for triage
+      const unreadMessages = MOCK_INBOX_MESSAGES.filter((m) => m.isRead === false);
+      const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
+      const messages = unreadMessages.slice(0, maxTarget);
 
       const userId = req.session.userId!;
 
@@ -186,6 +186,106 @@ async function main() {
         const run = row.rows[0];
         res.json({ suggestions: mockSuggestions, runId: run.id, createdAt: run.created_at });
       }
+    });
+
+    // --- Streaming triage endpoint (SSE) --- local dev
+    app.post("/api/triage/suggest-stream", async (req, res) => {
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+
+      const sendEvent = (event: TriageProgressEvent) => {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      };
+
+      const unreadMessages = MOCK_INBOX_MESSAGES.filter((m) => m.isRead === false);
+      const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
+      const messages = unreadMessages.slice(0, maxTarget);
+      const userId = req.session.userId!;
+
+      if (messages.length === 0) {
+        sendEvent({ type: "complete", percent: 100, totalMessages: 0, suggestionsCount: 0, suggestions: [] });
+        res.end();
+        return;
+      }
+
+      if (config.anthropicApiKey) {
+        try {
+          const result = await generateTriageSuggestionsStreaming(
+            messages,
+            config.anthropicApiKey,
+            config.anthropicModel,
+            sendEvent,
+          );
+
+          const row = await getPool().query(
+            `INSERT INTO "triage_run" ("user_id", "suggestions", "source_messages")
+             VALUES ($1, $2, $3)
+             RETURNING "id", "created_at"`,
+            [userId, JSON.stringify(result.suggestions), JSON.stringify(messages)],
+          );
+
+          const run = row.rows[0];
+          sendEvent({
+            type: "complete",
+            percent: 100,
+            totalMessages: messages.length,
+            suggestionsCount: result.suggestions.length,
+            suggestions: result.suggestions,
+            stage: "Done",
+          });
+          // Send run metadata as a separate event
+          res.write(`data: ${JSON.stringify({ type: "saved", runId: run.id, createdAt: run.created_at })}\n\n`);
+        } catch (err: any) {
+          sendEvent({ type: "error", error: err.message || "Failed to generate triage suggestions" });
+        }
+      } else {
+        // Mock mode — simulate progress
+        sendEvent({ type: "progress", stage: "Analyzing 5 unread messages…", percent: 10, totalMessages: messages.length, totalBatches: 1, currentBatch: 1, suggestionsCount: 0 });
+
+        const mockSuggestions: TriageSuggestion[] = [
+          {
+            kind: "archive_bulk",
+            title: "Archive 3 GitHub notification emails",
+            rationale: "These are automated GitHub notifications that are typically transient.",
+            confidence: "high",
+            messageIds: ["mock-002", "mock-005", "mock-009"],
+          },
+          {
+            kind: "create_filter",
+            title: "Auto-label Stripe receipts",
+            rationale: "Recurring payment receipts from receipts@stripe.com.",
+            confidence: "medium",
+            filterDraft: { from: "receipts@stripe.com", label: "Receipts", archive: false },
+          },
+          {
+            kind: "needs_user_input",
+            title: "Personal message needs attention",
+            rationale: 'The email from alice@example.com about "Coffee next week?" looks personal.',
+            confidence: "low",
+            messageIds: ["mock-004"],
+            questions: ["Do you want to keep personal emails in your inbox until replied?"],
+          },
+        ];
+
+        // Small delay for mock mode so user sees progress
+        await new Promise((r) => setTimeout(r, 800));
+
+        const row = await getPool().query(
+          `INSERT INTO "triage_run" ("user_id", "suggestions", "source_messages")
+           VALUES ($1, $2, $3)
+           RETURNING "id", "created_at"`,
+          [userId, JSON.stringify(mockSuggestions), JSON.stringify(messages)],
+        );
+
+        const run = row.rows[0];
+        sendEvent({ type: "complete", percent: 100, totalMessages: messages.length, suggestionsCount: mockSuggestions.length, suggestions: mockSuggestions, stage: "Done" });
+        res.write(`data: ${JSON.stringify({ type: "saved", runId: run.id, createdAt: run.created_at })}\n\n`);
+      }
+
+      res.end();
     });
 
     app.get("/api/triage/latest", async (req, res) => {
@@ -476,10 +576,9 @@ async function main() {
       }
 
       try {
-        let messages = req.body?.messages;
-        if (!messages || !Array.isArray(messages) || messages.length === 0) {
-          messages = await listInbox(auth, config.inboxLimit);
-        }
+        // Unread-only triage — up to maxMessages (default 25, max 100)
+        const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
+        const messages = await listUnreadInbox(auth, maxTarget);
 
         const result = await generateTriageSuggestions(
           messages,
@@ -514,6 +613,73 @@ async function main() {
         console.error("Triage suggestion error:", err);
         res.status(500).json({ error: "Failed to generate triage suggestions" });
       }
+    });
+
+    // --- Streaming triage endpoint (SSE) --- production
+    app.post("/api/triage/suggest-stream", async (req, res) => {
+      if (!config.anthropicApiKey) {
+        res.status(503).json({ error: "Triage unavailable — ANTHROPIC_API_KEY not configured" });
+        return;
+      }
+
+      const userId = getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+      const auth = await loadGmailClient(req);
+      if (!auth) {
+        res.status(401).json({ error: "No Gmail account connected" });
+        return;
+      }
+
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      });
+
+      const sendEvent = (event: TriageProgressEvent) => {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      };
+
+      try {
+        const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
+
+        sendEvent({ type: "progress", stage: "Loading unread emails…", percent: 2, totalMessages: 0, suggestionsCount: 0 });
+
+        const messages = await listUnreadInbox(auth, maxTarget);
+
+        if (messages.length === 0) {
+          sendEvent({ type: "complete", percent: 100, totalMessages: 0, suggestionsCount: 0, suggestions: [] });
+          res.end();
+          return;
+        }
+
+        const result = await generateTriageSuggestionsStreaming(
+          messages,
+          config.anthropicApiKey,
+          config.anthropicModel,
+          sendEvent,
+        );
+
+        const row = await getPool().query(
+          `INSERT INTO "triage_run" ("user_id", "gmail_account_id", "suggestions", "source_messages")
+           VALUES ($1, $2, $3, $4)
+           RETURNING "id", "created_at"`,
+          [
+            userId,
+            req.session.activeGmailAccountId ?? null,
+            JSON.stringify(result.suggestions),
+            JSON.stringify(messages),
+          ],
+        );
+
+        const run = row.rows[0];
+        res.write(`data: ${JSON.stringify({ type: "saved", runId: run.id, createdAt: run.created_at })}\n\n`);
+      } catch (err: any) {
+        sendEvent({ type: "error", error: err.message || "Failed to generate triage suggestions" });
+      }
+
+      res.end();
     });
 
     app.get("/api/triage/latest", async (req, res) => {

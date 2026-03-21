@@ -85,6 +85,110 @@ function TriageSkeletonCard() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Progress bar component
+// ---------------------------------------------------------------------------
+
+interface ProgressState {
+  stage: string;
+  percent: number;
+  totalMessages?: number;
+  suggestionsCount?: number;
+  currentBatch?: number;
+  totalBatches?: number;
+}
+
+function TriageProgressBar({ progress }: { progress: ProgressState }) {
+  return (
+    <div
+      className={css((t) => ({
+        marginTop: t.spacing(4),
+        padding: t.spacing(5),
+        background: t.colors.bgAlt,
+        borderRadius: t.radius,
+        border: `1px solid ${t.colors.borderLight}`,
+      }))}
+    >
+      {/* Stage text */}
+      <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: t.spacing(3) }))}>
+        <span className={css((t) => ({ fontSize: "0.9rem", fontWeight: "600", color: t.colors.text }))}>
+          {progress.stage}
+        </span>
+        <span className={css((t) => ({ fontSize: "0.82rem", fontWeight: "600", color: t.colors.primary }))}>
+          {progress.percent}%
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div
+        className={css((t) => ({
+          height: "6px",
+          borderRadius: "3px",
+          background: t.colors.borderLight,
+          overflow: "hidden",
+        }))}
+      >
+        <div
+          style={{ width: `${progress.percent}%`, transition: "width 0.4s ease-out" }}
+          className={css((t) => ({
+            height: "100%",
+            borderRadius: "3px",
+            background: `linear-gradient(90deg, ${t.colors.primary}, #6366f1)`,
+          }))}
+        />
+      </div>
+
+      {/* Stats row */}
+      {(progress.totalMessages !== undefined || progress.suggestionsCount !== undefined) && (
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(4), marginTop: t.spacing(2.5), fontSize: "0.78rem", color: t.colors.textMuted }))}>
+          {progress.totalMessages !== undefined && progress.totalMessages > 0 && (
+            <span>{progress.totalMessages} unread message{progress.totalMessages !== 1 ? "s" : ""}</span>
+          )}
+          {progress.totalBatches !== undefined && progress.totalBatches > 1 && progress.currentBatch !== undefined && (
+            <span>Batch {progress.currentBatch}/{progress.totalBatches}</span>
+          )}
+          {progress.suggestionsCount !== undefined && progress.suggestionsCount > 0 && (
+            <span>{progress.suggestionsCount} suggestion{progress.suggestionsCount !== 1 ? "s" : ""} so far</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Zero-unread congratulatory state
+// ---------------------------------------------------------------------------
+
+function ZeroUnreadState({ onBack }: { onBack?: () => void }) {
+  return (
+    <div
+      className={css((t) => ({
+        textAlign: "center",
+        padding: `${t.spacing(12)} ${t.spacing(4)}`,
+        background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #eff6ff 100%)",
+        borderRadius: t.radius,
+        marginTop: t.spacing(4),
+        border: `1px solid #a7f3d0`,
+      }))}
+    >
+      <div className={css({ fontSize: "3.5rem", marginBottom: "8px" })}>🎉</div>
+      <h3 className={css({ fontSize: "1.3rem", fontWeight: "700", margin: "0 0 8px", color: "#065f46" })}>
+        Inbox zero — you're all caught up!
+      </h3>
+      <p className={css({ fontSize: "0.9rem", color: "#047857", lineHeight: "1.6", maxWidth: "360px", margin: "0 auto" })}>
+        No unread emails to triage. Enjoy the calm. ☀️
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
+type TriageMode = "quick" | "deep";
+
 export default function TriageSuggestions({
   messages,
   onAuthLost,
@@ -101,6 +205,9 @@ export default function TriageSuggestions({
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [, navigate] = useLocation();
+  const [triageMode, setTriageMode] = useState<TriageMode>("quick");
+  const [progress, setProgress] = useState<ProgressState | null>(null);
+  const [zeroUnread, setZeroUnread] = useState(false);
 
   // Build messageId → message lookup from inbox
   const messageMap = new Map<string, InboxMessage>();
@@ -134,29 +241,90 @@ export default function TriageSuggestions({
     loadLatest();
   }, []);
 
-  async function fetchSuggestions() {
+  async function fetchSuggestionsStreaming(mode: TriageMode) {
     setLoading(true);
     setError(null);
     setSuggestions(null);
     setLastRunAt(null);
     setRunId(null);
     setReviewedIds(new Set());
+    setZeroUnread(false);
+    setProgress({ stage: "Starting triage…", percent: 0 });
+
+    const maxMessages = mode === "deep" ? 100 : 25;
+
     try {
-      const res = await fetch("/api/triage/suggest", { method: "POST" });
+      const res = await fetch("/api/triage/suggest-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ maxMessages }),
+      });
+
       if (res.status === 401) {
         onAuthLost();
+        setLoading(false);
+        setProgress(null);
         return;
       }
+
       if (!res.ok) {
         const body = await res.text();
         throw new Error(body || `Server error (${res.status})`);
       }
-      const data = await res.json();
-      setSuggestions(data.suggestions ?? []);
-      setLastRunAt(data.createdAt ?? null);
-      setRunId(data.runId?.toString() ?? null);
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("Streaming not supported");
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const json = line.slice(6).trim();
+          if (!json) continue;
+
+          try {
+            const event = JSON.parse(json);
+
+            if (event.type === "progress" || event.type === "batch_done") {
+              setProgress({
+                stage: event.stage || "Processing…",
+                percent: event.percent ?? 0,
+                totalMessages: event.totalMessages,
+                suggestionsCount: event.suggestionsCount,
+                currentBatch: event.currentBatch,
+                totalBatches: event.totalBatches,
+              });
+            } else if (event.type === "complete") {
+              const completeSuggestions = event.suggestions ?? [];
+              setSuggestions(completeSuggestions);
+              if (event.totalMessages === 0) {
+                setZeroUnread(true);
+              }
+              setProgress(null);
+            } else if (event.type === "saved") {
+              setRunId(event.runId?.toString() ?? null);
+              setLastRunAt(event.createdAt ?? null);
+            } else if (event.type === "error") {
+              setError(event.error || "Triage failed");
+              setProgress(null);
+            }
+          } catch {
+            // skip malformed events
+          }
+        }
+      }
     } catch (e: any) {
       setError(e.message || "Failed to generate suggestions");
+      setProgress(null);
     } finally {
       setLoading(false);
     }
@@ -171,6 +339,8 @@ export default function TriageSuggestions({
     });
   }
 
+  const buttonDisabled = loading || initialLoading;
+
   return (
     <section>
       {/* Header row */}
@@ -180,29 +350,79 @@ export default function TriageSuggestions({
           <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
             {lastRunAt && !loading
               ? `Last run: ${new Date(lastRunAt).toLocaleString()}`
-              : "AI-powered inbox organization — click a card for details"}
+              : "AI-powered inbox organization — unread emails only"}
           </p>
         </div>
-        <button
-          onClick={fetchSuggestions}
-          disabled={loading || initialLoading}
-          className={[
-            css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(5)}`,
-              border: "none",
-              borderRadius: t.radiusSm,
-              fontSize: "0.88rem",
-              fontWeight: "600",
-              transition: "background 0.15s, transform 0.1s",
-              "&:active": { transform: "scale(0.97)" },
-            })),
-            loading || initialLoading
-              ? css((t) => ({ background: t.colors.borderLight, color: t.colors.textMuted, cursor: "not-allowed" }))
-              : css((t) => ({ background: t.colors.primary, color: "#fff", cursor: "pointer", "&:hover": { background: t.colors.primaryHover } })),
-          ].join(" ")}
-        >
-          {loading ? "Analyzing…" : suggestions ? "Regenerate" : "Generate Triage"}
-        </button>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(2), alignItems: "center" }))}>
+          {/* Mode toggle */}
+          {!loading && (
+            <div
+              className={css((t) => ({
+                display: "flex",
+                borderRadius: t.radiusSm,
+                border: `1px solid ${t.colors.border}`,
+                overflow: "hidden",
+                fontSize: "0.78rem",
+                fontWeight: "600",
+              }))}
+            >
+              <button
+                onClick={() => setTriageMode("quick")}
+                className={css((t) => ({
+                  padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  fontSize: "0.78rem",
+                  fontWeight: "600",
+                }))}
+                style={triageMode === "quick"
+                  ? { background: "#2563eb", color: "#fff" }
+                  : { background: "transparent", color: "#6b7280" }}
+              >
+                Quick (25)
+              </button>
+              <button
+                onClick={() => setTriageMode("deep")}
+                className={css((t) => ({
+                  padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+                  border: "none",
+                  borderLeft: `1px solid ${t.colors.border}`,
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                  fontSize: "0.78rem",
+                  fontWeight: "600",
+                }))}
+                style={triageMode === "deep"
+                  ? { background: "#2563eb", color: "#fff" }
+                  : { background: "transparent", color: "#6b7280" }}
+              >
+                Deep (100)
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={() => fetchSuggestionsStreaming(triageMode)}
+            disabled={buttonDisabled}
+            className={[
+              css((t) => ({
+                padding: `${t.spacing(2)} ${t.spacing(5)}`,
+                border: "none",
+                borderRadius: t.radiusSm,
+                fontSize: "0.88rem",
+                fontWeight: "600",
+                transition: "background 0.15s, transform 0.1s",
+                "&:active": { transform: "scale(0.97)" },
+              })),
+              buttonDisabled
+                ? css((t) => ({ background: t.colors.borderLight, color: t.colors.textMuted, cursor: "not-allowed" }))
+                : css((t) => ({ background: t.colors.primary, color: "#fff", cursor: "pointer", "&:hover": { background: t.colors.primaryHover } })),
+            ].join(" ")}
+          >
+            {loading ? "Analyzing…" : suggestions ? "Regenerate" : "Generate Triage"}
+          </button>
+        </div>
       </div>
 
       {/* Error */}
@@ -223,7 +443,7 @@ export default function TriageSuggestions({
         >
           <span>{error}</span>
           <button
-            onClick={fetchSuggestions}
+            onClick={() => fetchSuggestionsStreaming(triageMode)}
             className={css((t) => ({
               padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
               border: `1px solid ${t.colors.error}`,
@@ -242,17 +462,22 @@ export default function TriageSuggestions({
         </div>
       )}
 
-      {/* Loading skeleton */}
-      {(loading || initialLoading) && (
+      {/* Progress UI */}
+      {progress && <TriageProgressBar progress={progress} />}
+
+      {/* Loading skeleton (initial load only) */}
+      {initialLoading && !progress && (
         <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3), marginTop: t.spacing(4) }))}>
-          <TriageSkeletonCard />
           <TriageSkeletonCard />
           <TriageSkeletonCard />
         </div>
       )}
 
-      {/* Empty result */}
-      {suggestions && suggestions.length === 0 && !loading && (
+      {/* Zero unread congratulatory state */}
+      {zeroUnread && !loading && <ZeroUnreadState />}
+
+      {/* Empty result (had messages but LLM found nothing to suggest) */}
+      {suggestions && suggestions.length === 0 && !loading && !zeroUnread && (
         <div
           className={css((t) => ({
             textAlign: "center",

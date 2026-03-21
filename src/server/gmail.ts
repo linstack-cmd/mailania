@@ -49,13 +49,61 @@ export async function listInbox(
 
       const headers = detail.data.payload?.headers;
 
+      const labelIds = detail.data.labelIds ?? [];
       return {
         id: msg.id!,
         subject: getHeader(headers, "Subject") || "(no subject)",
         from: getHeader(headers, "From"),
         date: getHeader(headers, "Date"),
         snippet: detail.data.snippet ?? "",
-        labelIds: detail.data.labelIds ?? undefined,
+        isRead: !labelIds.includes("UNREAD"),
+        labelIds: labelIds.length > 0 ? labelIds : undefined,
+      };
+    })
+  );
+
+  return details;
+}
+
+/**
+ * List only unread inbox messages (up to maxResults).
+ * Uses Gmail query `is:unread` with INBOX label.
+ */
+export async function listUnreadInbox(
+  auth: OAuth2Client,
+  maxResults: number = 100
+): Promise<InboxMessage[]> {
+  const gmail = google.gmail({ version: "v1", auth });
+
+  const res = await gmail.users.messages.list({
+    userId: "me",
+    maxResults,
+    labelIds: ["INBOX"],
+    q: "is:unread",
+  });
+
+  const messages = res.data.messages ?? [];
+
+  const details = await Promise.all(
+    messages.map(async (msg) => {
+      const detail = await gmail.users.messages.get({
+        userId: "me",
+        id: msg.id!,
+        format: "metadata",
+        metadataHeaders: ["Subject", "From", "Date"],
+      });
+
+      const headers = detail.data.payload?.headers;
+      const labelIds = detail.data.labelIds ?? [];
+
+      return {
+        id: msg.id!,
+        subject: getHeader(headers, "Subject") || "(no subject)",
+        from: getHeader(headers, "From"),
+        date: getHeader(headers, "Date"),
+        snippet: detail.data.snippet ?? "",
+        isRead: false, // All results are unread by definition
+        labelIds: labelIds.length > 0 ? labelIds : undefined,
       };
     })
   );
