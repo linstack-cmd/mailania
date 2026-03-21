@@ -292,6 +292,81 @@ async function main() {
       res.json({ ok: true, activeGmailAccountId: gmailAccountId });
     });
 
+    // --- Passkey management routes ---
+
+    app.get("/api/account/passkeys", async (req, res) => {
+      const userId = getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+      try {
+        const pool = getPool();
+        const result = await pool.query(
+          `SELECT "id", "device_type", "backed_up", "transports", "created_at"
+           FROM "passkey_credential"
+           WHERE "user_id" = $1
+           ORDER BY "created_at" ASC`,
+          [userId],
+        );
+        res.json({
+          passkeys: result.rows.map((row) => ({
+            id: row.id,
+            deviceType: row.device_type,
+            backedUp: row.backed_up,
+            transports: row.transports ?? [],
+            createdAt: row.created_at,
+          })),
+        });
+      } catch (err) {
+        console.error("[Passkey] List error:", err);
+        res.status(500).json({ error: "Failed to list passkeys" });
+      }
+    });
+
+    app.delete("/api/account/passkeys/:credentialId", async (req, res) => {
+      const userId = getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+      const credentialId = req.params.credentialId;
+      if (!credentialId) {
+        res.status(400).json({ error: "Credential ID required" });
+        return;
+      }
+
+      try {
+        const pool = getPool();
+
+        // Count total passkeys for this user
+        const countResult = await pool.query(
+          `SELECT COUNT(*)::int as count FROM "passkey_credential" WHERE "user_id" = $1`,
+          [userId],
+        );
+        const totalPasskeys = countResult.rows[0].count;
+
+        if (totalPasskeys <= 1) {
+          res.status(409).json({
+            error: "Cannot delete your only passkey. Register another passkey first — it's your only way to sign in.",
+          });
+          return;
+        }
+
+        // Verify the credential belongs to this user before deleting
+        const deleteResult = await pool.query(
+          `DELETE FROM "passkey_credential" WHERE "id" = $1 AND "user_id" = $2 RETURNING "id"`,
+          [credentialId, userId],
+        );
+
+        if (deleteResult.rowCount === 0) {
+          res.status(404).json({ error: "Passkey not found" });
+          return;
+        }
+
+        res.json({ ok: true });
+      } catch (err) {
+        console.error("[Passkey] Delete error:", err);
+        res.status(500).json({ error: "Failed to delete passkey" });
+      }
+    });
+
     app.post("/api/account/unlink-gmail", async (req, res) => {
       const userId = getUserId(req);
       if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }

@@ -4,7 +4,7 @@
  * Manage: user profile, linked Gmail accounts, passkey credentials.
  */
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { css } from "@flow-css/core/css";
 import { registerPasskey, isPasskeySupported } from "./passkey";
 
@@ -31,6 +31,14 @@ interface StatusData {
   activeGmailAccountId?: string;
 }
 
+interface PasskeyInfo {
+  id: string;
+  deviceType: string;
+  backedUp: boolean;
+  transports: string[];
+  createdAt: string;
+}
+
 const gmailAccountRowClass = css((t) => ({
   display: "flex",
   alignItems: "center",
@@ -55,6 +63,24 @@ export default function AccountSettings({
   const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
+  const [passkeysLoading, setPasskeysLoading] = useState(true);
+  const [deletingPasskeyId, setDeletingPasskeyId] = useState<string | null>(null);
+
+  const fetchPasskeys = useCallback(async () => {
+    try {
+      const res = await fetch("/api/account/passkeys");
+      if (res.ok) {
+        const data = await res.json();
+        setPasskeys(data.passkeys);
+      }
+    } catch { /* ignore */ }
+    setPasskeysLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchPasskeys();
+  }, [fetchPasskeys]);
 
   async function handleRegisterPasskey() {
     setPasskeyRegistering(true);
@@ -63,6 +89,7 @@ export default function AccountSettings({
     try {
       await registerPasskey();
       setPasskeyMsg("✅ Passkey registered successfully!");
+      await fetchPasskeys();
       onStatusChange();
     } catch (err: any) {
       setPasskeyError(err.message || "Failed to register passkey");
@@ -82,6 +109,29 @@ export default function AccountSettings({
         onStatusChange();
       }
     } catch { /* ignore */ }
+  }
+
+  async function handleDeletePasskey(credentialId: string) {
+    if (!confirm("Delete this passkey? You won't be able to sign in with it anymore.")) return;
+    setDeletingPasskeyId(credentialId);
+    setPasskeyError(null);
+    setPasskeyMsg(null);
+    try {
+      const res = await fetch(`/api/account/passkeys/${encodeURIComponent(credentialId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPasskeyError(data.error || "Failed to delete passkey");
+      } else {
+        setPasskeyMsg("Passkey deleted.");
+        await fetchPasskeys();
+        onStatusChange();
+      }
+    } catch {
+      setPasskeyError("Failed to delete passkey");
+    }
+    setDeletingPasskeyId(null);
   }
 
   async function handleUnlinkGmail(gmailAccountId: string) {
@@ -231,10 +281,90 @@ export default function AccountSettings({
       {/* Passkeys */}
       <Section title="Passkeys">
         <div className={css((t) => ({ fontSize: "0.88rem", color: t.colors.textMuted, marginBottom: t.spacing(3), lineHeight: "1.6" }))}>
-          {status?.hasPasskey
-            ? "You have a passkey registered. You can add more for backup."
-            : "Register a passkey for fast, passwordless login."}
+          Passkeys are your only sign-in method. Register multiple passkeys for backup access.
         </div>
+
+        {/* Passkey list */}
+        {passkeysLoading ? (
+          <div className={css((t) => ({ fontSize: "0.85rem", color: t.colors.textMuted, padding: t.spacing(3) }))}>
+            Loading passkeys…
+          </div>
+        ) : passkeys.length > 0 ? (
+          <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2), marginBottom: t.spacing(3) }))}>
+            {passkeys.map((pk) => (
+              <div
+                key={pk.id}
+                className={css((t) => ({
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+                  background: t.colors.bgAlt,
+                  border: `1px solid ${t.colors.borderLight}`,
+                  borderRadius: t.radiusSm,
+                  fontSize: "0.85rem",
+                }))}
+              >
+                <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(1), minWidth: 0 }))}>
+                  <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexWrap: "wrap" }))}>
+                    <span style={{ fontWeight: 600 }}>🔑 {formatPasskeyLabel(pk)}</span>
+                    {pk.backedUp && (
+                      <span className={css({ fontSize: "0.72rem", color: "#065f46", fontWeight: "600", background: "#d1fae5", padding: "1px 8px", borderRadius: "999px" })}>
+                        Synced
+                      </span>
+                    )}
+                    <span className={css({ fontSize: "0.72rem", color: "#1e40af", fontWeight: "600", background: "#dbeafe", padding: "1px 8px", borderRadius: "999px" })}>
+                      {pk.deviceType === "multiDevice" ? "Multi-device" : "Single-device"}
+                    </span>
+                  </div>
+                  <div className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted }))}>
+                    Created {formatPasskeyDate(pk.createdAt)}
+                    {pk.transports.length > 0 && ` · ${pk.transports.join(", ")}`}
+                  </div>
+                  <div className={css((t) => ({ fontSize: "0.72rem", color: t.colors.textMuted, fontFamily: "monospace" }))}>
+                    ID: {pk.id.length > 16 ? pk.id.slice(0, 8) + "…" + pk.id.slice(-8) : pk.id}
+                  </div>
+                </div>
+                <div className={css((t) => ({ flexShrink: 0, marginLeft: t.spacing(2) }))}>
+                  {passkeys.length <= 1 ? (
+                    <span
+                      title="This is your only passkey — you can't delete it"
+                      className={css((t) => ({
+                        fontSize: "0.78rem",
+                        color: t.colors.textMuted,
+                        fontStyle: "italic",
+                      }))}
+                    >
+                      Only passkey
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleDeletePasskey(pk.id)}
+                      disabled={deletingPasskeyId === pk.id}
+                      className={css((t) => ({
+                        padding: `${t.spacing(1)} ${t.spacing(2)}`,
+                        border: `1px solid ${t.colors.error}`,
+                        borderRadius: t.radiusSm,
+                        background: "transparent",
+                        color: t.colors.error,
+                        cursor: "pointer",
+                        fontSize: "0.78rem",
+                        "&:hover": { background: "#fef2f2" },
+                        "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+                      }))}
+                    >
+                      {deletingPasskeyId === pk.id ? "…" : "Delete"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className={css((t) => ({ fontSize: "0.85rem", color: t.colors.textMuted, marginBottom: t.spacing(3) }))}>
+            No passkeys registered yet.
+          </div>
+        )}
 
         {isPasskeySupported() ? (
           <button
@@ -254,7 +384,7 @@ export default function AccountSettings({
               "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
             }))}
           >
-            🔑 {passkeyRegistering ? "Registering…" : "Register Passkey"}
+            🔑 {passkeyRegistering ? "Registering…" : "Add Passkey"}
           </button>
         ) : (
           <p className={css((t) => ({ color: t.colors.error, fontSize: "0.85rem" }))}>
@@ -275,6 +405,26 @@ export default function AccountSettings({
       </Section>
     </div>
   );
+}
+
+function formatPasskeyLabel(pk: PasskeyInfo): string {
+  const transports = pk.transports;
+  if (transports.includes("hybrid")) return "Phone / Tablet";
+  if (transports.includes("internal")) return "This device";
+  if (transports.includes("usb")) return "Security key (USB)";
+  if (transports.includes("ble")) return "Security key (Bluetooth)";
+  if (transports.includes("nfc")) return "Security key (NFC)";
+  if (pk.deviceType === "multiDevice") return "Synced passkey";
+  return "Passkey";
+}
+
+function formatPasskeyDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  } catch {
+    return iso;
+  }
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
