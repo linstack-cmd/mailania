@@ -301,7 +301,7 @@ async function main() {
       try {
         const pool = getPool();
         const result = await pool.query(
-          `SELECT "id", "device_type", "backed_up", "transports", "created_at"
+          `SELECT "id", "device_type", "backed_up", "transports", "name", "created_at"
            FROM "passkey_credential"
            WHERE "user_id" = $1
            ORDER BY "created_at" ASC`,
@@ -310,6 +310,7 @@ async function main() {
         res.json({
           passkeys: result.rows.map((row) => ({
             id: row.id,
+            name: row.name || null,
             deviceType: row.device_type,
             backedUp: row.backed_up,
             transports: row.transports ?? [],
@@ -319,6 +320,42 @@ async function main() {
       } catch (err) {
         console.error("[Passkey] List error:", err);
         res.status(500).json({ error: "Failed to list passkeys" });
+      }
+    });
+
+    app.patch("/api/account/passkeys/:credentialId", async (req, res) => {
+      const userId = getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+      const credentialId = req.params.credentialId;
+      const { name } = req.body;
+
+      if (typeof name !== "string" || name.trim().length === 0) {
+        res.status(400).json({ error: "Name is required" });
+        return;
+      }
+
+      if (name.trim().length > 100) {
+        res.status(400).json({ error: "Name must be 100 characters or fewer" });
+        return;
+      }
+
+      try {
+        const pool = getPool();
+        const result = await pool.query(
+          `UPDATE "passkey_credential" SET "name" = $1 WHERE "id" = $2 AND "user_id" = $3 RETURNING "id"`,
+          [name.trim(), credentialId, userId],
+        );
+
+        if (result.rowCount === 0) {
+          res.status(404).json({ error: "Passkey not found" });
+          return;
+        }
+
+        res.json({ ok: true, name: name.trim() });
+      } catch (err) {
+        console.error("[Passkey] Rename error:", err);
+        res.status(500).json({ error: "Failed to rename passkey" });
       }
     });
 

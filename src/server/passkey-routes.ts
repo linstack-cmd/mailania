@@ -151,12 +151,21 @@ export function createPasskeyRouter(): Router {
       const { credential, credentialDeviceType, credentialBackedUp } =
         verification.registrationInfo;
 
-      // Store credential in DB
+      // Store credential in DB with a default name
       const pool = getPool();
+
+      // Determine next passkey number for this user
+      const countResult = await pool.query(
+        `SELECT COUNT(*)::int as count FROM "passkey_credential" WHERE "user_id" = $1`,
+        [userId],
+      );
+      const passkeyNumber = (countResult.rows[0].count ?? 0) + 1;
+      const defaultName = `Passkey ${passkeyNumber}`;
+
       await pool.query(
         `INSERT INTO "passkey_credential"
-           ("id", "user_id", "public_key", "counter", "device_type", "backed_up", "transports")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           ("id", "user_id", "public_key", "counter", "device_type", "backed_up", "transports", "name")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           credential.id,
           userId,
@@ -165,6 +174,7 @@ export function createPasskeyRouter(): Router {
           credentialDeviceType,
           credentialBackedUp,
           JSON.stringify(credential.transports ?? []),
+          defaultName,
         ],
       );
 
@@ -269,11 +279,11 @@ export function createPasskeyRouter(): Router {
       const { credential, credentialDeviceType, credentialBackedUp } =
         verification.registrationInfo;
 
-      // Store credential
+      // Store credential with default name
       await pool.query(
         `INSERT INTO "passkey_credential"
-           ("id", "user_id", "public_key", "counter", "device_type", "backed_up", "transports")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+           ("id", "user_id", "public_key", "counter", "device_type", "backed_up", "transports", "name")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
         [
           credential.id,
           pendingUserId,
@@ -282,6 +292,7 @@ export function createPasskeyRouter(): Router {
           credentialDeviceType,
           credentialBackedUp,
           JSON.stringify(credential.transports ?? []),
+          "Passkey 1",
         ],
       );
 

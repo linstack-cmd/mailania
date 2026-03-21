@@ -33,6 +33,7 @@ interface StatusData {
 
 interface PasskeyInfo {
   id: string;
+  name: string | null;
   deviceType: string;
   backedUp: boolean;
   transports: string[];
@@ -66,6 +67,8 @@ export default function AccountSettings({
   const [passkeys, setPasskeys] = useState<PasskeyInfo[]>([]);
   const [passkeysLoading, setPasskeysLoading] = useState(true);
   const [deletingPasskeyId, setDeletingPasskeyId] = useState<string | null>(null);
+  const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   const fetchPasskeys = useCallback(async () => {
     try {
@@ -109,6 +112,33 @@ export default function AccountSettings({
         onStatusChange();
       }
     } catch { /* ignore */ }
+  }
+
+  function startEditing(pk: PasskeyInfo) {
+    setEditingPasskeyId(pk.id);
+    setEditingName(pk.name || formatPasskeyLabel(pk));
+  }
+
+  async function handleRenamePasskey(credentialId: string) {
+    const trimmed = editingName.trim();
+    if (!trimmed) return;
+    setPasskeyError(null);
+    try {
+      const res = await fetch(`/api/account/passkeys/${encodeURIComponent(credentialId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPasskeyError(data.error || "Failed to rename passkey");
+      } else {
+        await fetchPasskeys();
+      }
+    } catch {
+      setPasskeyError("Failed to rename passkey");
+    }
+    setEditingPasskeyId(null);
   }
 
   async function handleDeletePasskey(credentialId: string) {
@@ -305,9 +335,61 @@ export default function AccountSettings({
                   fontSize: "0.85rem",
                 }))}
               >
-                <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(1), minWidth: 0 }))}>
+                <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(1), minWidth: 0, flex: 1 }))}>
                   <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexWrap: "wrap" }))}>
-                    <span style={{ fontWeight: 600 }}>🔑 {formatPasskeyLabel(pk)}</span>
+                    {editingPasskeyId === pk.id ? (
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); handleRenamePasskey(pk.id); }}
+                        className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1) }))}
+                      >
+                        <span>🔑</span>
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          maxLength={100}
+                          autoFocus
+                          onBlur={() => handleRenamePasskey(pk.id)}
+                          onKeyDown={(e) => { if (e.key === "Escape") setEditingPasskeyId(null); }}
+                          className={css((t) => ({
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                            border: `1px solid ${t.colors.primary}`,
+                            borderRadius: t.radiusSm,
+                            padding: `${t.spacing(0.5)} ${t.spacing(1.5)}`,
+                            outline: "none",
+                            background: t.colors.bg,
+                            color: t.colors.text,
+                            width: "180px",
+                          }))}
+                        />
+                      </form>
+                    ) : (
+                      <>
+                        <span
+                          style={{ fontWeight: 600, cursor: "pointer" }}
+                          onClick={() => startEditing(pk)}
+                          title="Click to rename"
+                        >
+                          🔑 {pk.name || formatPasskeyLabel(pk)}
+                        </span>
+                        <button
+                          onClick={() => startEditing(pk)}
+                          title="Rename"
+                          className={css((t) => ({
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            fontSize: "0.78rem",
+                            color: t.colors.textMuted,
+                            padding: "0 2px",
+                            "&:hover": { color: t.colors.primary },
+                          }))}
+                        >
+                          ✏️
+                        </button>
+                      </>
+                    )}
                     {pk.backedUp && (
                       <span className={css({ fontSize: "0.72rem", color: "#065f46", fontWeight: "600", background: "#d1fae5", padding: "1px 8px", borderRadius: "999px" })}>
                         Synced
@@ -318,6 +400,9 @@ export default function AccountSettings({
                     </span>
                   </div>
                   <div className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted }))}>
+                    {pk.name && formatPasskeyLabel(pk) !== pk.name && (
+                      <span>{formatPasskeyLabel(pk)} · </span>
+                    )}
                     Created {formatPasskeyDate(pk.createdAt)}
                     {pk.transports.length > 0 && ` · ${pk.transports.join(", ")}`}
                   </div>

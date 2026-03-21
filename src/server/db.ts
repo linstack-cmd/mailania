@@ -103,8 +103,16 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "device_type" VARCHAR(32) NOT NULL DEFAULT 'singleDevice',
       "backed_up" BOOLEAN NOT NULL DEFAULT false,
       "transports" JSONB,
+      "name" VARCHAR(255),
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
+  `);
+  // Migration: add name column if table already exists without it
+  await _pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE "passkey_credential" ADD COLUMN IF NOT EXISTS "name" VARCHAR(255);
+    EXCEPTION WHEN duplicate_column THEN NULL;
+    END $$
   `);
   await _pool.query(`
     CREATE INDEX IF NOT EXISTS "IDX_passkey_credential_user"
