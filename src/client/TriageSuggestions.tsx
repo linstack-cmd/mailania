@@ -187,7 +187,7 @@ function ZeroUnreadState({ onBack }: { onBack?: () => void }) {
 // Main component
 // ---------------------------------------------------------------------------
 
-type TriageMode = "quick" | "deep";
+const TRIAGE_MAX_UNREAD_MESSAGES = 100;
 
 export default function TriageSuggestions({
   messages,
@@ -205,7 +205,6 @@ export default function TriageSuggestions({
   const [reviewedIds, setReviewedIds] = useState<Set<number>>(() => new Set());
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [, navigate] = useLocation();
-  const [triageMode, setTriageMode] = useState<TriageMode>("quick");
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [zeroUnread, setZeroUnread] = useState(false);
 
@@ -241,7 +240,7 @@ export default function TriageSuggestions({
     loadLatest();
   }, []);
 
-  async function fetchSuggestionsStreaming(mode: TriageMode) {
+  async function fetchSuggestionsStreaming() {
     setLoading(true);
     setError(null);
     setSuggestions(null);
@@ -251,13 +250,9 @@ export default function TriageSuggestions({
     setZeroUnread(false);
     setProgress({ stage: "Starting triage…", percent: 0 });
 
-    const maxMessages = mode === "deep" ? 100 : 25;
-
     try {
       const res = await fetch("/api/triage/suggest-stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxMessages }),
       });
 
       if (res.status === 401) {
@@ -350,60 +345,12 @@ export default function TriageSuggestions({
           <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
             {lastRunAt && !loading
               ? `Last run: ${new Date(lastRunAt).toLocaleString()}`
-              : "AI-powered inbox organization — unread emails only"}
+              : `AI-powered inbox organization — up to ${TRIAGE_MAX_UNREAD_MESSAGES} unread emails`}
           </p>
         </div>
         <div className={css((t) => ({ display: "flex", gap: t.spacing(2), alignItems: "center" }))}>
-          {/* Mode toggle */}
-          {!loading && (
-            <div
-              className={css((t) => ({
-                display: "flex",
-                borderRadius: t.radiusSm,
-                border: `1px solid ${t.colors.border}`,
-                overflow: "hidden",
-                fontSize: "0.78rem",
-                fontWeight: "600",
-              }))}
-            >
-              <button
-                onClick={() => setTriageMode("quick")}
-                className={css((t) => ({
-                  padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
-                  border: "none",
-                  cursor: "pointer",
-                  transition: "background 0.15s",
-                  fontSize: "0.78rem",
-                  fontWeight: "600",
-                }))}
-                style={triageMode === "quick"
-                  ? { background: "#2563eb", color: "#fff" }
-                  : { background: "transparent", color: "#6b7280" }}
-              >
-                Quick (25)
-              </button>
-              <button
-                onClick={() => setTriageMode("deep")}
-                className={css((t) => ({
-                  padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
-                  border: "none",
-                  borderLeft: `1px solid ${t.colors.border}`,
-                  cursor: "pointer",
-                  transition: "background 0.15s",
-                  fontSize: "0.78rem",
-                  fontWeight: "600",
-                }))}
-                style={triageMode === "deep"
-                  ? { background: "#2563eb", color: "#fff" }
-                  : { background: "transparent", color: "#6b7280" }}
-              >
-                Deep (100)
-              </button>
-            </div>
-          )}
-
           <button
-            onClick={() => fetchSuggestionsStreaming(triageMode)}
+            onClick={() => fetchSuggestionsStreaming()}
             disabled={buttonDisabled}
             className={[
               css((t) => ({
@@ -443,7 +390,7 @@ export default function TriageSuggestions({
         >
           <span>{error}</span>
           <button
-            onClick={() => fetchSuggestionsStreaming(triageMode)}
+            onClick={() => fetchSuggestionsStreaming()}
             className={css((t) => ({
               padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
               border: `1px solid ${t.colors.error}`,

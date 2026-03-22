@@ -25,6 +25,8 @@ import { createToolsRouter } from "./tools-routes.js";
 import { createChatRouter } from "./chat-routes.js";
 import { createPasskeyRouter } from "./passkey-routes.js";
 
+const TRIAGE_MAX_UNREAD_MESSAGES = 100;
+
 async function main() {
   const config = await loadConfig();
   await initDb(config.databaseUrl);
@@ -122,10 +124,9 @@ async function main() {
     });
 
     app.post("/api/triage/suggest", async (req, res) => {
-      // Use unread-only messages for triage
+      // Use unread-only messages for triage — fixed at up to 100 emails.
       const unreadMessages = MOCK_INBOX_MESSAGES.filter((m) => m.isRead === false);
-      const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
-      const messages = unreadMessages.slice(0, maxTarget);
+      const messages = unreadMessages.slice(0, TRIAGE_MAX_UNREAD_MESSAGES);
 
       const userId = req.session.userId!;
 
@@ -201,8 +202,7 @@ async function main() {
       };
 
       const unreadMessages = MOCK_INBOX_MESSAGES.filter((m) => m.isRead === false);
-      const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
-      const messages = unreadMessages.slice(0, maxTarget);
+      const messages = unreadMessages.slice(0, TRIAGE_MAX_UNREAD_MESSAGES);
       const userId = req.session.userId!;
 
       if (messages.length === 0) {
@@ -576,9 +576,8 @@ async function main() {
       }
 
       try {
-        // Unread-only triage — up to maxMessages (default 25, max 100)
-        const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
-        const messages = await listUnreadInbox(auth, maxTarget);
+        // Unread-only triage — fixed at up to 100 emails.
+        const messages = await listUnreadInbox(auth, TRIAGE_MAX_UNREAD_MESSAGES);
 
         const result = await generateTriageSuggestions(
           messages,
@@ -642,11 +641,9 @@ async function main() {
       };
 
       try {
-        const maxTarget = Math.min(Number(req.body?.maxMessages) || 25, 100);
-
         sendEvent({ type: "progress", stage: "Loading unread emails…", percent: 2, totalMessages: 0, suggestionsCount: 0 });
 
-        const messages = await listUnreadInbox(auth, maxTarget);
+        const messages = await listUnreadInbox(auth, TRIAGE_MAX_UNREAD_MESSAGES);
 
         if (messages.length === 0) {
           sendEvent({ type: "complete", percent: 100, totalMessages: 0, suggestionsCount: 0, suggestions: [] });
