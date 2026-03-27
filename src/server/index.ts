@@ -24,6 +24,10 @@ import type { TriageSuggestion, TriageProgressEvent } from "./triage.js";
 import { createToolsRouter } from "./tools-routes.js";
 import { createChatRouter } from "./chat-routes.js";
 import { createPasskeyRouter } from "./passkey-routes.js";
+import {
+  getUserTriagePreferences,
+  updateUserTriagePreferences,
+} from "./user-preferences.js";
 
 const TRIAGE_MAX_UNREAD_MESSAGES = 100;
 
@@ -123,12 +127,39 @@ async function main() {
       res.json({ messages: MOCK_INBOX_MESSAGES });
     });
 
+    app.get("/api/account/triage-preferences", async (req, res) => {
+      try {
+        const userId = req.session.userId!;
+        const triagePreferences = await getUserTriagePreferences(userId);
+        res.json({ triagePreferences });
+      } catch (err) {
+        console.error("[Account] Failed to fetch triage preferences:", err);
+        res.status(500).json({ error: "Failed to fetch triage preferences" });
+      }
+    });
+
+    app.patch("/api/account/triage-preferences", async (req, res) => {
+      try {
+        const userId = req.session.userId!;
+        const triagePreferences = await updateUserTriagePreferences(userId, req.body?.triagePreferences);
+        res.json({ ok: true, triagePreferences });
+      } catch (err: any) {
+        if (err instanceof Error && err.message.includes("characters or fewer")) {
+          res.status(400).json({ error: err.message });
+          return;
+        }
+        console.error("[Account] Failed to update triage preferences:", err);
+        res.status(500).json({ error: "Failed to update triage preferences" });
+      }
+    });
+
     app.post("/api/triage/suggest", async (req, res) => {
       // Use unread-only messages for triage — fixed at up to 100 emails.
       const unreadMessages = MOCK_INBOX_MESSAGES.filter((m) => m.isRead === false);
       const messages = unreadMessages.slice(0, TRIAGE_MAX_UNREAD_MESSAGES);
 
       const userId = req.session.userId!;
+      const triagePreferences = await getUserTriagePreferences(userId);
 
       if (config.anthropicApiKey) {
         try {
@@ -136,6 +167,7 @@ async function main() {
             messages,
             config.anthropicApiKey,
             config.anthropicModel,
+            triagePreferences,
           );
 
           const row = await getPool().query(
@@ -204,6 +236,7 @@ async function main() {
       const unreadMessages = MOCK_INBOX_MESSAGES.filter((m) => m.isRead === false);
       const messages = unreadMessages.slice(0, TRIAGE_MAX_UNREAD_MESSAGES);
       const userId = req.session.userId!;
+      const triagePreferences = await getUserTriagePreferences(userId);
 
       if (messages.length === 0) {
         sendEvent({ type: "complete", percent: 100, totalMessages: 0, suggestionsCount: 0, suggestions: [] });
@@ -218,6 +251,7 @@ async function main() {
             config.anthropicApiKey,
             config.anthropicModel,
             sendEvent,
+            triagePreferences,
           );
 
           const row = await getPool().query(
@@ -390,6 +424,36 @@ async function main() {
       }
 
       res.json({ ok: true, activeGmailAccountId: gmailAccountId });
+    });
+
+    app.get("/api/account/triage-preferences", async (req, res) => {
+      const userId = getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+      try {
+        const triagePreferences = await getUserTriagePreferences(userId);
+        res.json({ triagePreferences });
+      } catch (err) {
+        console.error("[Account] Failed to fetch triage preferences:", err);
+        res.status(500).json({ error: "Failed to fetch triage preferences" });
+      }
+    });
+
+    app.patch("/api/account/triage-preferences", async (req, res) => {
+      const userId = getUserId(req);
+      if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+      try {
+        const triagePreferences = await updateUserTriagePreferences(userId, req.body?.triagePreferences);
+        res.json({ ok: true, triagePreferences });
+      } catch (err: any) {
+        if (err instanceof Error && err.message.includes("characters or fewer")) {
+          res.status(400).json({ error: err.message });
+          return;
+        }
+        console.error("[Account] Failed to update triage preferences:", err);
+        res.status(500).json({ error: "Failed to update triage preferences" });
+      }
     });
 
     // --- Passkey management routes ---
@@ -578,11 +642,13 @@ async function main() {
       try {
         // Unread-only triage — fixed at up to 100 emails.
         const messages = await listUnreadInbox(auth, TRIAGE_MAX_UNREAD_MESSAGES);
+        const triagePreferences = await getUserTriagePreferences(userId);
 
         const result = await generateTriageSuggestions(
           messages,
           config.anthropicApiKey,
           config.anthropicModel,
+          triagePreferences,
         );
 
         const row = await getPool().query(
@@ -644,6 +710,7 @@ async function main() {
         sendEvent({ type: "progress", stage: "Loading unread emails…", percent: 2, totalMessages: 0, suggestionsCount: 0 });
 
         const messages = await listUnreadInbox(auth, TRIAGE_MAX_UNREAD_MESSAGES);
+        const triagePreferences = await getUserTriagePreferences(userId);
 
         if (messages.length === 0) {
           sendEvent({ type: "complete", percent: 100, totalMessages: 0, suggestionsCount: 0, suggestions: [] });
@@ -656,6 +723,7 @@ async function main() {
           config.anthropicApiKey,
           config.anthropicModel,
           sendEvent,
+          triagePreferences,
         );
 
         const row = await getPool().query(

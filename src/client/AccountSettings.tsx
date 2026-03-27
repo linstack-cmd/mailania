@@ -69,6 +69,12 @@ export default function AccountSettings({
   const [deletingPasskeyId, setDeletingPasskeyId] = useState<string | null>(null);
   const [editingPasskeyId, setEditingPasskeyId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [triagePreferences, setTriagePreferences] = useState("");
+  const [savedTriagePreferences, setSavedTriagePreferences] = useState("");
+  const [triagePreferencesLoading, setTriagePreferencesLoading] = useState(true);
+  const [triagePreferencesSaving, setTriagePreferencesSaving] = useState(false);
+  const [triagePreferencesMsg, setTriagePreferencesMsg] = useState<string | null>(null);
+  const [triagePreferencesError, setTriagePreferencesError] = useState<string | null>(null);
 
   const fetchPasskeys = useCallback(async () => {
     try {
@@ -84,6 +90,55 @@ export default function AccountSettings({
   useEffect(() => {
     fetchPasskeys();
   }, [fetchPasskeys]);
+
+  useEffect(() => {
+    async function fetchTriagePreferences() {
+      try {
+        const res = await fetch("/api/account/triage-preferences");
+        if (res.ok) {
+          const data = await res.json();
+          const nextValue = data.triagePreferences || "";
+          setTriagePreferences(nextValue);
+          setSavedTriagePreferences(nextValue);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setTriagePreferencesLoading(false);
+      }
+    }
+
+    fetchTriagePreferences();
+  }, []);
+
+  async function handleSaveTriagePreferences() {
+    setTriagePreferencesSaving(true);
+    setTriagePreferencesError(null);
+    setTriagePreferencesMsg(null);
+
+    try {
+      const res = await fetch("/api/account/triage-preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ triagePreferences }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setTriagePreferencesError(data.error || "Failed to save Triage Preferences");
+        return;
+      }
+
+      const savedValue = data.triagePreferences || "";
+      setTriagePreferences(savedValue);
+      setSavedTriagePreferences(savedValue);
+      setTriagePreferencesMsg("Triage Preferences saved.");
+    } catch {
+      setTriagePreferencesError("Failed to save Triage Preferences");
+    } finally {
+      setTriagePreferencesSaving(false);
+    }
+  }
 
   async function handleRegisterPasskey() {
     setPasskeyRegistering(true);
@@ -180,6 +235,8 @@ export default function AccountSettings({
     setUnlinkingId(null);
   }
 
+  const triagePreferencesDirty = triagePreferences !== savedTriagePreferences;
+
   return (
     <div className={css((t) => ({ maxWidth: "600px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
       <button
@@ -218,6 +275,83 @@ export default function AccountSettings({
           </div>
         </Section>
       )}
+
+      <Section title="Triage Preferences">
+        <div className={css((t) => ({ fontSize: "0.88rem", color: t.colors.textMuted, marginBottom: t.spacing(3), lineHeight: "1.6" }))}>
+          Give Mailania a little context about how you want your inbox triaged. This is freeform guidance used during suggestion generation.
+        </div>
+
+        {triagePreferencesLoading ? (
+          <div className={css((t) => ({ fontSize: "0.85rem", color: t.colors.textMuted, padding: t.spacing(3) }))}>
+            Loading Triage Preferences…
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={triagePreferences}
+              onChange={(e) => {
+                setTriagePreferences(e.target.value);
+                if (triagePreferencesMsg) setTriagePreferencesMsg(null);
+                if (triagePreferencesError) setTriagePreferencesError(null);
+              }}
+              rows={8}
+              placeholder={"Examples: keep VIPs from my team visible, treat newsletters as safe to archive, be extra cautious with anything urgent or client-related, and prefer a calm concise tone in rationales."}
+              className={css((t) => ({
+                width: "100%",
+                minHeight: "180px",
+                resize: "vertical",
+                padding: t.spacing(3),
+                border: `1px solid ${t.colors.border}`,
+                borderRadius: t.radiusSm,
+                background: t.colors.bg,
+                color: t.colors.text,
+                fontSize: "0.9rem",
+                lineHeight: "1.6",
+                outline: "none",
+                fontFamily: "inherit",
+                boxSizing: "border-box",
+                "&:focus": {
+                  borderColor: t.colors.primary,
+                  boxShadow: `0 0 0 3px color-mix(in srgb, ${t.colors.primary} 15%, transparent)`,
+                },
+              }))}
+            />
+            <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", gap: t.spacing(2), marginTop: t.spacing(2), flexWrap: "wrap" }))}>
+              <div className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted }))}>
+                Examples: VIPs, newsletters, urgency, tone, or anything Mailania should be extra cautious about.
+              </div>
+              <button
+                onClick={handleSaveTriagePreferences}
+                disabled={triagePreferencesSaving || !triagePreferencesDirty}
+                className={css((t) => ({
+                  padding: `${t.spacing(2)} ${t.spacing(4)}`,
+                  border: "none",
+                  borderRadius: t.radiusSm,
+                  background: t.colors.primary,
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  fontWeight: "600",
+                  "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+                  "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+                }))}
+              >
+                {triagePreferencesSaving ? "Saving…" : "Save Triage Preferences"}
+              </button>
+            </div>
+            {triagePreferencesMsg && (
+              <div className={css((t) => ({ marginTop: t.spacing(2), padding: t.spacing(3), background: "#ecfdf5", borderRadius: t.radiusSm, color: "#065f46", fontSize: "0.85rem" }))}>
+                {triagePreferencesMsg}
+              </div>
+            )}
+            {triagePreferencesError && (
+              <div className={css((t) => ({ marginTop: t.spacing(2), padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radiusSm, color: t.colors.error, fontSize: "0.85rem" }))}>
+                {triagePreferencesError}
+              </div>
+            )}
+          </>
+        )}
+      </Section>
 
       {/* Gmail Accounts */}
       <Section title="Gmail Accounts">

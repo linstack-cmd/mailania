@@ -81,9 +81,14 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "display_name" VARCHAR(255) NOT NULL,
       "email" VARCHAR(320),
+      "triage_preferences" TEXT NOT NULL DEFAULT '',
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
       "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
+  `);
+  await _pool.query(`
+    ALTER TABLE "mailania_user"
+    ADD COLUMN IF NOT EXISTS "triage_preferences" TEXT NOT NULL DEFAULT ''
   `);
   await _pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS "IDX_mailania_user_email"

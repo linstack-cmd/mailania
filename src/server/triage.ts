@@ -74,7 +74,7 @@ export interface TriageResult {
 // System prompt — encodes the safety policy
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PROMPT = `You are Mailania's triage assistant. Your job is to analyze a user's Gmail inbox messages and suggest organizational actions.
+const BASE_SYSTEM_PROMPT = `You are Mailania's triage assistant. Your job is to analyze a user's Gmail inbox messages and suggest organizational actions.
 
 SAFETY RULES (non-negotiable):
 - You ONLY suggest actions. You NEVER execute them.
@@ -112,6 +112,20 @@ GUIDELINES:
 - "needs_user_input": When the right action is ambiguous or the messages might be important. Always include questions.
 - Keep suggestions actionable and specific. Reference actual senders and subjects from the inbox.
 - Do not suggest archiving messages that look like personal correspondence, action items, or time-sensitive content.`;
+
+function buildSystemPrompt(triagePreferences?: string): string {
+  const trimmedPreferences = triagePreferences?.trim();
+  if (!trimmedPreferences) {
+    return BASE_SYSTEM_PROMPT;
+  }
+
+  return `${BASE_SYSTEM_PROMPT}
+
+USER TRIAGE PREFERENCES:
+Treat the following as additional user-specific guidance when deciding what to prioritize, what is safe to archive, and how cautious to be. Follow it when possible without violating the safety rules above.
+
+${trimmedPreferences}`;
+}
 
 // ---------------------------------------------------------------------------
 // Core function
@@ -154,6 +168,7 @@ export async function generateTriageSuggestions(
   messages: InboxMessage[],
   apiKey: string,
   model: string,
+  triagePreferences?: string,
 ): Promise<TriageResult> {
   if (messages.length === 0) {
     return { suggestions: [] };
@@ -174,7 +189,7 @@ export async function generateTriageSuggestions(
   const response = await client.messages.create({
     model,
     max_tokens: 2048,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(triagePreferences),
     messages: [{ role: "user", content: userMessage }],
   });
 
@@ -223,6 +238,7 @@ export async function generateTriageSuggestionsStreaming(
   apiKey: string,
   model: string,
   onProgress: (event: TriageProgressEvent) => void,
+  triagePreferences?: string,
 ): Promise<TriageResult> {
   if (messages.length === 0) {
     onProgress({ type: "complete", percent: 100, totalMessages: 0, suggestionsCount: 0, suggestions: [] });
@@ -277,7 +293,7 @@ export async function generateTriageSuggestionsStreaming(
       const response = await client.messages.create({
         model,
         max_tokens: 2048,
-        system: SYSTEM_PROMPT,
+        system: buildSystemPrompt(triagePreferences),
         messages: [{ role: "user", content: userMessage }],
       });
 
