@@ -518,7 +518,6 @@ export default function App() {
       maxWidth: "1400px",
       margin: "0 auto",
       padding: `${t.spacing(6)} ${t.spacing(5)}`,
-      overflowX: "hidden",
       minWidth: 0,
       "@media (max-width: 640px)": {
         padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
@@ -541,7 +540,7 @@ export default function App() {
           },
         }))}
       >
-        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "hidden" }))}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
           <h1 className={css({ fontSize: "1.25rem", fontWeight: "700", flexShrink: 0 })}>
             📬 Mailania
           </h1>
@@ -566,7 +565,7 @@ export default function App() {
             </span>
           )}
         </div>
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexShrink: 0 }))}>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexWrap: "nowrap", flexShrink: 1, "@media (max-width: 480px)": { gap: t.spacing(0.75) } }))}>
           <button
             onClick={fetchInbox}
             title="Refresh inbox"
