@@ -6,6 +6,7 @@ import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passk
 import AccountSettings from "./AccountSettings";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
+import MobileProposalSheet from "./MobileProposalSheet";
 import type { TriageSuggestion } from "./TriageSuggestions";
 
 interface InboxMessage {
@@ -513,7 +514,14 @@ export default function App() {
         />
       </Route>
       <Route>
-    <div className={css((t) => ({ maxWidth: "1400px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
+    <div className={css((t) => ({
+      maxWidth: "1400px",
+      margin: "0 auto",
+      padding: `${t.spacing(6)} ${t.spacing(5)}`,
+      "@media (max-width: 640px)": {
+        padding: `${t.spacing(4)} ${t.spacing(3)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
+      },
+    }))}>
       {/* Header */}
       <header
         className={css((t) => ({
@@ -523,6 +531,10 @@ export default function App() {
           paddingBottom: t.spacing(4),
           marginBottom: t.spacing(5),
           borderBottom: `2px solid ${t.colors.border}`,
+          "@media (max-width: 640px)": {
+            paddingBottom: t.spacing(3),
+            marginBottom: t.spacing(3),
+          },
         }))}
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(3) }))}>
@@ -766,21 +778,43 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right column: Proposal Sidebar */}
-        <ProposalSidebar
-          messages={messages}
-          onAuthLost={() => {
-            setStatus((s) => s ? { ...s, authenticated: false } : null);
-            setMessages([]);
-            setGeneralChatMessages([]);
-            setLatestTriageSummary(null);
-            setLatestSuggestions(undefined);
-          }}
-          externalSuggestions={latestSuggestions}
-          externalRunId={latestTriageSummary?.runId ?? null}
-          externalLastRunAt={latestTriageSummary?.createdAt ?? null}
-        />
+        {/* Right column: Proposal Sidebar (hidden on mobile — shown via bottom sheet instead) */}
+        <div
+          className={css({
+            "@media (max-width: 640px)": { display: "none" },
+          })}
+          style={{ flex: "0 0 auto" }}
+        >
+          <ProposalSidebar
+            messages={messages}
+            onAuthLost={() => {
+              setStatus((s) => s ? { ...s, authenticated: false } : null);
+              setMessages([]);
+              setGeneralChatMessages([]);
+              setLatestTriageSummary(null);
+              setLatestSuggestions(undefined);
+            }}
+            externalSuggestions={latestSuggestions}
+            externalRunId={latestTriageSummary?.runId ?? null}
+            externalLastRunAt={latestTriageSummary?.createdAt ?? null}
+          />
+        </div>
       </div>
+
+      {/* Mobile: fixed bottom-sheet proposals (visible only on mobile) */}
+      <MobileProposalSheet
+        messages={messages}
+        onAuthLost={() => {
+          setStatus((s) => s ? { ...s, authenticated: false } : null);
+          setMessages([]);
+          setGeneralChatMessages([]);
+          setLatestTriageSummary(null);
+          setLatestSuggestions(undefined);
+        }}
+        externalSuggestions={latestSuggestions}
+        externalRunId={latestTriageSummary?.runId ?? null}
+        externalLastRunAt={latestTriageSummary?.createdAt ?? null}
+      />
     </div>
       </Route>
     </Switch>
