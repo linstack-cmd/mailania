@@ -10,13 +10,13 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { OAuth2Client } from "google-auth-library";
 import type { TriageSuggestion } from "./triage.js";
 import {
-  CHAT_TOOL_DEFINITIONS,
-  executeTool,
+  MAILANIA_AGENT_TOOL_DEFINITIONS,
+  executeAgentTool,
+  type AgentToolContext,
   type ToolTrace,
-} from "./chat-tools.js";
+} from "./agent-tools.js";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -26,6 +26,7 @@ export interface ChatMessage {
 export interface ChatResponseWithTools {
   assistantText: string;
   toolTraces: ToolTrace[];
+  suggestionUpdatedByTool: boolean;
 }
 
 const REVISION_SYSTEM_PROMPT = `You are Mailania's suggestion revision assistant. You are given:
@@ -164,10 +165,9 @@ export async function generateRevision(
 /**
  * Generate an assistant chat response to the user's message about a suggestion.
  *
- * Supports tool-calling: the model can invoke read-only Gmail tools
- * (search_messages, list_inbox, get_message) to answer questions with
- * concrete mailbox data. The tool-calling loop runs server-side with
- * a safety cap of MAX_TOOL_ROUNDS iterations.
+ * Supports tool-calling via Mailania's strict allowlisted agent tool registry.
+ * The tool-calling loop runs server-side with a safety cap of MAX_TOOL_ROUNDS
+ * iterations and never exposes mailbox mutation powers.
  */
 export async function generateChatResponse(
   original: TriageSuggestion,
@@ -175,8 +175,7 @@ export async function generateChatResponse(
   userMessage: string,
   apiKey: string,
   model: string,
-  auth: OAuth2Client | null = null,
-  localDev: boolean = false,
+  toolContext: AgentToolContext,
 ): Promise<ChatResponseWithTools> {
   const client = new Anthropic({ apiKey });
 
@@ -194,11 +193,20 @@ RULES:
 - Keep responses under 200 words
 
 TOOL USAGE:
-- You have access to read-only Gmail tools: search_messages, list_inbox, get_message
-- Use search_messages to answer impact questions ("how many?", "which messages?", "show me examples")
-- When reporting counts, always cite resultSizeEstimate (approximate total) and include 2-3 sample messages as evidence
-- Use tools proactively when the user asks about email volume, patterns, or specific messages
-- Do NOT use tools for every message — only when mailbox data would genuinely help the answer`;
+- You have access to exactly these Mailania tools and nothing else:
+  1) get_triage_preferences
+  2) set_triage_preferences
+  3) get_suggestion
+  4) set_suggestion
+  5) read_email
+  6) search_emails
+- These tools are recommendation-only. They do NOT apply mailbox actions.
+- Use search_emails to answer impact questions ("how many?", "which messages?", "show me examples")
+- When reporting counts, cite resultSizeEstimate (approximate total) and include 2-3 sample messages when helpful
+- Use read_email when the user asks about a specific message
+- Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
+- Use get_suggestion / set_suggestion to inspect or revise Mailania's recommendation itself
+- Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
 
   const messages: Anthropic.MessageParam[] = [];
   for (const m of chatHistory) {
@@ -216,7 +224,7 @@ TOOL USAGE:
     max_tokens: 1024,
     system: systemPrompt,
     messages,
-    tools: CHAT_TOOL_DEFINITIONS,
+    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
   });
 
   // Tool-calling loop: model may request tool calls, we execute and feed back
@@ -253,9 +261,8 @@ TOOL USAGE:
       // We know these are tool_use blocks
       const tb = toolBlock as { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
       try {
-        const execResult = await executeTool(
-          auth,
-          localDev,
+        const execResult = await executeAgentTool(
+          toolContext,
           tb.name,
           tb.input,
         );
@@ -289,7 +296,7 @@ TOOL USAGE:
       max_tokens: 1024,
       system: systemPrompt,
       messages,
-      tools: CHAT_TOOL_DEFINITIONS,
+      tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
     });
   }
 
@@ -302,6 +309,9 @@ TOOL USAGE:
   return {
     assistantText: textBlock.text.trim(),
     toolTraces,
+    suggestionUpdatedByTool: toolTraces.some(
+      (trace) => trace.toolName === "set_suggestion" && !trace.resultSummary.startsWith("error:"),
+    ),
   };
 }
 
@@ -322,6 +332,11 @@ export async function generateChatResponseSimple(
     userMessage,
     apiKey,
     model,
+    {
+      userId: "legacy-wrapper",
+      auth: null,
+      localDev: true,
+    },
   );
   return result.assistantText;
 }

@@ -11,6 +11,10 @@ import { getConfig } from "./config.js";
 import { loadGmailClient, getUserId } from "./auth.js";
 import type { TriageSuggestion } from "./triage.js";
 import {
+  getLatestSuggestionRevision,
+  saveSuggestionRevision,
+} from "./agent-tools.js";
+import {
   generateChatResponse,
   generateRevision,
   type ChatMessage,
@@ -212,8 +216,14 @@ export function createChatRouter(): Router {
         message.trim(),
         config.anthropicApiKey,
         config.anthropicModel,
-        auth,
-        config.localDevNoAuth,
+        {
+          userId,
+          auth,
+          localDev: config.localDevNoAuth,
+          runId,
+          suggestionIndex,
+          conversationId: convId,
+        },
       );
 
       const assistantResponse = chatResult.assistantText;
@@ -236,38 +246,69 @@ export function createChatRouter(): Router {
         }
       }
 
-      // Generate revised suggestion
-      const fullHistory: ChatMessage[] = [
-        ...chatHistory,
-        { role: "user", content: message.trim() },
-        { role: "assistant", content: assistantResponse },
-      ];
+      let latestRevision;
 
-      const revisedSuggestion = await generateRevision(
-        originalSuggestion,
-        fullHistory,
-        config.anthropicApiKey,
-        config.anthropicModel,
-      );
+      if (chatResult.suggestionUpdatedByTool) {
+        const savedRevision = await getLatestSuggestionRevision(
+          {
+            userId,
+            auth,
+            localDev: config.localDevNoAuth,
+            runId,
+            suggestionIndex,
+            conversationId: convId,
+          },
+          runId,
+          suggestionIndex,
+        );
 
-      const revCountResult = await pool.query(
-        `SELECT COALESCE(MAX("revision_index"), -1)::int as max_idx
-         FROM "suggestion_revision"
-         WHERE "conversation_id" = $1`,
-        [convId],
-      );
-      const nextRevisionIndex = Number(revCountResult.rows[0].max_idx) + 1;
+        if (!savedRevision) {
+          throw new Error("set_suggestion reported success but no saved revision was found");
+        }
 
-      await pool.query(
-        `INSERT INTO "suggestion_revision" ("conversation_id", "revision_index", "suggestion_json", "source")
-         VALUES ($1, $2, $3, 'llm')`,
-        [convId, nextRevisionIndex, JSON.stringify(revisedSuggestion)],
-      );
+        latestRevision = {
+          revisionIndex: savedRevision.revisionIndex,
+          suggestion: savedRevision.suggestion,
+          source: savedRevision.source,
+        };
+      } else {
+        // Fallback for normal chat replies: keep auto-generating a revised suggestion.
+        const fullHistory: ChatMessage[] = [
+          ...chatHistory,
+          { role: "user", content: message.trim() },
+          { role: "assistant", content: assistantResponse },
+        ];
 
-      await pool.query(
-        `UPDATE "suggestion_conversation" SET "updated_at" = now() WHERE "id" = $1`,
-        [convId],
-      );
+        const revisedSuggestion = await generateRevision(
+          originalSuggestion,
+          fullHistory,
+          config.anthropicApiKey,
+          config.anthropicModel,
+        );
+
+        const savedRevision = await saveSuggestionRevision(
+          {
+            userId,
+            auth,
+            localDev: config.localDevNoAuth,
+            runId,
+            suggestionIndex,
+            conversationId: convId,
+          },
+          {
+            runId,
+            suggestionIndex,
+            suggestion: revisedSuggestion,
+            source: "llm",
+          },
+        );
+
+        latestRevision = {
+          revisionIndex: savedRevision.revisionIndex,
+          suggestion: savedRevision.suggestion,
+          source: savedRevision.source,
+        };
+      }
 
       const allMsgs = await pool.query(
         `SELECT "id", "role", "content", "created_at"
@@ -285,11 +326,7 @@ export function createChatRouter(): Router {
           content: r.content,
           createdAt: r.created_at,
         })),
-        latestRevision: {
-          revisionIndex: nextRevisionIndex,
-          suggestion: revisedSuggestion,
-          source: "llm",
-        },
+        latestRevision,
         originalSuggestion,
         toolsUsed: chatResult.toolTraces.map((t) => ({
           tool: t.toolName,
