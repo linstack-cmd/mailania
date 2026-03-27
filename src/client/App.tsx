@@ -5,6 +5,7 @@ import TriageSuggestions from "./TriageSuggestions";
 import SuggestionDetailPage from "./SuggestionDetailPage";
 import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
 import AccountSettings from "./AccountSettings";
+import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 
 interface InboxMessage {
   id: string;
@@ -36,6 +37,12 @@ interface StatusData {
   gmailConnected?: boolean;
   hasPasskey?: boolean;
   activeGmailAccountId?: string;
+}
+
+interface LatestTriageSummary {
+  runId: string;
+  createdAt: string;
+  suggestionCount: number;
 }
 
 function formatFrom(raw: string): string {
@@ -102,14 +109,24 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [signupName, setSignupName] = useState("");
+  const [generalChatMessages, setGeneralChatMessages] = useState<ChatMessageData[]>([]);
+  const [generalChatInput, setGeneralChatInput] = useState("");
+  const [generalChatLoading, setGeneralChatLoading] = useState(false);
+  const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
+  const [generalChatError, setGeneralChatError] = useState<string | null>(null);
+  const [latestTriageSummary, setLatestTriageSummary] = useState<LatestTriageSummary | null>(null);
 
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
       .then((data: StatusData) => {
         setStatus(data);
-        if (data.authenticated && data.gmailConnected) fetchInbox();
-        else setLoading(false);
+        if (data.authenticated && (data.gmailConnected || data.localDev)) {
+          fetchInbox();
+          fetchGeneralChat();
+        } else {
+          setLoading(false);
+        }
       })
       .catch(() => {
         setError("Cannot reach server");
@@ -135,19 +152,101 @@ export default function App() {
     setLoading(false);
   }
 
+  async function fetchGeneralChat() {
+    setGeneralChatInitLoading(true);
+    setGeneralChatError(null);
+    try {
+      const res = await fetch("/api/chat/general");
+      if (res.status === 401) {
+        setStatus((s) => s ? { ...s, authenticated: false } : null);
+        setGeneralChatMessages([]);
+        setLatestTriageSummary(null);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error("Failed to load inbox chat");
+      }
+      const data = await res.json();
+      setGeneralChatMessages(data.messages ?? []);
+      setLatestTriageSummary(data.latestTriage
+        ? {
+            runId: data.latestTriage.runId,
+            createdAt: data.latestTriage.createdAt,
+            suggestionCount: data.latestTriage.suggestionCount,
+          }
+        : null);
+    } catch {
+      setGeneralChatError("Failed to load inbox chat");
+    } finally {
+      setGeneralChatInitLoading(false);
+    }
+  }
+
   async function refreshStatus() {
     try {
       const res = await fetch("/api/status");
       const data: StatusData = await res.json();
       setStatus(data);
-      if (data.authenticated && data.gmailConnected) fetchInbox();
+      if (data.authenticated && (data.gmailConnected || data.localDev)) {
+        fetchInbox();
+        fetchGeneralChat();
+      }
     } catch { /* ignore */ }
+  }
+
+  async function sendGeneralChatMessage() {
+    if (!generalChatInput.trim() || generalChatLoading) return;
+    const msg = generalChatInput.trim();
+    const tempId = `temp-${Date.now()}`;
+
+    setGeneralChatInput("");
+    setGeneralChatLoading(true);
+    setGeneralChatError(null);
+    setGeneralChatMessages((prev) => [
+      ...prev,
+      { id: tempId, role: "user", content: msg, createdAt: new Date().toISOString() },
+    ]);
+
+    try {
+      const res = await fetch("/api/chat/general", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      });
+
+      if (res.status === 401) {
+        setStatus((s) => s ? { ...s, authenticated: false } : null);
+        return;
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to send message");
+      }
+
+      const data = await res.json();
+      setGeneralChatMessages(data.messages ?? []);
+      setLatestTriageSummary(data.latestTriage
+        ? {
+            runId: data.latestTriage.runId,
+            createdAt: data.latestTriage.createdAt,
+            suggestionCount: data.latestTriage.suggestionCount,
+          }
+        : null);
+    } catch (err: any) {
+      setGeneralChatError(err.message || "Failed to send message");
+      setGeneralChatMessages((prev) => prev.filter((m) => m.id !== tempId));
+    } finally {
+      setGeneralChatLoading(false);
+    }
   }
 
   async function handleLogout() {
     await fetch("/auth/logout");
     setStatus({ authenticated: false });
     setMessages([]);
+    setGeneralChatMessages([]);
+    setLatestTriageSummary(null);
   }
 
   async function handlePasskeyLogin() {
@@ -511,12 +610,48 @@ export default function App() {
       >
         {/* Triage column */}
         {!loading && (
-          <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
+          <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, display: "flex", flexDirection: "column", gap: t.spacing(5) }))}>
+            <section>
+              <div className={css((t) => ({ marginBottom: t.spacing(3) }))}>
+                <h2 className={css({ fontSize: "1.25rem", fontWeight: "700", margin: "0" })}>🗣️ Inbox Chat</h2>
+                <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: "1.5" }))}>
+                  Ask about your inbox broadly, search mail, read or summarize specific emails, tweak triage preferences, or talk through recent suggestions.
+                </p>
+                {latestTriageSummary && (
+                  <p className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, margin: `${t.spacing(1.5)} 0 0` }))}>
+                    Latest triage run: {latestTriageSummary.suggestionCount} suggestion{latestTriageSummary.suggestionCount !== 1 ? "s" : ""} from {new Date(latestTriageSummary.createdAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+
+              <ChatPanel
+                title="Chat with Mailania"
+                subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won’t change your mailbox from chat."
+                messages={generalChatMessages}
+                loading={generalChatLoading}
+                initLoading={generalChatInitLoading}
+                error={generalChatError}
+                input={generalChatInput}
+                onInputChange={setGeneralChatInput}
+                onSend={sendGeneralChatMessage}
+                placeholder="Ask about your inbox…"
+                emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
+                starterPrompts={[
+                  "What stands out in my inbox right now?",
+                  "Search for receipts from this month",
+                  "What triage preferences do you remember?",
+                  "Summarize the latest triage suggestions",
+                ]}
+              />
+            </section>
+
             <TriageSuggestions
               messages={messages}
               onAuthLost={() => {
                 setStatus((s) => s ? { ...s, authenticated: false } : null);
                 setMessages([]);
+                setGeneralChatMessages([]);
+                setLatestTriageSummary(null);
               }}
             />
           </div>

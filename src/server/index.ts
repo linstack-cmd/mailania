@@ -839,7 +839,7 @@ async function main() {
   app.use("/api/tools", createToolsRouter());
 
   // --- Chat / Suggestion Conversation routes ---
-  app.use("/api/suggestions", createChatRouter());
+  app.use("/api", createChatRouter());
 
   // In production, serve built frontend
   const clientDist = path.resolve("dist/client");

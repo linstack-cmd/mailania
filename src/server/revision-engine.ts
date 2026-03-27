@@ -1,12 +1,12 @@
 /**
- * Suggestion Revision Engine — v1
+ * Suggestion Revision + Chat Engine
  *
- * Takes an original suggestion, the chat transcript, and produces a revised
- * suggestion. The revision may change the action kind (e.g., archive_bulk →
- * mark_read) based on user intent expressed in chat.
+ * - generateRevision(): creates a revised suggestion JSON
+ * - generateChatResponse(): suggestion-scoped chat
+ * - generateGeneralChatResponse(): inbox-level general chat
  *
- * SAFETY: This module is read-only. It produces suggestion JSON but never
- * executes any Gmail mutations.
+ * SAFETY: all chat/tool flows are read-only or recommendation-only. No Gmail
+ * mutations are executed from here.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -27,6 +27,19 @@ export interface ChatResponseWithTools {
   assistantText: string;
   toolTraces: ToolTrace[];
   suggestionUpdatedByTool: boolean;
+}
+
+export interface LatestTriageContext {
+  runId: string;
+  createdAt: string | Date;
+  suggestionCount: number;
+  suggestions: Array<{
+    suggestionIndex: number;
+    kind: TriageSuggestion["kind"];
+    title: string;
+    confidence: TriageSuggestion["confidence"];
+    messageCount: number;
+  }>;
 }
 
 const REVISION_SYSTEM_PROMPT = `You are Mailania's suggestion revision assistant. You are given:
@@ -78,6 +91,177 @@ SUGGESTION SCHEMA:
 
 Respond with the JSON object only.`;
 
+function buildSuggestionChatSystemPrompt(original: TriageSuggestion): string {
+  return `You are Mailania's triage assistant having a conversation about a specific email suggestion. You help the user refine what action to take.
+
+CONTEXT — Original suggestion:
+${JSON.stringify(original, null, 2)}
+
+RULES:
+- Be concise and helpful
+- If the user wants to change the action (e.g., "just mark as read instead"), acknowledge it clearly
+- Explain trade-offs when relevant
+- You can suggest alternative actions: archive_bulk, create_filter, needs_user_input, mark_read
+- Never execute actions — you only discuss and refine suggestions
+- Keep responses under 200 words
+
+TOOL USAGE:
+- You have access to exactly these Mailania tools and nothing else:
+  1) get_triage_preferences
+  2) set_triage_preferences
+  3) get_suggestion
+  4) set_suggestion
+  5) read_email
+  6) search_emails
+- These tools are recommendation-only. They do NOT apply mailbox actions.
+- Use search_emails to answer impact questions ("how many?", "which messages?", "show me examples")
+- When reporting counts, cite resultSizeEstimate (approximate total) and include 2-3 sample messages when helpful
+- Use read_email when the user asks about a specific message
+- Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
+- Use get_suggestion / set_suggestion to inspect or revise Mailania's recommendation itself
+- Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
+}
+
+function buildGeneralChatSystemPrompt(latestTriage: LatestTriageContext | null): string {
+  return `You are Mailania's inbox assistant having a general conversation about the user's inbox. You help with broad inbox questions, email search, reading/summarizing specific emails, saved triage preferences, and discussion of recent triage suggestions.
+
+LATEST TRIAGE CONTEXT:
+${latestTriage ? JSON.stringify(latestTriage, null, 2) : "No triage run is currently available."}
+
+RULES:
+- Be concise and helpful
+- You are read-only and recommendation-only from chat
+- Never claim to archive, delete, send, label, or otherwise mutate the mailbox
+- If the user asks for a mailbox-changing action, explain that you can only recommend or revise suggestions here
+- Keep responses under 220 words unless the user asks for more detail
+- If the user refers to a recent suggestion broadly (for example "the second suggestion"), use the latest triage context above to ground your answer
+- If you revise or inspect a specific suggestion from general chat, call get_suggestion or set_suggestion with an explicit runId and suggestionIndex
+
+TOOL USAGE:
+- You have access to exactly these Mailania tools and nothing else:
+  1) get_triage_preferences
+  2) set_triage_preferences
+  3) get_suggestion
+  4) set_suggestion
+  5) read_email
+  6) search_emails
+- These tools are recommendation-only. They do NOT apply mailbox actions.
+- Use search_emails for inbox-wide questions, finding messages, counting matches, or identifying examples
+- Use read_email when the user asks to inspect or summarize a specific message
+- Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
+- Use get_suggestion / set_suggestion only when discussing a specific triage suggestion
+- Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
+}
+
+async function runChatWithTools(
+  systemPrompt: string,
+  chatHistory: ChatMessage[],
+  userMessage: string,
+  apiKey: string,
+  model: string,
+  toolContext: AgentToolContext,
+): Promise<ChatResponseWithTools> {
+  const client = new Anthropic({ apiKey });
+  const messages: Anthropic.MessageParam[] = [];
+
+  for (const m of chatHistory) {
+    if (m.role === "user" || m.role === "assistant") {
+      messages.push({ role: m.role, content: m.content });
+    }
+  }
+  messages.push({ role: "user", content: userMessage });
+
+  const MAX_TOOL_ROUNDS = 5;
+  const toolTraces: ToolTrace[] = [];
+
+  let response = await client.messages.create({
+    model,
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages,
+    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+  });
+
+  let rounds = 0;
+  while (response.stop_reason === "tool_use" && rounds < MAX_TOOL_ROUNDS) {
+    rounds++;
+
+    const toolUseBlocks = response.content.filter((block) => block.type === "tool_use");
+    if (toolUseBlocks.length === 0) break;
+
+    messages.push({
+      role: "assistant",
+      content: response.content.map((block) => {
+        if (block.type === "tool_use") {
+          return {
+            type: "tool_use" as const,
+            id: block.id,
+            name: block.name,
+            input: block.input as Record<string, unknown>,
+          };
+        }
+        return { type: "text" as const, text: (block as any).text ?? "" };
+      }),
+    });
+
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const toolBlock of toolUseBlocks) {
+      const tb = toolBlock as {
+        type: "tool_use";
+        id: string;
+        name: string;
+        input: Record<string, unknown>;
+      };
+
+      try {
+        const execResult = await executeAgentTool(toolContext, tb.name, tb.input);
+        toolTraces.push(execResult.trace);
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tb.id,
+          content: JSON.stringify(execResult.result),
+        });
+      } catch (err: any) {
+        toolTraces.push({
+          toolName: tb.name,
+          args: tb.input,
+          resultSummary: `error: ${err.message}`,
+          durationMs: 0,
+        });
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tb.id,
+          content: JSON.stringify({ error: err.message }),
+          is_error: true,
+        });
+      }
+    }
+
+    messages.push({ role: "user", content: toolResults });
+
+    response = await client.messages.create({
+      model,
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages,
+      tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+    });
+  }
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("No text response from LLM");
+  }
+
+  return {
+    assistantText: textBlock.text.trim(),
+    toolTraces,
+    suggestionUpdatedByTool: toolTraces.some(
+      (trace) => trace.toolName === "set_suggestion" && !trace.resultSummary.startsWith("error:"),
+    ),
+  };
+}
+
 /**
  * Generate a revised suggestion based on chat history.
  */
@@ -107,29 +291,19 @@ export async function generateRevision(
 
   let jsonText = textBlock.text.trim();
   if (jsonText.startsWith("```")) {
-    jsonText = jsonText
-      .replace(/^```(?:json)?\s*\n?/, "")
-      .replace(/\n?```\s*$/, "");
+    jsonText = jsonText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
   }
 
   const revised = JSON.parse(jsonText) as TriageSuggestion;
 
-  // Validate core fields
-  const validKinds = new Set([
-    "archive_bulk",
-    "create_filter",
-    "needs_user_input",
-    "mark_read",
-  ]);
+  const validKinds = new Set(["archive_bulk", "create_filter", "needs_user_input", "mark_read"]);
   const validConfidences = new Set(["low", "medium", "high"]);
 
   if (!validKinds.has(revised.kind)) revised.kind = original.kind;
-  if (!validConfidences.has(revised.confidence))
-    revised.confidence = original.confidence;
+  if (!validConfidences.has(revised.confidence)) revised.confidence = original.confidence;
   if (!revised.title) revised.title = original.title;
   if (!revised.rationale) revised.rationale = original.rationale;
 
-  // Validate actionPlan if present
   if (revised.actionPlan) {
     const validStepTypes = new Set([
       "archive_bulk",
@@ -140,10 +314,8 @@ export async function generateRevision(
     ]);
 
     if (!Array.isArray(revised.actionPlan) || revised.actionPlan.length === 0) {
-      // Invalid actionPlan — remove it to fall back to single-action
       delete revised.actionPlan;
     } else {
-      // Filter out invalid steps, keep valid ones
       revised.actionPlan = revised.actionPlan.filter(
         (step) =>
           step &&
@@ -152,7 +324,6 @@ export async function generateRevision(
           step.params &&
           typeof step.params === "object",
       );
-      // If all steps were invalid, remove actionPlan
       if (revised.actionPlan.length === 0) {
         delete revised.actionPlan;
       }
@@ -163,11 +334,7 @@ export async function generateRevision(
 }
 
 /**
- * Generate an assistant chat response to the user's message about a suggestion.
- *
- * Supports tool-calling via Mailania's strict allowlisted agent tool registry.
- * The tool-calling loop runs server-side with a safety cap of MAX_TOOL_ROUNDS
- * iterations and never exposes mailbox mutation powers.
+ * Suggestion-scoped chat.
  */
 export async function generateChatResponse(
   original: TriageSuggestion,
@@ -177,147 +344,39 @@ export async function generateChatResponse(
   model: string,
   toolContext: AgentToolContext,
 ): Promise<ChatResponseWithTools> {
-  const client = new Anthropic({ apiKey });
-
-  const systemPrompt = `You are Mailania's triage assistant having a conversation about a specific email suggestion. You help the user refine what action to take.
-
-CONTEXT — Original suggestion:
-${JSON.stringify(original, null, 2)}
-
-RULES:
-- Be concise and helpful
-- If the user wants to change the action (e.g., "just mark as read instead"), acknowledge it clearly
-- Explain trade-offs when relevant
-- You can suggest alternative actions: archive_bulk, create_filter, needs_user_input, mark_read
-- Never execute actions — you only discuss and refine suggestions
-- Keep responses under 200 words
-
-TOOL USAGE:
-- You have access to exactly these Mailania tools and nothing else:
-  1) get_triage_preferences
-  2) set_triage_preferences
-  3) get_suggestion
-  4) set_suggestion
-  5) read_email
-  6) search_emails
-- These tools are recommendation-only. They do NOT apply mailbox actions.
-- Use search_emails to answer impact questions ("how many?", "which messages?", "show me examples")
-- When reporting counts, cite resultSizeEstimate (approximate total) and include 2-3 sample messages when helpful
-- Use read_email when the user asks about a specific message
-- Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
-- Use get_suggestion / set_suggestion to inspect or revise Mailania's recommendation itself
-- Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
-
-  const messages: Anthropic.MessageParam[] = [];
-  for (const m of chatHistory) {
-    if (m.role === "user" || m.role === "assistant") {
-      messages.push({ role: m.role, content: m.content });
-    }
-  }
-  messages.push({ role: "user", content: userMessage });
-
-  const MAX_TOOL_ROUNDS = 5;
-  const toolTraces: ToolTrace[] = [];
-
-  let response = await client.messages.create({
+  return runChatWithTools(
+    buildSuggestionChatSystemPrompt(original),
+    chatHistory,
+    userMessage,
+    apiKey,
     model,
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages,
-    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
-  });
+    toolContext,
+  );
+}
 
-  // Tool-calling loop: model may request tool calls, we execute and feed back
-  let rounds = 0;
-  while (response.stop_reason === "tool_use" && rounds < MAX_TOOL_ROUNDS) {
-    rounds++;
-
-    // Collect all tool_use blocks from the response
-    const toolUseBlocks = response.content.filter(
-      (block) => block.type === "tool_use",
-    );
-
-    if (toolUseBlocks.length === 0) break;
-
-    // Add the assistant's response (with tool_use blocks) to messages
-    messages.push({
-      role: "assistant",
-      content: response.content.map((block) => {
-        if (block.type === "tool_use") {
-          return {
-            type: "tool_use" as const,
-            id: block.id,
-            name: block.name,
-            input: block.input as Record<string, unknown>,
-          };
-        }
-        return { type: "text" as const, text: (block as any).text ?? "" };
-      }),
-    });
-
-    // Execute each tool and build tool_result blocks
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const toolBlock of toolUseBlocks) {
-      // We know these are tool_use blocks
-      const tb = toolBlock as { type: "tool_use"; id: string; name: string; input: Record<string, unknown> };
-      try {
-        const execResult = await executeAgentTool(
-          toolContext,
-          tb.name,
-          tb.input,
-        );
-        toolTraces.push(execResult.trace);
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: tb.id,
-          content: JSON.stringify(execResult.result),
-        });
-      } catch (err: any) {
-        toolTraces.push({
-          toolName: tb.name,
-          args: tb.input,
-          resultSummary: `error: ${err.message}`,
-          durationMs: 0,
-        });
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: tb.id,
-          content: JSON.stringify({ error: err.message }),
-          is_error: true,
-        });
-      }
-    }
-
-    // Add tool results to messages and request next response
-    messages.push({ role: "user", content: toolResults });
-
-    response = await client.messages.create({
-      model,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-      tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
-    });
-  }
-
-  // Extract final text response
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from LLM");
-  }
-
-  return {
-    assistantText: textBlock.text.trim(),
-    toolTraces,
-    suggestionUpdatedByTool: toolTraces.some(
-      (trace) => trace.toolName === "set_suggestion" && !trace.resultSummary.startsWith("error:"),
-    ),
-  };
+/**
+ * Inbox-level general chat.
+ */
+export async function generateGeneralChatResponse(
+  chatHistory: ChatMessage[],
+  userMessage: string,
+  apiKey: string,
+  model: string,
+  toolContext: AgentToolContext,
+  latestTriage: LatestTriageContext | null,
+): Promise<ChatResponseWithTools> {
+  return runChatWithTools(
+    buildGeneralChatSystemPrompt(latestTriage),
+    chatHistory,
+    userMessage,
+    apiKey,
+    model,
+    toolContext,
+  );
 }
 
 /**
  * Legacy wrapper for backward compatibility (without tool-calling).
- * Used only if you need the plain string response.
  */
 export async function generateChatResponseSimple(
   original: TriageSuggestion,
@@ -326,17 +385,10 @@ export async function generateChatResponseSimple(
   apiKey: string,
   model: string,
 ): Promise<string> {
-  const result = await generateChatResponse(
-    original,
-    chatHistory,
-    userMessage,
-    apiKey,
-    model,
-    {
-      userId: "legacy-wrapper",
-      auth: null,
-      localDev: true,
-    },
-  );
+  const result = await generateChatResponse(original, chatHistory, userMessage, apiKey, model, {
+    userId: "legacy-wrapper",
+    auth: null,
+    localDev: true,
+  });
   return result.assistantText;
 }

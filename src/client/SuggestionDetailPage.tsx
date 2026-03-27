@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { css } from "@flow-css/core/css";
 import { useParams, useLocation } from "wouter";
 import {
@@ -11,14 +11,7 @@ import {
   type ActionPlanStep,
   type InboxMessage,
 } from "./TriageSuggestions";
-
-// --- Chat types ---
-interface ChatMessageData {
-  id: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  createdAt: string;
-}
+import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 
 interface RevisionData {
   revisionIndex: number;
@@ -50,8 +43,6 @@ export default function SuggestionDetailPage() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [latestRevision, setLatestRevision] = useState<RevisionData | null>(null);
   const [chatInitLoading, setChatInitLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const chatInputRef = useRef<HTMLTextAreaElement>(null);
 
   const messageMap = new Map<string, InboxMessage>();
   for (const m of messages) messageMap.set(m.id, m);
@@ -117,11 +108,6 @@ export default function SuggestionDetailPage() {
       .finally(() => setChatInitLoading(false));
   }, [runId, index, suggestion]);
 
-  // Auto-scroll chat to bottom
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
-
   // Send chat message
   const sendChatMessage = useCallback(async () => {
     if (!chatInput.trim() || chatLoading || !runId) return;
@@ -160,7 +146,6 @@ export default function SuggestionDetailPage() {
       setChatMessages((prev) => prev.filter((m) => m.id !== tempId));
     } finally {
       setChatLoading(false);
-      chatInputRef.current?.focus();
     }
   }, [chatInput, chatLoading, runId, index]);
 
@@ -406,152 +391,20 @@ export default function SuggestionDetailPage() {
       )}
 
       {/* Chat Panel */}
-      <div className={css((t) => ({
-        marginTop: t.spacing(5),
-        border: `1px solid ${t.colors.border}`,
-        borderRadius: t.radius,
-        overflow: "hidden",
-      }))}>
-        {/* Chat header */}
-        <div className={css((t) => ({
-          padding: `${t.spacing(3)} ${t.spacing(4)}`,
-          background: t.colors.bgAlt,
-          borderBottom: `1px solid ${t.colors.borderLight}`,
-          fontWeight: "700",
-          fontSize: "0.9rem",
-          display: "flex",
-          alignItems: "center",
-          gap: t.spacing(2),
-        }))}>
-          <span>💬</span>
-          <span>Discuss this suggestion</span>
-          {chatMessages.length > 0 && (
-            <span className={css((t) => ({
-              fontSize: "0.72rem",
-              color: t.colors.textMuted,
-              fontWeight: "500",
-            }))}>
-              ({chatMessages.length} message{chatMessages.length !== 1 ? "s" : ""})
-            </span>
-          )}
-        </div>
-
-        {/* Messages */}
-        <div className={css((t) => ({
-          maxHeight: "400px",
-          overflowY: "auto",
-          padding: t.spacing(3),
-          display: "flex",
-          flexDirection: "column",
-          gap: t.spacing(2.5),
-          scrollbarWidth: "thin",
-          scrollbarColor: "#d1d5db transparent",
-        }))}>
-          {chatInitLoading && (
-            <div className={css((t) => ({ textAlign: "center", color: t.colors.textMuted, fontSize: "0.85rem", padding: t.spacing(4) }))}>
-              Loading chat…
-            </div>
-          )}
-
-          {!chatInitLoading && chatMessages.length === 0 && (
-            <div className={css((t) => ({ textAlign: "center", color: t.colors.textMuted, fontSize: "0.85rem", padding: t.spacing(4), lineHeight: "1.6" }))}>
-              No messages yet. Ask a question or suggest changes to refine this suggestion.
-            </div>
-          )}
-
-          {chatMessages.map((msg) => (
-            <ChatBubble key={msg.id} msg={msg} />
-          ))}
-
-          {chatLoading && (
-            <div className={css((t) => ({ display: "flex", alignItems: "flex-start" }))}>
-              <div className={css((t) => ({
-                padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-                background: t.colors.bgAlt,
-                border: `1px solid ${t.colors.borderLight}`,
-                borderRadius: "12px",
-                borderBottomLeftRadius: "4px",
-                fontSize: "0.88rem",
-                color: t.colors.textMuted,
-              }))}>
-                Thinking…
-              </div>
-            </div>
-          )}
-
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Chat error */}
-        {chatError && (
-          <div className={css((t) => ({
-            padding: `${t.spacing(2)} ${t.spacing(4)}`,
-            background: "#fef2f2",
-            color: t.colors.error,
-            fontSize: "0.82rem",
-            borderTop: `1px solid ${t.colors.borderLight}`,
-          }))}>
-            {chatError}
-          </div>
-        )}
-
-        {/* Input area */}
-        <div className={css((t) => ({
-          display: "flex",
-          gap: t.spacing(2),
-          padding: t.spacing(3),
-          borderTop: `1px solid ${t.colors.borderLight}`,
-          background: t.colors.bg,
-        }))}>
-          <textarea
-            ref={chatInputRef}
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendChatMessage();
-              }
-            }}
-            placeholder="Ask a question or suggest changes…"
-            rows={1}
-            disabled={chatLoading}
-            className={css((t) => ({
-              flex: 1,
-              padding: `${t.spacing(2)} ${t.spacing(3)}`,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radiusSm,
-              fontSize: "0.88rem",
-              resize: "none",
-              fontFamily: "inherit",
-              lineHeight: "1.5",
-              outline: "none",
-              transition: "border-color 0.15s",
-              "&:focus": { borderColor: t.colors.primary },
-              "&:disabled": { opacity: 0.6 },
-            }))}
-          />
-          <button
-            onClick={sendChatMessage}
-            disabled={chatLoading || !chatInput.trim()}
-            className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(3.5)}`,
-              border: "none",
-              borderRadius: t.radiusSm,
-              background: t.colors.primary,
-              color: "#fff",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              fontWeight: "700",
-              transition: "background 0.15s, opacity 0.15s",
-              alignSelf: "flex-end",
-              "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-              "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
-            }))}
-          >
-            Send
-          </button>
-        </div>
+      <div className={css((t) => ({ marginTop: t.spacing(5) }))}>
+        <ChatPanel
+          title="Discuss this suggestion"
+          subtitle="Ask questions, refine the recommendation, or explore related emails without executing anything."
+          messages={chatMessages}
+          loading={chatLoading}
+          initLoading={chatInitLoading}
+          error={chatError}
+          input={chatInput}
+          onInputChange={setChatInput}
+          onSend={sendChatMessage}
+          placeholder="Ask a question or suggest changes…"
+          emptyState="No messages yet. Ask a question or suggest changes to refine this suggestion."
+        />
       </div>
 
       {/* Action bar */}
@@ -775,66 +628,6 @@ function DetailPageSkeleton() {
       <div className={shimmerClass} style={{ width: "100%", height: "60px", marginBottom: "20px" }} />
       <div className={shimmerClass} style={{ width: "100%", height: "80px", marginBottom: "20px" }} />
       <div className={shimmerClass} style={{ width: "70%", height: "40px" }} />
-    </div>
-  );
-}
-
-// --- Chat bubble component (avoids runtime vars in css()) ---
-const chatRowUserClass = css((t) => ({
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-end",
-  gap: t.spacing(0.5),
-}));
-
-const chatRowAssistantClass = css((t) => ({
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: t.spacing(0.5),
-}));
-
-const chatBubbleUserClass = css((t) => ({
-  maxWidth: "85%",
-  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderRadius: "12px",
-  borderBottomRightRadius: "4px",
-  fontSize: "0.88rem",
-  lineHeight: "1.6",
-  whiteSpace: "pre-wrap",
-  background: t.colors.primary,
-  color: "#fff",
-}));
-
-const chatBubbleAssistantClass = css((t) => ({
-  maxWidth: "85%",
-  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderRadius: "12px",
-  borderBottomLeftRadius: "4px",
-  fontSize: "0.88rem",
-  lineHeight: "1.6",
-  whiteSpace: "pre-wrap",
-  background: t.colors.bgAlt,
-  color: t.colors.text,
-  border: `1px solid ${t.colors.borderLight}`,
-}));
-
-const chatMetaClass = css((t) => ({
-  fontSize: "0.7rem",
-  color: t.colors.textMuted,
-  padding: "0 4px",
-}));
-
-function ChatBubble({ msg }: { msg: ChatMessageData }) {
-  const isUser = msg.role === "user";
-  return (
-    <div className={isUser ? chatRowUserClass : chatRowAssistantClass}>
-      <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>
-        {msg.content}
-      </div>
-      <span className={chatMetaClass}>
-        {isUser ? "You" : "Mailania"} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-      </span>
     </div>
   );
 }

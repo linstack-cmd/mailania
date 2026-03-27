@@ -223,21 +223,47 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
   console.log("[DB] Suggestion feedback table ready");
 
   // =====================================================================
-  // Suggestion conversation — now keyed by user_id
+  // Conversation substrate — scoped general inbox chat + suggestion chat
   // =====================================================================
   await _pool.query(`
     CREATE TABLE IF NOT EXISTS "suggestion_conversation" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "run_id" UUID NOT NULL,
-      "suggestion_index" INT NOT NULL,
+      "scope" VARCHAR(16) NOT NULL DEFAULT 'suggestion',
+      "run_id" UUID,
+      "suggestion_index" INT,
       "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
       "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
       "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
   await _pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_suggestion_conversation_unique"
+    ALTER TABLE "suggestion_conversation"
+    ADD COLUMN IF NOT EXISTS "scope" VARCHAR(16) NOT NULL DEFAULT 'suggestion'
+  `);
+  await _pool.query(`
+    ALTER TABLE "suggestion_conversation"
+    ALTER COLUMN "run_id" DROP NOT NULL
+  `);
+  await _pool.query(`
+    ALTER TABLE "suggestion_conversation"
+    ALTER COLUMN "suggestion_index" DROP NOT NULL
+  `);
+  await _pool.query(`
+    DROP INDEX IF EXISTS "IDX_suggestion_conversation_unique"
+  `);
+  await _pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_suggestion_conversation_suggestion_unique"
     ON "suggestion_conversation" ("run_id", "suggestion_index", "user_id")
+    WHERE "scope" = 'suggestion'
+  `);
+  await _pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "IDX_suggestion_conversation_general_unique"
+    ON "suggestion_conversation" ("user_id", "scope")
+    WHERE "scope" = 'general'
+  `);
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_suggestion_conversation_user_scope"
+    ON "suggestion_conversation" ("user_id", "scope", "updated_at" DESC)
   `);
   console.log("[DB] Suggestion conversation table ready");
 
