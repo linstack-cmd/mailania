@@ -13,15 +13,6 @@ body {
   background: #fafafa;
   color: #1a1a1a;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-}
-
-html {
-  overflow-x: hidden;
-}
-
-#root {
-  overflow-x: hidden;
 }
 
 @keyframes skeleton-shimmer {
