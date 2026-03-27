@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
 import { Router, Route, Switch } from "wouter";
-import TriageSuggestions from "./TriageSuggestions";
 import SuggestionDetailPage from "./SuggestionDetailPage";
 import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
 import AccountSettings from "./AccountSettings";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
+import ProposalSidebar from "./ProposalSidebar";
+import type { TriageSuggestion } from "./TriageSuggestions";
 
 interface InboxMessage {
   id: string;
@@ -115,6 +116,7 @@ export default function App() {
   const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
   const [latestTriageSummary, setLatestTriageSummary] = useState<LatestTriageSummary | null>(null);
+  const [latestSuggestions, setLatestSuggestions] = useState<TriageSuggestion[] | null | undefined>(undefined);
 
   useEffect(() => {
     fetch("/api/status")
@@ -156,17 +158,22 @@ export default function App() {
     setGeneralChatInitLoading(true);
     setGeneralChatError(null);
     try {
-      const res = await fetch("/api/chat/general");
-      if (res.status === 401) {
+      const [chatRes, triageRes] = await Promise.all([
+        fetch("/api/chat/general"),
+        fetch("/api/triage/latest"),
+      ]);
+
+      if (chatRes.status === 401) {
         setStatus((s) => s ? { ...s, authenticated: false } : null);
         setGeneralChatMessages([]);
         setLatestTriageSummary(null);
+        setLatestSuggestions(null);
         return;
       }
-      if (!res.ok) {
+      if (!chatRes.ok) {
         throw new Error("Failed to load inbox chat");
       }
-      const data = await res.json();
+      const data = await chatRes.json();
       setGeneralChatMessages(data.messages ?? []);
       setLatestTriageSummary(data.latestTriage
         ? {
@@ -175,6 +182,14 @@ export default function App() {
             suggestionCount: data.latestTriage.suggestionCount,
           }
         : null);
+
+      // Load latest triage suggestions for the proposal sidebar
+      if (triageRes.ok) {
+        const triageData = await triageRes.json();
+        setLatestSuggestions(triageData.suggestions ?? null);
+      } else {
+        setLatestSuggestions(null);
+      }
     } catch {
       setGeneralChatError("Failed to load inbox chat");
     } finally {
@@ -247,6 +262,7 @@ export default function App() {
     setMessages([]);
     setGeneralChatMessages([]);
     setLatestTriageSummary(null);
+    setLatestSuggestions(undefined);
   }
 
   async function handlePasskeyLogin() {
@@ -372,7 +388,7 @@ export default function App() {
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
-                  🔑 {passkeyLoading ? "Authenticating…" : "Sign in with Passkey"}
+                  🔑 {passkeyLoading ? "Authenticating..." : "Sign in with Passkey"}
                 </button>
               </>
             ) : (
@@ -418,7 +434,7 @@ export default function App() {
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
-                  🔑 {passkeyLoading ? "Creating account…" : "Create Account with Passkey"}
+                  🔑 {passkeyLoading ? "Creating account..." : "Create Account with Passkey"}
                 </button>
               </>
             )}
@@ -597,7 +613,7 @@ export default function App() {
         </div>
       )}
 
-      {/* 2-column layout */}
+      {/* 2-column layout: chat (left/center) + proposal sidebar (right) */}
       <div
         className={css((t) => ({
           display: "flex",
@@ -608,170 +624,162 @@ export default function App() {
           },
         }))}
       >
-        {/* Triage column */}
-        {!loading && (
-          <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, display: "flex", flexDirection: "column", gap: t.spacing(5) }))}>
-            <section>
-              <div className={css((t) => ({ marginBottom: t.spacing(3) }))}>
-                <h2 className={css({ fontSize: "1.25rem", fontWeight: "700", margin: "0" })}>🗣️ Inbox Chat</h2>
-                <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: "1.5" }))}>
-                  Ask about your inbox broadly, search mail, read or summarize specific emails, tweak triage preferences, or talk through recent suggestions.
+        {/* Left column: Chat + Inbox */}
+        <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, display: "flex", flexDirection: "column", gap: t.spacing(5) }))}>
+          {/* General Chat — primary surface */}
+          <section>
+            <div className={css((t) => ({ marginBottom: t.spacing(3) }))}>
+              <h2 className={css({ fontSize: "1.25rem", fontWeight: "700", margin: "0" })}>🗣️ Inbox Chat</h2>
+              <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: "1.5" }))}>
+                Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
+              </p>
+              {latestTriageSummary && (
+                <p className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, margin: `${t.spacing(1.5)} 0 0` }))}>
+                  Latest triage: {latestTriageSummary.suggestionCount} proposal{latestTriageSummary.suggestionCount !== 1 ? "s" : ""} · {new Date(latestTriageSummary.createdAt).toLocaleString()}
                 </p>
-                {latestTriageSummary && (
-                  <p className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, margin: `${t.spacing(1.5)} 0 0` }))}>
-                    Latest triage run: {latestTriageSummary.suggestionCount} suggestion{latestTriageSummary.suggestionCount !== 1 ? "s" : ""} from {new Date(latestTriageSummary.createdAt).toLocaleString()}
-                  </p>
-                )}
-              </div>
-
-              <ChatPanel
-                title="Chat with Mailania"
-                subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won’t change your mailbox from chat."
-                messages={generalChatMessages}
-                loading={generalChatLoading}
-                initLoading={generalChatInitLoading}
-                error={generalChatError}
-                input={generalChatInput}
-                onInputChange={setGeneralChatInput}
-                onSend={sendGeneralChatMessage}
-                placeholder="Ask about your inbox…"
-                emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
-                starterPrompts={[
-                  "What stands out in my inbox right now?",
-                  "Search for receipts from this month",
-                  "What triage preferences do you remember?",
-                  "Summarize the latest triage suggestions",
-                ]}
-              />
-            </section>
-
-            <TriageSuggestions
-              messages={messages}
-              onAuthLost={() => {
-                setStatus((s) => s ? { ...s, authenticated: false } : null);
-                setMessages([]);
-                setGeneralChatMessages([]);
-                setLatestTriageSummary(null);
-              }}
-            />
-          </div>
-        )}
-
-        {/* Inbox column */}
-        <div
-          className={css({
-            flex: "0 0 380px",
-            minWidth: 0,
-            "@media (max-width: 960px)": {
-              flex: "1 1 auto",
-              width: "100%",
-            },
-          })}
-        >
-          <button
-            onClick={() => setInboxCollapsed((v) => !v)}
-            aria-expanded={!inboxCollapsed}
-            aria-controls="inbox-panel"
-            className={css((t) => ({
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              padding: `${t.spacing(3)} ${t.spacing(4)}`,
-              background: t.colors.bgAlt,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radius,
-              cursor: "pointer",
-              fontSize: "0.95rem",
-              fontWeight: "700",
-              color: t.colors.text,
-              transition: "background 0.15s, border-radius 0.15s",
-              "&:hover": { background: t.colors.borderLight },
-              "&:focus-visible": {
-                outline: `2px solid ${t.colors.primary}`,
-                outlineOffset: "-2px",
-              },
-            }))}
-            style={inboxCollapsed ? undefined : { borderRadius: "0.5rem 0.5rem 0 0" }}
-          >
-            <span>
-              📥 Inbox
-              {messages.length > 0 && (
-                <span
-                  className={css((t) => ({
-                    marginLeft: t.spacing(2),
-                    background: t.colors.primary,
-                    color: "#fff",
-                    padding: `${t.spacing(0.5)} ${t.spacing(2)}`,
-                    borderRadius: "999px",
-                    fontSize: "0.75rem",
-                    verticalAlign: "middle",
-                    fontWeight: "600",
-                  }))}
-                  title={`${messages.length} messages${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
-                >
-                  {messages.length}
-                </span>
-              )}
-            </span>
-            <span
-              style={{
-                fontSize: "0.8rem",
-                transition: "transform 0.2s",
-                transform: inboxCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
-                display: "inline-block",
-              }}
-              aria-hidden="true"
-            >
-              ▾
-            </span>
-          </button>
-
-          {!inboxCollapsed && (
-            <div
-              id="inbox-panel"
-              className={css((t) => ({
-                border: `1px solid ${t.colors.border}`,
-                borderTop: "none",
-                borderRadius: `0 0 ${t.radius} ${t.radius}`,
-                background: t.colors.bg,
-                maxHeight: "calc(100vh - 200px)",
-                overflowY: "auto",
-                scrollbarWidth: "thin",
-                scrollbarColor: "#d1d5db transparent",
-                "@media (max-width: 960px)": {
-                  maxHeight: "400px",
-                },
-              }))}
-            >
-              {loading && (
-                <div>
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <InboxSkeletonRow key={i} />
-                  ))}
-                </div>
-              )}
-
-              {!loading && messages.length === 0 && !error && (
-                <div className={css((t) => ({ textAlign: "center", padding: `${t.spacing(8)} ${t.spacing(4)}` }))}>
-                  <div className={css((t) => ({ fontSize: "2rem", marginBottom: t.spacing(2) }))}>🎉</div>
-                  <p className={css({ fontWeight: "600", fontSize: "0.95rem" })}>Inbox zero!</p>
-                  <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.85rem", marginTop: t.spacing(1) }))}>
-                    Check back later or run triage.
-                  </p>
-                </div>
-              )}
-
-              {!loading && messages.length > 0 && (
-                <div role="list" aria-label="Inbox messages">
-                  {messages.map((msg) => (
-                    <MessageRow key={msg.id} msg={msg} />
-                  ))}
-                </div>
               )}
             </div>
-          )}
+
+            <ChatPanel
+              title="Chat with Mailania"
+              subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won't change your mailbox from chat."
+              messages={generalChatMessages}
+              loading={generalChatLoading}
+              initLoading={generalChatInitLoading}
+              error={generalChatError}
+              input={generalChatInput}
+              onInputChange={setGeneralChatInput}
+              onSend={sendGeneralChatMessage}
+              placeholder="Ask about your inbox…"
+              emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
+              starterPrompts={[
+                "What stands out in my inbox right now?",
+                "Search for receipts from this month",
+                "What triage preferences do you remember?",
+                "Summarize the latest triage suggestions",
+              ]}
+            />
+          </section>
+
+          {/* Inbox panel — secondary, collapsible */}
+          <div>
+            <button
+              onClick={() => setInboxCollapsed((v) => !v)}
+              aria-expanded={!inboxCollapsed}
+              aria-controls="inbox-panel"
+              className={css((t) => ({
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                padding: `${t.spacing(3)} ${t.spacing(4)}`,
+                background: t.colors.bgAlt,
+                border: `1px solid ${t.colors.border}`,
+                borderRadius: t.radius,
+                cursor: "pointer",
+                fontSize: "0.95rem",
+                fontWeight: "700",
+                color: t.colors.text,
+                transition: "background 0.15s, border-radius 0.15s",
+                "&:hover": { background: t.colors.borderLight },
+                "&:focus-visible": {
+                  outline: `2px solid ${t.colors.primary}`,
+                  outlineOffset: "-2px",
+                },
+              }))}
+              style={inboxCollapsed ? undefined : { borderRadius: "0.5rem 0.5rem 0 0" }}
+            >
+              <span>
+                📥 Inbox
+                {messages.length > 0 && (
+                  <span
+                    className={css((t) => ({
+                      marginLeft: t.spacing(2),
+                      background: t.colors.primary,
+                      color: "#fff",
+                      padding: `${t.spacing(0.5)} ${t.spacing(2)}`,
+                      borderRadius: "999px",
+                      fontSize: "0.75rem",
+                      verticalAlign: "middle",
+                      fontWeight: "600",
+                    }))}
+                    title={`${messages.length} messages${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+                  >
+                    {messages.length}
+                  </span>
+                )}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.8rem",
+                  transition: "transform 0.2s",
+                  transform: inboxCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
+                  display: "inline-block",
+                }}
+                aria-hidden="true"
+              >
+                ▾
+              </span>
+            </button>
+
+            {!inboxCollapsed && (
+              <div
+                id="inbox-panel"
+                className={css((t) => ({
+                  border: `1px solid ${t.colors.border}`,
+                  borderTop: "none",
+                  borderRadius: `0 0 ${t.radius} ${t.radius}`,
+                  background: t.colors.bg,
+                  maxHeight: "400px",
+                  overflowY: "auto",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#d1d5db transparent",
+                }))}
+              >
+                {loading && (
+                  <div>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <InboxSkeletonRow key={i} />
+                    ))}
+                  </div>
+                )}
+
+                {!loading && messages.length === 0 && !error && (
+                  <div className={css((t) => ({ textAlign: "center", padding: `${t.spacing(8)} ${t.spacing(4)}` }))}>
+                    <div className={css((t) => ({ fontSize: "2rem", marginBottom: t.spacing(2) }))}>🎉</div>
+                    <p className={css({ fontWeight: "600", fontSize: "0.95rem" })}>Inbox zero!</p>
+                    <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.85rem", marginTop: t.spacing(1) }))}>
+                      Check back later or run triage.
+                    </p>
+                  </div>
+                )}
+
+                {!loading && messages.length > 0 && (
+                  <div role="list" aria-label="Inbox messages">
+                    {messages.map((msg) => (
+                      <MessageRow key={msg.id} msg={msg} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Right column: Proposal Sidebar */}
+        <ProposalSidebar
+          messages={messages}
+          onAuthLost={() => {
+            setStatus((s) => s ? { ...s, authenticated: false } : null);
+            setMessages([]);
+            setGeneralChatMessages([]);
+            setLatestTriageSummary(null);
+            setLatestSuggestions(undefined);
+          }}
+          externalSuggestions={latestSuggestions}
+          externalRunId={latestTriageSummary?.runId ?? null}
+          externalLastRunAt={latestTriageSummary?.createdAt ?? null}
+        />
       </div>
     </div>
       </Route>
