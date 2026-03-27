@@ -518,8 +518,10 @@ export default function App() {
       maxWidth: "1400px",
       margin: "0 auto",
       padding: `${t.spacing(6)} ${t.spacing(5)}`,
+      overflowX: "hidden",
+      minWidth: 0,
       "@media (max-width: 640px)": {
-        padding: `${t.spacing(4)} ${t.spacing(3)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
+        padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
       },
     }))}>
       {/* Header */}
@@ -531,18 +533,32 @@ export default function App() {
           paddingBottom: t.spacing(4),
           marginBottom: t.spacing(5),
           borderBottom: `2px solid ${t.colors.border}`,
+          gap: t.spacing(2),
+          minWidth: 0,
           "@media (max-width: 640px)": {
             paddingBottom: t.spacing(3),
             marginBottom: t.spacing(3),
           },
         }))}
       >
-        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(3) }))}>
-          <h1 className={css({ fontSize: "1.5rem", fontWeight: "700" })}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "hidden" }))}>
+          <h1 className={css({ fontSize: "1.25rem", fontWeight: "700", flexShrink: 0 })}>
             📬 Mailania
           </h1>
           {status?.user && (
-            <span className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted }))}>
+            <span
+              className={css((t) => ({
+                fontSize: "0.78rem",
+                color: t.colors.textMuted,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+                "@media (max-width: 480px)": {
+                  display: "none",
+                },
+              }))}
+            >
               {status.user.displayName}
               {status.gmailAccounts && status.gmailAccounts.length > 0 && (
                 <> · {status.gmailAccounts.find((a) => a.isActive)?.email}</>
@@ -550,11 +566,12 @@ export default function App() {
             </span>
           )}
         </div>
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(2) }))}>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexShrink: 0 }))}>
           <button
             onClick={fetchInbox}
+            title="Refresh inbox"
             className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
               border: `1px solid ${t.colors.border}`,
               borderRadius: t.radiusSm,
               background: t.colors.bg,
@@ -563,12 +580,14 @@ export default function App() {
               "&:hover": { background: t.colors.borderLight },
             }))}
           >
-            ↻ Refresh
+            <span className={css({ "@media (max-width: 480px)": { display: "none" } })}>↻ Refresh</span>
+            <span className={css({ display: "none", "@media (max-width: 480px)": { display: "inline" } })}>↻</span>
           </button>
           <a
             href="/settings"
+            title="Account settings"
             className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
               border: `1px solid ${t.colors.border}`,
               borderRadius: t.radiusSm,
               background: t.colors.bg,
@@ -581,12 +600,14 @@ export default function App() {
               "&:hover": { background: t.colors.borderLight },
             }))}
           >
-            ⚙️ Account
+            <span className={css({ "@media (max-width: 480px)": { display: "none" } })}>⚙️ Account</span>
+            <span className={css({ display: "none", "@media (max-width: 480px)": { display: "inline" } })}>⚙️</span>
           </a>
           <button
             onClick={handleLogout}
+            title="Sign out"
             className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
               border: `1px solid ${t.colors.border}`,
               borderRadius: t.radiusSm,
               background: t.colors.bg,
@@ -596,7 +617,8 @@ export default function App() {
               "&:hover": { background: t.colors.borderLight },
             }))}
           >
-            Sign out
+            <span className={css({ "@media (max-width: 480px)": { display: "none" } })}>Sign out</span>
+            <span className={css({ display: "none", "@media (max-width: 480px)": { display: "inline" } })}>↪</span>
           </button>
         </div>
       </header>
@@ -631,8 +653,13 @@ export default function App() {
           display: "flex",
           gap: t.spacing(5),
           alignItems: "flex-start",
+          minWidth: 0,
           "@media (max-width: 960px)": {
             flexDirection: "column",
+            gap: t.spacing(4),
+          },
+          "@media (max-width: 640px)": {
+            gap: t.spacing(3),
           },
         }))}
       >
@@ -646,7 +673,16 @@ export default function App() {
                 Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
               </p>
               {latestTriageSummary && (
-                <p className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, margin: `${t.spacing(1.5)} 0 0` }))}>
+                <p
+                  className={css((t) => ({
+                    fontSize: "0.78rem",
+                    color: t.colors.textMuted,
+                    margin: `${t.spacing(1.5)} 0 0`,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }))}
+                >
                   Latest triage: {latestTriageSummary.suggestionCount} proposal{latestTriageSummary.suggestionCount !== 1 ? "s" : ""} · {new Date(latestTriageSummary.createdAt).toLocaleString()}
                 </p>
               )}
@@ -744,8 +780,12 @@ export default function App() {
                   background: t.colors.bg,
                   maxHeight: "400px",
                   overflowY: "auto",
+                  overflowX: "hidden",
                   scrollbarWidth: "thin",
                   scrollbarColor: "#d1d5db transparent",
+                  "@media (max-width: 640px)": {
+                    maxHeight: "320px",
+                  },
                 }))}
               >
                 {loading && (
@@ -824,15 +864,17 @@ export default function App() {
 
 // --- Message row styles ---
 const msgRowClass = css((t) => ({
-  padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
+  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
   borderBottom: `1px solid ${t.colors.borderLight}`,
   cursor: "pointer",
   display: "flex",
   alignItems: "flex-start",
-  gap: t.spacing(2.5),
+  gap: t.spacing(2),
   minHeight: "56px",
   transition: "background 0.15s, border-left-color 0.15s",
   borderLeft: "3px solid transparent",
+  overflow: "hidden",
+  maxWidth: "100%",
   "&:hover": {
     background: "#eef2ff",
     borderLeftColor: t.colors.primary,

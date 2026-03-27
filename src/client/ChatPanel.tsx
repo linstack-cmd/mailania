@@ -57,6 +57,8 @@ export function ChatPanel({
         borderRadius: t.radius,
         overflow: "hidden",
         background: t.colors.bg,
+        minWidth: 0,
+        maxWidth: "100%",
       }))}
     >
       <div
@@ -107,12 +109,17 @@ export function ChatPanel({
         className={css((t) => ({
           maxHeight: "420px",
           overflowY: "auto",
+          overflowX: "hidden",
           padding: t.spacing(3),
           display: "flex",
           flexDirection: "column",
           gap: t.spacing(2.5),
           scrollbarWidth: "thin",
           scrollbarColor: "#d1d5db transparent",
+          "@media (max-width: 640px)": {
+            maxHeight: "320px",
+            padding: t.spacing(2.5),
+          },
         }))}
       >
         {initLoading && (
@@ -147,7 +154,7 @@ export function ChatPanel({
             className={css((t) => ({
               display: "flex",
               flexWrap: "wrap",
-              gap: t.spacing(2),
+              gap: t.spacing(1.5),
               justifyContent: "center",
             }))}
           >
@@ -161,10 +168,13 @@ export function ChatPanel({
                   background: t.colors.bgAlt,
                   color: t.colors.text,
                   borderRadius: "999px",
-                  padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
-                  fontSize: "0.8rem",
+                  padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
+                  fontSize: "0.78rem",
                   cursor: "pointer",
                   transition: "all 0.15s",
+                  maxWidth: "100%",
+                  wordBreak: "break-word",
+                  textAlign: "center",
                   "&:hover:not(:disabled)": {
                     borderColor: t.colors.primary,
                     color: t.colors.primary,
@@ -216,6 +226,11 @@ export function ChatPanel({
           padding: t.spacing(3),
           borderTop: `1px solid ${t.colors.borderLight}`,
           background: t.colors.bg,
+          minWidth: 0,
+          "@media (max-width: 640px)": {
+            padding: t.spacing(2),
+            gap: t.spacing(1.5),
+          },
         }))}
       >
         <textarea
@@ -293,6 +308,8 @@ const chatBubbleUserClass = css((t) => ({
   fontSize: "0.88rem",
   lineHeight: "1.6",
   whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
   background: t.colors.primary,
   color: "#fff",
 }));
@@ -305,6 +322,8 @@ const chatBubbleAssistantClass = css((t) => ({
   fontSize: "0.88rem",
   lineHeight: "1.6",
   whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  overflowWrap: "break-word",
   background: t.colors.bgAlt,
   color: t.colors.text,
   border: `1px solid ${t.colors.borderLight}`,

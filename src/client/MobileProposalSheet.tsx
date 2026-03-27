@@ -90,7 +90,17 @@ function MobileProposalCard({
           gap: t.spacing(2),
         }))}
       >
-        <span className={css((t) => ({ fontSize: "0.88rem", color: t.colors.textMuted, fontStyle: "italic" }))}>
+        <span
+          className={css((t) => ({
+            fontSize: "0.88rem",
+            color: t.colors.textMuted,
+            fontStyle: "italic",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+          }))}
+        >
           {kindInfo.icon} {suggestion.title}
         </span>
         <button
@@ -105,6 +115,7 @@ function MobileProposalCard({
             padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
             minHeight: "44px",
             minWidth: "44px",
+            flexShrink: 0,
             "&:hover": { textDecoration: "underline" },
           }))}
         >
@@ -153,7 +164,16 @@ function MobileProposalCard({
       </div>
 
       {/* Title */}
-      <h4 className={css((t) => ({ fontSize: "0.95rem", fontWeight: "600", margin: 0, lineHeight: "1.35" }))}>
+      <h4
+        className={css((t) => ({
+          fontSize: "0.95rem",
+          fontWeight: "600",
+          margin: 0,
+          lineHeight: "1.35",
+          overflowWrap: "break-word",
+          wordBreak: "break-word",
+        }))}
+      >
         {suggestion.title}
       </h4>
 
@@ -463,11 +483,14 @@ export default function MobileProposalSheet({
             bottom: 0,
             left: 0,
             right: 0,
+            width: "100%",
+            maxWidth: "100vw",
             zIndex: 100,
             background: t.colors.bg,
             borderTop: `1px solid ${t.colors.border}`,
             boxShadow: "0 -2px 12px rgba(0,0,0,0.08)",
             padding: `${t.spacing(2)} ${t.spacing(3)} env(safe-area-inset-bottom, 8px)`,
+            boxSizing: "border-box",
           },
         }))}
       >
@@ -543,12 +566,15 @@ export default function MobileProposalSheet({
               bottom: 0,
               left: 0,
               right: 0,
+              width: "100%",
+              maxWidth: "100vw",
               zIndex: 201,
               background: t.colors.bg,
               borderRadius: "1rem 1rem 0 0",
               boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
               maxHeight: "85vh",
               overflow: "hidden",
+              boxSizing: "border-box",
             },
           }))}
         >
@@ -578,22 +604,25 @@ export default function MobileProposalSheet({
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: `${t.spacing(2)} ${t.spacing(4)} ${t.spacing(3)}`,
+              padding: `${t.spacing(2)} ${t.spacing(3)} ${t.spacing(3)}`,
               borderBottom: `1px solid ${t.colors.borderLight}`,
               flexShrink: 0,
+              gap: t.spacing(2),
+              minWidth: 0,
             }))}
           >
-            <div className={css({ display: "flex", alignItems: "center", gap: "10px" })}>
-              <h2 className={css({ fontSize: "1.1rem", fontWeight: "700", margin: 0 })}>
+            <div className={css({ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, overflow: "hidden" })}>
+              <h2 className={css({ fontSize: "1rem", fontWeight: "700", margin: 0, flexShrink: 0 })}>
                 📋 Proposals
               </h2>
               {activeSuggestions.length > 0 && (
                 <span
                   className={css((t) => ({
-                    padding: "2px 10px",
+                    padding: "2px 8px",
                     borderRadius: "999px",
-                    fontSize: "0.78rem",
+                    fontSize: "0.75rem",
                     fontWeight: "700",
+                    flexShrink: 0,
                   }))}
                   style={
                     visibleCount > 0
@@ -605,18 +634,19 @@ export default function MobileProposalSheet({
                 </span>
               )}
             </div>
-            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
+            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexShrink: 0 }))}>
               <button
                 onClick={runTriage}
                 disabled={triageLoading || initialLoading}
                 className={css((t) => ({
-                  padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
+                  padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
                   border: "none",
                   borderRadius: t.radiusSm,
-                  fontSize: "0.82rem",
+                  fontSize: "0.8rem",
                   fontWeight: "600",
                   cursor: "pointer",
                   minHeight: "36px",
+                  whiteSpace: "nowrap",
                   transition: "background 0.15s",
                 }))}
                 style={
@@ -642,6 +672,7 @@ export default function MobileProposalSheet({
                   color: t.colors.textMuted,
                   fontSize: "1.1rem",
                   cursor: "pointer",
+                  flexShrink: 0,
                   transition: "background 0.15s",
                   "&:active": { background: t.colors.bgAlt },
                 }))}
@@ -656,11 +687,13 @@ export default function MobileProposalSheet({
             className={css((t) => ({
               flex: 1,
               overflowY: "auto",
-              padding: `${t.spacing(3)} ${t.spacing(4)} ${t.spacing(6)}`,
+              overflowX: "hidden",
+              padding: `${t.spacing(3)} ${t.spacing(3)} calc(${t.spacing(4)} + env(safe-area-inset-bottom, 0px))`,
               display: "flex",
               flexDirection: "column",
               gap: t.spacing(3),
               WebkitOverflowScrolling: "touch",
+              minWidth: 0,
             }))}
           >
             {/* Last run info */}
