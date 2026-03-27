@@ -132,7 +132,7 @@ export default function SuggestionDetailPage() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to send message");
+        throw new Error(errData.detail || errData.error || "Failed to send message");
       }
 
       const data = await res.json();
