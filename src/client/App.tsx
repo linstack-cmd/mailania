@@ -1,5 +1,30 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component } from "react";
+import type { ReactNode } from "react";
 import { css } from "@flow-css/core/css";
+
+// --- Error boundary to surface crashes instead of blank screen ---
+interface EBState { error: Error | null }
+class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    console.error("[Mailania crash]", error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: "24px", fontFamily: "monospace", color: "#dc2626", background: "#fef2f2", minHeight: "100vh" }}>
+          <h2 style={{ marginBottom: "12px" }}>⚠️ App crashed</h2>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.85rem" }}>{this.state.error.message}{"\n"}{this.state.error.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { Router, Route, Switch } from "wouter";
 import SuggestionDetailPage from "./SuggestionDetailPage";
 import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
@@ -501,6 +526,7 @@ export default function App() {
 
   // --- Main authenticated view ---
   return (
+    <ErrorBoundary>
     <Router>
     <Switch>
       <Route path="/suggestions/:runId/:index">
@@ -858,6 +884,7 @@ export default function App() {
       </Route>
     </Switch>
     </Router>
+    </ErrorBoundary>
   );
 }
 
