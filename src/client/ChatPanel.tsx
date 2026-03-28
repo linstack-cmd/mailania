@@ -292,6 +292,11 @@ export function ChatPanel({
           placeholder={placeholder}
           rows={1}
           disabled={loading}
+          onInput={(e) => {
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = el.scrollHeight + "px";
+          }}
           className={css((t) => ({
             flex: 1,
             minWidth: 0,
@@ -308,7 +313,7 @@ export function ChatPanel({
             outline: "none",
             transition: "border-color 0.15s",
             overflowX: "hidden",
-            overflowY: "hidden",
+            overflowY: "auto",
             boxSizing: "border-box",
             "&:focus": { borderColor: t.colors.primary },
             "&:disabled": { opacity: 0.6 },

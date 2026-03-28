@@ -708,6 +708,7 @@ export default function MobileProposalSheet({
               flexDirection: "column",
               gap: t.spacing(3),
               WebkitOverflowScrolling: "touch",
+              overscrollBehavior: "contain",
               minWidth: 0,
             }))}
           >

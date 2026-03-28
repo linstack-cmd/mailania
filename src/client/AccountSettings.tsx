@@ -364,7 +364,7 @@ export default function AccountSettings({
                 style={account.isActive ? { background: "#eff6ff", borderColor: "#bfdbfe" } : undefined}
               >
                 <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
-                  <span>{account.email}</span>
+                  <span className={css({ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 })}>{account.email}</span>
                   {account.isActive && (
                     <span className={css({ fontSize: "0.72rem", color: "#1e40af", fontWeight: "600", background: "#dbeafe", padding: "1px 8px", borderRadius: "999px" })}>
                       Active
@@ -494,7 +494,8 @@ export default function AccountSettings({
                             outline: "none",
                             background: t.colors.bg,
                             color: t.colors.text,
-                            width: "180px",
+                            width: "100%",
+                            maxWidth: "180px",
                           }))}
                         />
                       </form>

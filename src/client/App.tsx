@@ -902,6 +902,7 @@ export default function App() {
                   overflowX: "hidden",
                   scrollbarWidth: "thin",
                   scrollbarColor: "#d1d5db transparent",
+                  overscrollBehavior: "contain",
                   "@media (max-width: 640px)": {
                     maxHeight: "320px",
                   },
