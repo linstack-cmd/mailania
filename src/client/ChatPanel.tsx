@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import { css } from "@flow-css/core/css";
 
+function canSafelyAutoFocus(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
 export interface ChatMessageData {
   id: string;
   role: "user" | "assistant" | "system";
@@ -37,15 +45,30 @@ export function ChatPanel({
   assistantName?: string;
   starterPrompts?: string[];
 }) {
+  const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const hasMountedRef = useRef(false);
+  const prevLoadingRef = useRef(loading);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scroller = chatScrollRef.current;
+    if (!scroller) return;
+
+    scroller.scrollTop = scroller.scrollHeight;
   }, [messages, loading]);
 
   useEffect(() => {
-    if (!loading) {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      prevLoadingRef.current = loading;
+      return;
+    }
+
+    const finishedLoading = prevLoadingRef.current && !loading;
+    prevLoadingRef.current = loading;
+
+    if (finishedLoading && canSafelyAutoFocus()) {
       chatInputRef.current?.focus();
     }
   }, [loading]);
@@ -106,6 +129,7 @@ export function ChatPanel({
       </div>
 
       <div
+        ref={chatScrollRef}
         className={css((t) => ({
           maxHeight: "420px",
           overflowY: "auto",
