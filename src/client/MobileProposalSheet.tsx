@@ -377,10 +377,12 @@ export default function MobileProposalSheet({
         if (res.status === 401) { onAuthLost(); return; }
         if (res.ok) {
           const data = await res.json();
-          if (data.suggestions) {
+          if (Array.isArray(data.suggestions)) {
             setSuggestions(data.suggestions);
             setLastRunAt(data.createdAt);
             setRunId(data.runId?.toString() ?? null);
+          } else {
+            setSuggestions(null);
           }
         }
       } catch { /* silently ignore */ }
@@ -446,7 +448,7 @@ export default function MobileProposalSheet({
             if (event.type === "progress" || event.type === "batch_done") {
               setProgress({ stage: event.stage || "Processing…", percent: event.percent ?? 0, suggestionsCount: event.suggestionsCount });
             } else if (event.type === "complete") {
-              setSuggestions(event.suggestions ?? []);
+              setSuggestions(Array.isArray(event.suggestions) ? event.suggestions : []);
               setProgress(null);
             } else if (event.type === "saved") {
               setRunId(event.runId?.toString() ?? null);

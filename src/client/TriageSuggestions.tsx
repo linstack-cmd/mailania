@@ -822,13 +822,16 @@ export function ApprovalConfirmModal({
             <div className={css((t) => ({ fontWeight: "600", fontSize: "0.78rem", textTransform: "uppercase", color: t.colors.textMuted, marginBottom: t.spacing(1.5), letterSpacing: "0.04em" }))}>
               {resolvedMessages.length} message{resolvedMessages.length !== 1 ? "s" : ""} affected
             </div>
-            {resolvedMessages.slice(0, 6).map((msg) => (
-              <div key={msg.id} className={css((t) => ({ padding: `${t.spacing(1)} 0`, color: t.colors.text }))}>
-                <span className={css({ fontWeight: "500" })}>{msg.from.match(/^"?([^"<]+)"?\s*</)?.[1]?.trim() ?? msg.from}</span>
-                {" — "}
-                <span className={css((t) => ({ color: t.colors.textMuted }))}>{msg.subject.length > 40 ? msg.subject.slice(0, 37) + "…" : msg.subject}</span>
-              </div>
-            ))}
+            {resolvedMessages.slice(0, 6).map((msg) => {
+              const safeSubject = typeof msg.subject === "string" && msg.subject.length > 0 ? msg.subject : "(no subject)";
+              return (
+                <div key={msg.id} className={css((t) => ({ padding: `${t.spacing(1)} 0`, color: t.colors.text }))}>
+                  <span className={css({ fontWeight: "500" })}>{msg.from.match(/^"?([^"<]+)"?\s*</)?.[1]?.trim() ?? msg.from}</span>
+                  {" — "}
+                  <span className={css((t) => ({ color: t.colors.textMuted }))}>{safeSubject.length > 40 ? safeSubject.slice(0, 37) + "…" : safeSubject}</span>
+                </div>
+              );
+            })}
             {resolvedMessages.length > 6 && (
               <div className={css((t) => ({ color: t.colors.textMuted, fontStyle: "italic", marginTop: t.spacing(1) }))}>
                 +{resolvedMessages.length - 6} more

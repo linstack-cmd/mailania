@@ -78,6 +78,25 @@ interface LatestTriageSummary {
   suggestionCount: number;
 }
 
+function normalizeInboxMessages(payload: unknown): InboxMessage[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.map((message, index) => {
+    const record = (message && typeof message === "object") ? message as Record<string, unknown> : {};
+    return {
+      id: typeof record.id === "string" && record.id.length > 0 ? record.id : `message-${index}`,
+      subject: typeof record.subject === "string" && record.subject.length > 0 ? record.subject : "(no subject)",
+      from: typeof record.from === "string" ? record.from : "",
+      date: typeof record.date === "string" ? record.date : "",
+      snippet: typeof record.snippet === "string" ? record.snippet : "",
+      isRead: typeof record.isRead === "boolean" ? record.isRead : undefined,
+    };
+  });
+}
+
+function normalizeLatestSuggestions(payload: unknown): TriageSuggestion[] | null {
+  return Array.isArray(payload) ? payload as TriageSuggestion[] : null;
+}
+
 function formatFrom(raw: string): string {
   const match = raw.match(/^"?([^"<]+)"?\s*</);
   return match ? match[1].trim() : raw;
@@ -209,10 +228,15 @@ export default function App() {
         setLoading(false);
         return;
       }
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to load inbox (${res.status})`);
+      }
       const data = await res.json();
-      setMessages(data.messages);
-    } catch {
-      setError("Failed to load inbox");
+      setMessages(normalizeInboxMessages(data.messages));
+    } catch (err: any) {
+      setMessages([]);
+      setError(err?.message || "Failed to load inbox");
     }
     setLoading(false);
   }
@@ -237,7 +261,7 @@ export default function App() {
         throw new Error("Failed to load inbox chat");
       }
       const data = await chatRes.json();
-      setGeneralChatMessages(data.messages ?? []);
+      setGeneralChatMessages(Array.isArray(data.messages) ? data.messages : []);
       setLatestTriageSummary(data.latestTriage
         ? {
             runId: data.latestTriage.runId,
@@ -249,11 +273,14 @@ export default function App() {
       // Load latest triage suggestions for the proposal sidebar
       if (triageRes.ok) {
         const triageData = await triageRes.json();
-        setLatestSuggestions(triageData.suggestions ?? null);
+        setLatestSuggestions(normalizeLatestSuggestions(triageData.suggestions));
       } else {
         setLatestSuggestions(null);
       }
     } catch {
+      setGeneralChatMessages([]);
+      setLatestTriageSummary(null);
+      setLatestSuggestions(null);
       setGeneralChatError("Failed to load inbox chat");
     } finally {
       setGeneralChatInitLoading(false);
@@ -314,7 +341,7 @@ export default function App() {
       }
 
       const data = await res.json();
-      setGeneralChatMessages(data.messages ?? []);
+      setGeneralChatMessages(Array.isArray(data.messages) ? data.messages : []);
       setLatestTriageSummary(data.latestTriage
         ? {
             runId: data.latestTriage.runId,
