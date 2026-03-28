@@ -238,7 +238,7 @@ export default function AccountSettings({
   const triagePreferencesDirty = triagePreferences !== savedTriagePreferences;
 
   return (
-    <div className={css((t) => ({ maxWidth: "600px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
+    <div className={css((t) => ({ maxWidth: "600px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}`, "@media (max-width: 640px)": { padding: `${t.spacing(4)} ${t.spacing(3)}` } }))}>
       <button
         onClick={onBack}
         className={css((t) => ({

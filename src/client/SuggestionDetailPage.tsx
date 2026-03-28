@@ -182,7 +182,7 @@ export default function SuggestionDetailPage() {
 
   if (error) {
     return (
-      <div className={css((t) => ({ maxWidth: "680px", margin: "0 auto", padding: `${t.spacing(8)} ${t.spacing(5)}` }))}>
+      <div className={css((t) => ({ maxWidth: "680px", margin: "0 auto", padding: `${t.spacing(8)} ${t.spacing(5)}`, "@media (max-width: 640px)": { padding: `${t.spacing(4)} ${t.spacing(3)}` } }))}>
         <button onClick={() => navigate("/")} className={backBtnClass}>
           ← Back to Triage
         </button>
@@ -220,7 +220,7 @@ export default function SuggestionDetailPage() {
     .filter((m): m is InboxMessage => !!m);
 
   return (
-    <div className={css((t) => ({ maxWidth: "720px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)} ${t.spacing(10)}` }))}>
+    <div className={css((t) => ({ maxWidth: "720px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)} ${t.spacing(10)}`, "@media (max-width: 640px)": { padding: `${t.spacing(4)} ${t.spacing(3)} ${t.spacing(10)}` } }))}>
       {/* Back + nav bar */}
       <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3), marginBottom: t.spacing(5) }))}>
         <button onClick={() => navigate("/")} className={backBtnClass}>
@@ -617,7 +617,7 @@ function ActionPlanSection({ steps, compact }: { steps: ActionPlanStep[]; compac
 // --- Skeleton for loading state ---
 function DetailPageSkeleton() {
   return (
-    <div className={css((t) => ({ maxWidth: "720px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
+    <div className={css((t) => ({ maxWidth: "720px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}`, "@media (max-width: 640px)": { padding: `${t.spacing(4)} ${t.spacing(3)}` } }))}>
       <div className={css({ width: "140px", height: "14px", borderRadius: "4px", background: "#e5e7eb", marginBottom: "24px" })} />
       <div className={css({ display: "flex", gap: "8px", marginBottom: "16px" })}>
         <div className={shimmerClass} style={{ width: "80px", height: "20px" }} />

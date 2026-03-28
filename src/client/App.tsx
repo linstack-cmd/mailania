@@ -336,7 +336,7 @@ export default function App() {
     }));
 
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4), padding: `${t.spacing(4)} ${t.spacing(3)}` }))}>
         <h1 className={css({ fontSize: "2rem", fontWeight: "700" })}>📬 Mailania</h1>
 
         {!isPasskeySupported() ? (
@@ -346,7 +346,7 @@ export default function App() {
             </p>
           </div>
         ) : (
-          <div className={css((t) => ({ width: "320px", display: "flex", flexDirection: "column", gap: t.spacing(3) }))}>
+          <div className={css((t) => ({ width: "min(320px, 100%)", display: "flex", flexDirection: "column", gap: t.spacing(3) }))}>
             {/* Tab switcher */}
             <div className={css((t) => ({ display: "flex", borderBottom: `1px solid ${t.colors.borderLight}` }))}>
               <button
@@ -455,7 +455,7 @@ export default function App() {
   // --- Logged in but no Gmail connected ---
   if (!gmailConnected && !status?.localDev) {
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4), padding: `${t.spacing(4)} ${t.spacing(3)}` }))}>
         <h1 className={css({ fontSize: "1.5rem", fontWeight: "700" })}>📬 Mailania</h1>
         <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
           Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
