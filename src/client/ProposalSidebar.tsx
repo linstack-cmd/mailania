@@ -175,8 +175,8 @@ function ProposalCard({
           margin: 0,
           lineHeight: "1.45",
           display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
+          "-webkit-line-clamp": 2,
+          "-webkit-box-orient": "vertical",
           overflow: "hidden",
         }))}
       >

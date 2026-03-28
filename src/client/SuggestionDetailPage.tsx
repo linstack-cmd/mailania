@@ -321,10 +321,10 @@ export default function SuggestionDetailPage() {
                     {new Date(msg.date).toLocaleDateString([], { month: "short", day: "numeric" })}
                   </span>
                 </div>
-                <div className={css((t) => ({ fontWeight: "500", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", "@media (max-width: 640px)": { whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflowWrap: "anywhere" } }))}>
+                <div className={css((t) => ({ fontWeight: "500", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", "@media (max-width: 640px)": { whiteSpace: "normal", display: "-webkit-box", "-webkit-line-clamp": 2, "-webkit-box-orient": "vertical", overflowWrap: "anywhere" } }))}>
                   {msg.subject}
                 </div>
-                <div className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", "@media (max-width: 640px)": { whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflowWrap: "anywhere" } }))}>
+                <div className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", "@media (max-width: 640px)": { whiteSpace: "normal", display: "-webkit-box", "-webkit-line-clamp": 2, "-webkit-box-orient": "vertical", overflowWrap: "anywhere" } }))}>
                   {msg.snippet}
                 </div>
               </div>

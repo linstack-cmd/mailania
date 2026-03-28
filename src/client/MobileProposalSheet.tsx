@@ -185,8 +185,8 @@ function MobileProposalCard({
           margin: 0,
           lineHeight: "1.5",
           display: "-webkit-box",
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: "vertical",
+          "-webkit-line-clamp": 3,
+          "-webkit-box-orient": "vertical",
           overflow: "hidden",
         }))}
       >

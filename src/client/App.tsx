@@ -1044,8 +1044,8 @@ const msgSubjectUnreadClass = css((t) => ({
   "@media (max-width: 640px)": {
     whiteSpace: "normal",
     display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
+    "-webkit-line-clamp": 2,
+    "-webkit-box-orient": "vertical",
     overflowWrap: "anywhere",
   },
 }));
@@ -1060,8 +1060,8 @@ const msgSubjectReadClass = css((t) => ({
   "@media (max-width: 640px)": {
     whiteSpace: "normal",
     display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
+    "-webkit-line-clamp": 2,
+    "-webkit-box-orient": "vertical",
     overflowWrap: "anywhere",
   },
 }));
@@ -1076,8 +1076,8 @@ const msgSnippetUnreadClass = css((t) => ({
   "@media (max-width: 640px)": {
     whiteSpace: "normal",
     display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
+    "-webkit-line-clamp": 2,
+    "-webkit-box-orient": "vertical",
     overflowWrap: "anywhere",
   },
 }));
@@ -1092,8 +1092,8 @@ const msgSnippetReadClass = css((t) => ({
   "@media (max-width: 640px)": {
     whiteSpace: "normal",
     display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
+    "-webkit-line-clamp": 2,
+    "-webkit-box-orient": "vertical",
     overflowWrap: "anywhere",
   },
 }));

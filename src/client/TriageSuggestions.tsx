@@ -606,8 +606,8 @@ function SuggestionCard({
           marginTop: t.spacing(1.5),
           lineHeight: "1.5",
           display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
+          "-webkit-line-clamp": 2,
+          "-webkit-box-orient": "vertical",
           overflow: "hidden",
         }))}
       >
