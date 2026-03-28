@@ -323,6 +323,7 @@ export interface MobileProposalSheetProps {
   externalSuggestions?: TriageSuggestion[] | null;
   externalRunId?: string | null;
   externalLastRunAt?: string | null;
+  onMountChange?: (mounted: boolean) => void;
 }
 
 export default function MobileProposalSheet({
@@ -331,6 +332,7 @@ export default function MobileProposalSheet({
   externalSuggestions,
   externalRunId,
   externalLastRunAt,
+  onMountChange,
 }: MobileProposalSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -350,6 +352,11 @@ export default function MobileProposalSheet({
 
   const messageMap = new Map<string, InboxMessage>();
   for (const m of messages) messageMap.set(m.id, m);
+
+  useEffect(() => {
+    onMountChange?.(true);
+    return () => onMountChange?.(false);
+  }, [onMountChange]);
 
   // Sync external props
   useEffect(() => {

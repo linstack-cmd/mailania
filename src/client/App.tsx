@@ -9,8 +9,12 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     super(props);
     this.state = { error: null };
   }
-  static getDerivedStateFromError(error: Error) { return { error }; }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
   componentDidCatch(error: Error, info: { componentStack: string }) {
+    const details = `${error.message}${error.stack ? `\n${error.stack}` : ""}${info.componentStack ? `\n${info.componentStack}` : ""}`;
+    updateMobileDebug({ errorBoundaryError: details, appError: details });
     console.error("[Mailania crash]", error, info.componentStack);
   }
   render() {
@@ -18,6 +22,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
       return (
         <div style={{ padding: "24px", fontFamily: "monospace", color: "#dc2626", background: "#fef2f2", minHeight: "100vh" }}>
           <h2 style={{ marginBottom: "12px" }}>⚠️ App crashed</h2>
+          <p style={{ marginBottom: "12px", color: "#7f1d1d" }}>Open the debug badge in the bottom-right and send Danny a screenshot of both this error and the panel.</p>
           <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.85rem" }}>{this.state.error.message}{"\n"}{this.state.error.stack}</pre>
         </div>
       );
@@ -33,6 +38,7 @@ import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import MobileProposalSheet from "./MobileProposalSheet";
 import type { TriageSuggestion } from "./TriageSuggestions";
+import { updateMobileDebug } from "./mobileDebug";
 
 interface InboxMessage {
   id: string;
@@ -145,8 +151,37 @@ export default function App() {
   const [latestSuggestions, setLatestSuggestions] = useState<TriageSuggestion[] | null | undefined>(undefined);
 
   useEffect(() => {
+    updateMobileDebug({
+      authenticated: status?.authenticated ?? null,
+      gmailConnected: status?.gmailConnected ?? null,
+      statusUserExists: status?.user ? true : false,
+      messagesCount: messages.length,
+      generalChatMessagesCount: generalChatMessages.length,
+      latestSuggestionsState:
+        latestSuggestions === undefined
+          ? "undefined"
+          : latestSuggestions === null
+            ? "null"
+            : `count:${latestSuggestions.length}`,
+      appError: error ?? generalChatError ?? passkeyError ?? null,
+    });
+  }, [status, messages.length, generalChatMessages.length, latestSuggestions, error, generalChatError, passkeyError]);
+
+  useEffect(() => {
+    updateMobileDebug({ statusFetch: "pending" });
     fetch("/api/status")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data: StatusData = await r.json();
+        updateMobileDebug({
+          statusFetch: r.ok ? "ok" : "error",
+          statusFetchHttp: r.status,
+          statusFetchError: r.ok ? null : `HTTP ${r.status}`,
+          authenticated: data.authenticated ?? null,
+          gmailConnected: data.gmailConnected ?? null,
+          statusUserExists: data.user ? true : false,
+        });
+        return data;
+      })
       .then((data: StatusData) => {
         setStatus(data);
         if (data.authenticated && (data.gmailConnected || data.localDev)) {
@@ -156,7 +191,9 @@ export default function App() {
           setLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err: any) => {
+        const message = err?.message || "Cannot reach server";
+        updateMobileDebug({ statusFetch: "error", statusFetchError: message, appError: message });
         setError("Cannot reach server");
         setLoading(false);
       });
@@ -225,14 +262,25 @@ export default function App() {
 
   async function refreshStatus() {
     try {
+      updateMobileDebug({ statusFetch: "pending" });
       const res = await fetch("/api/status");
       const data: StatusData = await res.json();
+      updateMobileDebug({
+        statusFetch: res.ok ? "ok" : "error",
+        statusFetchHttp: res.status,
+        statusFetchError: res.ok ? null : `HTTP ${res.status}`,
+        authenticated: data.authenticated ?? null,
+        gmailConnected: data.gmailConnected ?? null,
+        statusUserExists: data.user ? true : false,
+      });
       setStatus(data);
       if (data.authenticated && (data.gmailConnected || data.localDev)) {
         fetchInbox();
         fetchGeneralChat();
       }
-    } catch { /* ignore */ }
+    } catch (err: any) {
+      updateMobileDebug({ statusFetch: "error", statusFetchError: err?.message || "refresh failed" });
+    }
   }
 
   async function sendGeneralChatMessage() {
@@ -731,6 +779,7 @@ export default function App() {
                 "What triage preferences do you remember?",
                 "Summarize the latest triage suggestions",
               ]}
+              onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
             />
           </section>
 
@@ -879,6 +928,7 @@ export default function App() {
         externalSuggestions={latestSuggestions}
         externalRunId={latestTriageSummary?.runId ?? null}
         externalLastRunAt={latestTriageSummary?.createdAt ?? null}
+        onMountChange={(mounted) => updateMobileDebug({ mobileProposalSheetMounted: mounted })}
       />
     </div>
       </Route>

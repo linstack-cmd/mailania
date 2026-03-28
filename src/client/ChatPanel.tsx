@@ -30,6 +30,7 @@ export function ChatPanel({
   emptyState,
   assistantName = "Mailania",
   starterPrompts,
+  onMountChange,
 }: {
   title: string;
   subtitle?: string;
@@ -44,12 +45,18 @@ export function ChatPanel({
   emptyState: string;
   assistantName?: string;
   starterPrompts?: string[];
+  onMountChange?: (mounted: boolean) => void;
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const hasMountedRef = useRef(false);
   const prevLoadingRef = useRef(loading);
+
+  useEffect(() => {
+    onMountChange?.(true);
+    return () => onMountChange?.(false);
+  }, [onMountChange]);
 
   useEffect(() => {
     const scroller = chatScrollRef.current;
