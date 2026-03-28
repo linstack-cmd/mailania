@@ -18,6 +18,7 @@ import {
   logout,
 } from "./auth.js";
 import { listInbox, listUnreadInbox } from "./gmail.js";
+import { getGmailAuthFailure } from "./gmail-auth-errors.js";
 import { generateTriageSuggestions, generateTriageSuggestionsStreaming } from "./triage.js";
 import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
 import type { TriageSuggestion, TriageProgressEvent } from "./triage.js";
@@ -605,7 +606,10 @@ async function main() {
     app.get("/api/inbox", async (req, res) => {
       const auth = await loadGmailClient(req);
       if (!auth) {
-        res.status(401).json({ error: "No Gmail account connected" });
+        res.status(401).json({
+          error: "No Gmail account connected",
+          code: "NO_GMAIL_ACCOUNT",
+        });
         return;
       }
 
@@ -613,8 +617,9 @@ async function main() {
         const messages = await listInbox(auth, config.inboxLimit);
         res.json({ messages });
       } catch (err: any) {
-        if (err?.code === 401 || err?.response?.status === 401) {
-          res.status(401).json({ error: "Gmail token expired — please reconnect" });
+        const authFailure = getGmailAuthFailure(err);
+        if (authFailure) {
+          res.status(authFailure.status).json(authFailure);
           return;
         }
         console.error("Gmail API error:", err);
@@ -635,7 +640,10 @@ async function main() {
 
       const auth = await loadGmailClient(req);
       if (!auth) {
-        res.status(401).json({ error: "No Gmail account connected" });
+        res.status(401).json({
+          error: "No Gmail account connected",
+          code: "NO_GMAIL_ACCOUNT",
+        });
         return;
       }
 
@@ -666,8 +674,9 @@ async function main() {
         const run = row.rows[0];
         res.json({ ...result, runId: run.id, createdAt: run.created_at });
       } catch (err: any) {
-        if (err?.code === 401 || err?.response?.status === 401) {
-          res.status(401).json({ error: "Gmail token expired" });
+        const authFailure = getGmailAuthFailure(err);
+        if (authFailure) {
+          res.status(authFailure.status).json(authFailure);
           return;
         }
         if (err?.status) {
@@ -692,7 +701,10 @@ async function main() {
 
       const auth = await loadGmailClient(req);
       if (!auth) {
-        res.status(401).json({ error: "No Gmail account connected" });
+        res.status(401).json({
+          error: "No Gmail account connected",
+          code: "NO_GMAIL_ACCOUNT",
+        });
         return;
       }
 
@@ -741,7 +753,12 @@ async function main() {
         const run = row.rows[0];
         res.write(`data: ${JSON.stringify({ type: "saved", runId: run.id, createdAt: run.created_at })}\n\n`);
       } catch (err: any) {
-        sendEvent({ type: "error", error: err.message || "Failed to generate triage suggestions" });
+        const authFailure = getGmailAuthFailure(err);
+        if (authFailure) {
+          sendEvent({ type: "error", error: authFailure.error });
+        } else {
+          sendEvent({ type: "error", error: err.message || "Failed to generate triage suggestions" });
+        }
       }
 
       res.end();

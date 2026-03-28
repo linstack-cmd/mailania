@@ -223,14 +223,19 @@ export default function App() {
     setError(null);
     try {
       const res = await fetch("/api/inbox");
+      const errData = res.ok ? null : await res.json().catch(() => ({}));
       if (res.status === 401) {
+        const errorCode = typeof errData?.code === "string" ? errData.code : null;
+        if (errorCode === "GMAIL_RECONNECT_REQUIRED" || errorCode === "NO_GMAIL_ACCOUNT") {
+          setStatus((s) => (s ? { ...s, gmailConnected: false } : s));
+          throw new Error(errData?.error || "Please reconnect Gmail");
+        }
         setStatus((s) => s ? { ...s, authenticated: false } : null);
         setLoading(false);
         return;
       }
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to load inbox (${res.status})`);
+        throw new Error(errData?.error || `Failed to load inbox (${res.status})`);
       }
       const data = await res.json();
       setMessages(normalizeInboxMessages(data.messages));
@@ -560,6 +565,12 @@ export default function App() {
         <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
           Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
         </p>
+
+        {error && (
+          <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: "0.9rem", textAlign: "center", maxWidth: "420px" }))}>
+            {error}
+          </div>
+        )}
 
         <a
           href="/auth/login"

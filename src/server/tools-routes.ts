@@ -28,6 +28,7 @@ import {
 } from "./approval.js";
 import { logAction } from "./action-log.js";
 import { getPool } from "./db.js";
+import { getGmailAuthFailure } from "./gmail-auth-errors.js";
 
 export function createToolsRouter(): Router {
   const router = Router();
@@ -41,10 +42,20 @@ export function createToolsRouter(): Router {
     if (config.localDevNoAuth) return null; // Mock mode
     const auth = await loadGmailClient(req);
     if (!auth) {
-      res.status(401).json({ error: "No Gmail account connected" });
+      res.status(401).json({
+        error: "No Gmail account connected",
+        code: "NO_GMAIL_ACCOUNT",
+      });
       return undefined; // Signal: response already sent
     }
     return auth;
+  }
+
+  function trySendGmailAuthFailure(res: Response, err: any): boolean {
+    const authFailure = getGmailAuthFailure(err);
+    if (!authFailure) return false;
+    res.status(authFailure.status).json(authFailure);
+    return true;
   }
 
   function requireUserId(req: Request, res: Response): string | undefined {
@@ -70,12 +81,13 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const auth = await loadGmailClient(req);
-      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
+      const auth = await getGmailAuth(req, res);
+      if (!auth) return;
 
       const messages = await listInbox(auth, maxResults);
       res.json({ messages });
     } catch (err: any) {
+      if (trySendGmailAuthFailure(res, err)) return;
       console.error("[tools/list_inbox]", err);
       res.status(500).json({ error: "Failed to list inbox", detail: err.message });
     }
@@ -96,8 +108,8 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const auth = await loadGmailClient(req);
-      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
+      const auth = await getGmailAuth(req, res);
+      if (!auth) return;
 
       const message = await getMessage(auth, messageId);
       res.json({ message });
@@ -106,6 +118,7 @@ export function createToolsRouter(): Router {
         res.status(404).json({ error: "Message not found" });
         return;
       }
+      if (trySendGmailAuthFailure(res, err)) return;
       console.error("[tools/get_message]", err);
       res.status(500).json({ error: "Failed to get message", detail: err.message });
     }
@@ -131,12 +144,13 @@ export function createToolsRouter(): Router {
         return;
       }
 
-      const auth = await loadGmailClient(req);
-      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
+      const auth = await getGmailAuth(req, res);
+      if (!auth) return;
 
       const result = await searchMessages(auth, query, maxResults ?? 25);
       res.json({ messages: result.messages, count: result.count, resultSizeEstimate: result.resultSizeEstimate });
     } catch (err: any) {
+      if (trySendGmailAuthFailure(res, err)) return;
       console.error("[tools/search_messages]", err);
       res.status(500).json({ error: "Failed to search messages", detail: err.message });
     }
