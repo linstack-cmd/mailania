@@ -99,6 +99,8 @@ export function ChatPanel({
         background: t.colors.bg,
         minWidth: 0,
         maxWidth: "100%",
+        display: "flex",
+        flexDirection: "column",
       }))}
     >
       <div
@@ -106,6 +108,7 @@ export function ChatPanel({
           padding: `${t.spacing(3)} ${t.spacing(4)}`,
           background: t.colors.bgAlt,
           borderBottom: `1px solid ${t.colors.borderLight}`,
+          flexShrink: 0,
         }))}
       >
         <div
@@ -138,6 +141,9 @@ export function ChatPanel({
               fontSize: "0.8rem",
               color: t.colors.textMuted,
               lineHeight: "1.5",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }))}
           >
             {subtitle}
@@ -149,6 +155,7 @@ export function ChatPanel({
         ref={chatScrollRef}
         className={css((t) => ({
           maxHeight: "420px",
+          minHeight: "80px",
           overflowY: "auto",
           overflowX: "hidden",
           padding: t.spacing(3),
@@ -159,8 +166,10 @@ export function ChatPanel({
           scrollbarColor: "#d1d5db transparent",
           overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
+          flex: "1 1 auto",
           "@media (max-width: 640px)": {
             maxHeight: "min(50dvh, 380px)",
+            minHeight: "60px",
             padding: t.spacing(2.5),
           },
         }))}
@@ -256,6 +265,7 @@ export function ChatPanel({
             color: t.colors.error,
             fontSize: "0.82rem",
             borderTop: `1px solid ${t.colors.borderLight}`,
+            flexShrink: 0,
           }))}
         >
           {error}
@@ -271,6 +281,7 @@ export function ChatPanel({
           background: t.colors.bg,
           minWidth: 0,
           alignItems: "flex-end",
+          flexShrink: 0,
           "@media (max-width: 640px)": {
             padding: t.spacing(2),
             gap: t.spacing(1.5),
