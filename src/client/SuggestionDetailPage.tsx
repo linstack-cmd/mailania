@@ -220,14 +220,14 @@ export default function SuggestionDetailPage() {
     .filter((m): m is InboxMessage => !!m);
 
   return (
-    <div className={css((t) => ({ maxWidth: "720px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)} ${t.spacing(10)}` }))}>
+    <div className={css((t) => ({ maxWidth: "720px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)} calc(${t.spacing(10)} + env(safe-area-inset-bottom, 0px))`, minWidth: 0, boxSizing: "border-box", overflowX: "hidden", "@media (max-width: 640px)": { padding: `${t.spacing(4)} ${t.spacing(3)} calc(${t.spacing(9)} + env(safe-area-inset-bottom, 0px))` } }))}>
       {/* Back + nav bar */}
-      <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3), marginBottom: t.spacing(5) }))}>
+      <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3), marginBottom: t.spacing(5), flexWrap: "wrap", minWidth: 0, "@media (max-width: 480px)": { marginBottom: t.spacing(4) } }))}>
         <button onClick={() => navigate("/")} className={backBtnClass}>
           ← Back to Triage
         </button>
         {allSuggestions.length > 1 && (
-          <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
+          <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), flexWrap: "wrap" }))}>
             <button
               onClick={() => goToSuggestion(index - 1)}
               disabled={index === 0}
@@ -266,7 +266,7 @@ export default function SuggestionDetailPage() {
             {activeSuggestion.confidence} confidence
           </span>
         </div>
-        <h1 className={css((t) => ({ fontSize: "1.4rem", fontWeight: "700", lineHeight: "1.3", color: t.colors.text }))}>
+        <h1 className={css((t) => ({ fontSize: "1.4rem", fontWeight: "700", lineHeight: "1.3", color: t.colors.text, overflowWrap: "anywhere", "@media (max-width: 480px)": { fontSize: "1.25rem" } }))}>
           {activeSuggestion.title}
         </h1>
         <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, marginTop: t.spacing(1.5), fontStyle: "italic" }))}>
@@ -313,18 +313,18 @@ export default function SuggestionDetailPage() {
                   fontSize: "0.85rem",
                 }))}
               >
-                <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2) }))}>
-                  <span className={css({ fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 })}>
+                <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2), minWidth: 0, "@media (max-width: 480px)": { flexDirection: "column", alignItems: "flex-start", gap: t.spacing(0.5) } }))}>
+                  <span className={css({ fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, maxWidth: "100%", "@media (max-width: 480px)": { whiteSpace: "normal", overflowWrap: "anywhere" } })}>
                     {msg.from.match(/^"?([^"<]+)"?\s*</)?.[1]?.trim() ?? msg.from}
                   </span>
                   <span className={css((t) => ({ fontSize: "0.75rem", color: t.colors.textMuted, flexShrink: 0 }))}>
                     {new Date(msg.date).toLocaleDateString([], { month: "short", day: "numeric" })}
                   </span>
                 </div>
-                <div className={css((t) => ({ fontWeight: "500", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>
+                <div className={css((t) => ({ fontWeight: "500", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", "@media (max-width: 640px)": { whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflowWrap: "anywhere" } }))}>
                   {msg.subject}
                 </div>
-                <div className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>
+                <div className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", marginTop: t.spacing(1), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", "@media (max-width: 640px)": { whiteSpace: "normal", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflowWrap: "anywhere" } }))}>
                   {msg.snippet}
                 </div>
               </div>
@@ -417,6 +417,10 @@ export default function SuggestionDetailPage() {
           alignItems: "center",
           gap: t.spacing(2),
           flexWrap: "wrap",
+          minWidth: 0,
+          "@media (max-width: 640px)": {
+            alignItems: "stretch",
+          },
         }))}
       >
         <button

@@ -201,7 +201,7 @@ function MobileProposalCard({
       )}
 
       {/* Action buttons — full-width, large touch targets */}
-      <div className={css((t) => ({ display: "flex", gap: t.spacing(2), paddingTop: t.spacing(1.5), borderTop: `1px solid ${t.colors.borderLight}` }))}>
+      <div className={css((t) => ({ display: "flex", gap: t.spacing(2), paddingTop: t.spacing(1.5), borderTop: `1px solid ${t.colors.borderLight}`, minWidth: 0, "@media (max-width: 380px)": { flexDirection: "column" } }))}>
         {canApply ? (
           <button
             onClick={onAccept}
@@ -581,9 +581,10 @@ export default function MobileProposalSheet({
               background: t.colors.bg,
               borderRadius: "1rem 1rem 0 0",
               boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
-              maxHeight: "85vh",
+              maxHeight: "85dvh",
               overflow: "hidden",
               boxSizing: "border-box",
+              overscrollBehavior: "contain",
             },
           }))}
         >
@@ -618,6 +619,10 @@ export default function MobileProposalSheet({
               flexShrink: 0,
               gap: t.spacing(2),
               minWidth: 0,
+              "@media (max-width: 380px)": {
+                flexWrap: "wrap",
+                alignItems: "stretch",
+              },
             }))}
           >
             <div className={css({ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, overflow: "hidden" })}>
@@ -643,7 +648,7 @@ export default function MobileProposalSheet({
                 </span>
               )}
             </div>
-            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexShrink: 0 }))}>
+            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexShrink: 0, "@media (max-width: 380px)": { width: "100%" } }))}>
               <button
                 onClick={runTriage}
                 disabled={triageLoading || initialLoading}
@@ -657,6 +662,7 @@ export default function MobileProposalSheet({
                   minHeight: "36px",
                   whiteSpace: "nowrap",
                   transition: "background 0.15s",
+                  "@media (max-width: 380px)": { flex: 1 },
                 }))}
                 style={
                   triageLoading || initialLoading

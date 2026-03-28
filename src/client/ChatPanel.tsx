@@ -54,6 +54,16 @@ export function ChatPanel({
   const prevLoadingRef = useRef(loading);
 
   useEffect(() => {
+    const textarea = chatInputRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(textarea.scrollHeight, 180);
+    textarea.style.height = `${Math.max(nextHeight, 44)}px`;
+    textarea.style.overflowY = textarea.scrollHeight > 180 ? "auto" : "hidden";
+  }, [input]);
+
+  useEffect(() => {
     onMountChange?.(true);
     return () => onMountChange?.(false);
   }, [onMountChange]);
@@ -147,8 +157,10 @@ export function ChatPanel({
           gap: t.spacing(2.5),
           scrollbarWidth: "thin",
           scrollbarColor: "#d1d5db transparent",
+          overscrollBehavior: "contain",
+          WebkitOverflowScrolling: "touch",
           "@media (max-width: 640px)": {
-            maxHeight: "320px",
+            maxHeight: "min(50dvh, 380px)",
             padding: t.spacing(2.5),
           },
         }))}
@@ -258,9 +270,12 @@ export function ChatPanel({
           borderTop: `1px solid ${t.colors.borderLight}`,
           background: t.colors.bg,
           minWidth: 0,
+          alignItems: "flex-end",
           "@media (max-width: 640px)": {
             padding: t.spacing(2),
             gap: t.spacing(1.5),
+            flexDirection: "column",
+            alignItems: "stretch",
           },
         }))}
       >
@@ -279,6 +294,10 @@ export function ChatPanel({
           disabled={loading}
           className={css((t) => ({
             flex: 1,
+            minWidth: 0,
+            maxWidth: "100%",
+            minHeight: "44px",
+            maxHeight: "180px",
             padding: `${t.spacing(2)} ${t.spacing(3)}`,
             border: `1px solid ${t.colors.border}`,
             borderRadius: t.radiusSm,
@@ -288,6 +307,9 @@ export function ChatPanel({
             lineHeight: "1.5",
             outline: "none",
             transition: "border-color 0.15s",
+            overflowX: "hidden",
+            overflowY: "hidden",
+            boxSizing: "border-box",
             "&:focus": { borderColor: t.colors.primary },
             "&:disabled": { opacity: 0.6 },
           }))}
@@ -306,6 +328,12 @@ export function ChatPanel({
             fontWeight: "700",
             transition: "background 0.15s, opacity 0.15s",
             alignSelf: "flex-end",
+            minHeight: "44px",
+            flexShrink: 0,
+            "@media (max-width: 640px)": {
+              width: "100%",
+              alignSelf: "stretch",
+            },
             "&:hover:not(:disabled)": { background: t.colors.primaryHover },
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
           }))}
@@ -340,9 +368,14 @@ const chatBubbleUserClass = css((t) => ({
   lineHeight: "1.6",
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
-  overflowWrap: "break-word",
+  overflowWrap: "anywhere",
+  minWidth: 0,
   background: t.colors.primary,
   color: "#fff",
+  "@media (max-width: 640px)": {
+    maxWidth: "92%",
+    padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
+  },
 }));
 
 const chatBubbleAssistantClass = css((t) => ({
@@ -354,16 +387,23 @@ const chatBubbleAssistantClass = css((t) => ({
   lineHeight: "1.6",
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
-  overflowWrap: "break-word",
+  overflowWrap: "anywhere",
+  minWidth: 0,
   background: t.colors.bgAlt,
   color: t.colors.text,
   border: `1px solid ${t.colors.borderLight}`,
+  "@media (max-width: 640px)": {
+    maxWidth: "92%",
+    padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
+  },
 }));
 
 const chatMetaClass = css((t) => ({
   fontSize: "0.7rem",
   color: t.colors.textMuted,
   padding: "0 4px",
+  maxWidth: "100%",
+  overflowWrap: "anywhere",
 }));
 
 function ChatBubble({ msg, assistantName }: { msg: ChatMessageData; assistantName: string }) {

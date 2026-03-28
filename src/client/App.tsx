@@ -441,8 +441,8 @@ export default function App() {
     }));
 
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
-        <h1 className={css({ fontSize: "2rem", fontWeight: "700" })}>📬 Mailania</h1>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box" }))}>
+        <h1 className={css((t) => ({ fontSize: "2rem", fontWeight: "700", textAlign: "center", lineHeight: "1.15", "@media (max-width: 640px)": { fontSize: "1.75rem" } }))}>📬 Mailania</h1>
 
         {!isPasskeySupported() ? (
           <div className={css((t) => ({ textAlign: "center", maxWidth: "360px", padding: t.spacing(4) }))}>
@@ -451,7 +451,7 @@ export default function App() {
             </p>
           </div>
         ) : (
-          <div className={css((t) => ({ width: "320px", display: "flex", flexDirection: "column", gap: t.spacing(3) }))}>
+          <div className={css((t) => ({ width: "min(100%, 420px)", display: "flex", flexDirection: "column", gap: t.spacing(3), padding: `${t.spacing(4)} ${t.spacing(4.5)}`, border: `1px solid ${t.colors.borderLight}`, borderRadius: t.radius, background: t.colors.bg, boxShadow: t.shadow, boxSizing: "border-box", "@media (max-width: 480px)": { padding: `${t.spacing(3.5)} ${t.spacing(3)}` } }))}>
             {/* Tab switcher */}
             <div className={css((t) => ({ display: "flex", borderBottom: `1px solid ${t.colors.borderLight}` }))}>
               <button
@@ -560,8 +560,8 @@ export default function App() {
   // --- Logged in but no Gmail connected ---
   if (!gmailConnected && !status?.localDev) {
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: t.spacing(4) }))}>
-        <h1 className={css({ fontSize: "1.5rem", fontWeight: "700" })}>📬 Mailania</h1>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box" }))}>
+        <h1 className={css((t) => ({ fontSize: "1.5rem", fontWeight: "700", textAlign: "center", lineHeight: "1.2" }))}>📬 Mailania</h1>
         <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
           Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
         </p>
@@ -627,10 +627,13 @@ export default function App() {
       </Route>
       <Route>
     <div className={css((t) => ({
+      width: "min(100%, 1400px)",
       maxWidth: "1400px",
       margin: "0 auto",
       padding: `${t.spacing(6)} ${t.spacing(5)}`,
       minWidth: 0,
+      boxSizing: "border-box",
+      overflowX: "hidden",
       "@media (max-width: 640px)": {
         padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
       },
@@ -646,9 +649,11 @@ export default function App() {
           borderBottom: `2px solid ${t.colors.border}`,
           gap: t.spacing(2),
           minWidth: 0,
+          flexWrap: "wrap",
           "@media (max-width: 640px)": {
             paddingBottom: t.spacing(3),
             marginBottom: t.spacing(3),
+            alignItems: "stretch",
           },
         }))}
       >
@@ -677,7 +682,7 @@ export default function App() {
             </span>
           )}
         </div>
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexWrap: "nowrap", flexShrink: 1, "@media (max-width: 480px)": { gap: t.spacing(0.75) } }))}>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexWrap: "wrap", flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto", "@media (max-width: 640px)": { width: "100%" }, "@media (max-width: 480px)": { gap: t.spacing(0.75) } }))}>
           <button
             onClick={fetchInbox}
             title="Refresh inbox"
@@ -841,6 +846,8 @@ export default function App() {
                 fontWeight: "700",
                 color: t.colors.text,
                 transition: "background 0.15s, border-radius 0.15s",
+                minWidth: 0,
+                gap: t.spacing(2),
                 "&:hover": { background: t.colors.borderLight },
                 "&:focus-visible": {
                   outline: `2px solid ${t.colors.primary}`,
@@ -989,11 +996,16 @@ const msgRowClass = css((t) => ({
   borderLeft: "3px solid transparent",
   overflow: "hidden",
   maxWidth: "100%",
+  minWidth: 0,
+  boxSizing: "border-box",
   "&:hover": {
     background: "#eef2ff",
     borderLeftColor: t.colors.primary,
   },
   "&:last-child": { borderBottom: "none" },
+  "@media (max-width: 480px)": {
+    padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
+  },
 }));
 
 const unreadDotClass = css((t) => ({
@@ -1028,6 +1040,13 @@ const msgSubjectUnreadClass = css((t) => ({
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+  "@media (max-width: 640px)": {
+    whiteSpace: "normal",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflowWrap: "anywhere",
+  },
 }));
 
 const msgSubjectReadClass = css((t) => ({
@@ -1037,6 +1056,13 @@ const msgSubjectReadClass = css((t) => ({
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+  "@media (max-width: 640px)": {
+    whiteSpace: "normal",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflowWrap: "anywhere",
+  },
 }));
 
 const msgSnippetUnreadClass = css((t) => ({
@@ -1046,6 +1072,13 @@ const msgSnippetUnreadClass = css((t) => ({
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+  "@media (max-width: 640px)": {
+    whiteSpace: "normal",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflowWrap: "anywhere",
+  },
 }));
 
 const msgSnippetReadClass = css((t) => ({
@@ -1055,12 +1088,23 @@ const msgSnippetReadClass = css((t) => ({
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
+  "@media (max-width: 640px)": {
+    whiteSpace: "normal",
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflowWrap: "anywhere",
+  },
 }));
 
 const msgDateClass = css((t) => ({
   color: t.colors.textMuted,
   fontSize: "0.75rem",
   flexShrink: 0,
+  whiteSpace: "nowrap",
+  "@media (max-width: 480px)": {
+    fontSize: "0.72rem",
+  },
 }));
 
 function MessageRow({ msg }: { msg: InboxMessage }) {
@@ -1072,7 +1116,7 @@ function MessageRow({ msg }: { msg: InboxMessage }) {
         {isUnread && <div className={unreadDotClass} />}
       </div>
       <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
-        <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2) }))}>
+        <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2), minWidth: 0, "@media (max-width: 480px)": { alignItems: "flex-start", flexDirection: "column", gap: t.spacing(0.5) } }))}>
           <span className={isUnread ? msgFromUnreadClass : msgFromReadClass}>
             {formatFrom(msg.from)}
           </span>
