@@ -501,6 +501,19 @@ export default function MobileProposalSheet({
             padding: `${t.spacing(2)} ${t.spacing(3)} env(safe-area-inset-bottom, 8px)`,
             boxSizing: "border-box",
           },
+          "@media (max-width: 360px)": {
+            /* Collapse to a small floating pill at very narrow widths */
+            position: "fixed",
+            bottom: "12px",
+            right: "12px",
+            left: "auto",
+            width: "auto",
+            maxWidth: "none",
+            background: "transparent",
+            borderTop: "none",
+            boxShadow: "none",
+            padding: 0,
+          },
         }))}
       >
         <button
@@ -521,9 +534,18 @@ export default function MobileProposalSheet({
             minHeight: "48px",
             transition: "background 0.15s, color 0.15s",
             "&:active": { opacity: 0.85 },
+            "@media (max-width: 360px)": {
+              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
+              minHeight: "40px",
+              fontSize: "0.82rem",
+              borderRadius: "999px",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
+              flex: "none",
+            },
           }))}
         >
-          <span>📋 Proposals</span>
+          <span className={css({ "@media (max-width: 360px)": { display: "none" } })}>📋 Proposals</span>
+          <span className={css({ display: "none", "@media (max-width: 360px)": { display: "inline" } })}>📋</span>
           {(hasProposals || initialLoading || triageLoading) && (
             <span
               className={css((t) => ({
@@ -531,6 +553,10 @@ export default function MobileProposalSheet({
                 borderRadius: "999px",
                 fontSize: "0.78rem",
                 fontWeight: "700",
+                "@media (max-width: 360px)": {
+                  padding: "1px 6px",
+                  fontSize: "0.72rem",
+                },
               }))}
               style={
                 hasProposals

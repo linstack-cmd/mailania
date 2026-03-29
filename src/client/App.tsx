@@ -637,6 +637,9 @@ export default function App() {
       "@media (max-width: 640px)": {
         padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
       },
+      "@media (max-width: 360px)": {
+        padding: `${t.spacing(2)} ${t.spacing(2)} calc(${t.spacing(10)} + env(safe-area-inset-bottom, 0px))`,
+      },
     }))}>
       {/* Header */}
       <header
