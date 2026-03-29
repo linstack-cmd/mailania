@@ -11,6 +11,12 @@
 html,
 body {
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+html {
+  overflow-x: clip;
 }
 
 body {

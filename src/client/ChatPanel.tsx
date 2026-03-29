@@ -99,9 +99,11 @@ export function ChatPanel({
         background: t.colors.bg,
         minWidth: 0,
         maxWidth: "100%",
+        width: "100%",
         display: "flex",
         flexDirection: "column",
         minHeight: "200px",
+        boxSizing: "border-box",
         "@media (max-width: 640px)": {
           minHeight: "180px",
         },
@@ -295,6 +297,8 @@ export function ChatPanel({
             gap: t.spacing(1.5),
             flexDirection: "column",
             alignItems: "stretch",
+            width: "100%",
+            boxSizing: "border-box",
           },
         }))}
       >

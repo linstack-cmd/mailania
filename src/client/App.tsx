@@ -627,7 +627,7 @@ export default function App() {
       </Route>
       <Route>
     <div className={css((t) => ({
-      width: "min(100%, 1400px)",
+      width: "100%",
       maxWidth: "1400px",
       margin: "0 auto",
       padding: `${t.spacing(6)} ${t.spacing(5)}`,
@@ -636,6 +636,7 @@ export default function App() {
       overflowX: "hidden",
       "@media (max-width: 640px)": {
         padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
+        maxWidth: "100vw",
       },
       "@media (max-width: 360px)": {
         padding: `${t.spacing(2)} ${t.spacing(2)} calc(${t.spacing(10)} + env(safe-area-inset-bottom, 0px))`,
@@ -944,9 +945,9 @@ export default function App() {
         {/* Right column: Proposal Sidebar (hidden on mobile — shown via bottom sheet instead) */}
         <div
           className={css({
+            flex: "0 0 auto",
             "@media (max-width: 640px)": { display: "none" },
           })}
-          style={{ flex: "0 0 auto" }}
         >
           <ProposalSidebar
             messages={messages}
