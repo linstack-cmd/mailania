@@ -7,6 +7,39 @@
 
 import type { InboxMessage } from "./gmail.js";
 
+export interface MockChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export const MOCK_GENERAL_CHAT_MESSAGES: MockChatMessage[] = [
+  {
+    role: "user",
+    content: "What stands out in my inbox right now?",
+  },
+  {
+    role: "assistant",
+    content:
+      "Looking at your inbox, a few things stand out:\n\n" +
+      "1. **CI failure on main** — GitHub notifications show a TypeScript build error in `src/server/triage.ts`. You probably want to look at that first since it's blocking your main branch.\n\n" +
+      "2. **Dependabot PR** — There's an Express bump from 4.20.0 to 4.21.1 waiting for review. Security patch, likely safe to merge.\n\n" +
+      "3. **Personal reply from Alice** — She confirmed Tuesday at 2pm for coffee. You might want to reply to lock that in.\n\n" +
+      "The rest is mostly automated notifications (Fly.io restart, Cloudflare cert renewal, Stripe receipt) — nothing urgent there.",
+  },
+  {
+    role: "user",
+    content: "Can you find any receipts or billing emails?",
+  },
+  {
+    role: "assistant",
+    content:
+      "I found 2 billing/receipt emails:\n\n" +
+      "• **Vercel** — Invoice #4821 for March 2025, $20.00 (read, from Sun Mar 9)\n" +
+      "• **Stripe** — Payment confirmation for $9.99 to Acme SaaS Inc. (read, from Fri Mar 7)\n\n" +
+      "Both are already read. Want me to suggest a filter to auto-label these as \"Receipts\"?",
+  },
+];
+
 export const MOCK_INBOX_MESSAGES: InboxMessage[] = [
   {
     id: "mock-001",

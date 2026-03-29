@@ -101,6 +101,10 @@ export function ChatPanel({
         maxWidth: "100%",
         display: "flex",
         flexDirection: "column",
+        minHeight: "200px",
+        "@media (max-width: 640px)": {
+          minHeight: "180px",
+        },
       }))}
     >
       <div
@@ -169,8 +173,9 @@ export function ChatPanel({
           flex: "1 1 auto",
           "@media (max-width: 640px)": {
             maxHeight: "min(50dvh, 380px)",
-            minHeight: "60px",
+            minHeight: "80px",
             padding: t.spacing(2.5),
+            height: "auto",
           },
         }))}
       >

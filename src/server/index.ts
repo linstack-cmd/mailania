@@ -20,7 +20,7 @@ import {
 import { listInbox, listUnreadInbox } from "./gmail.js";
 import { getGmailAuthFailure } from "./gmail-auth-errors.js";
 import { generateTriageSuggestions, generateTriageSuggestionsStreaming } from "./triage.js";
-import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
+import { MOCK_INBOX_MESSAGES, MOCK_GENERAL_CHAT_MESSAGES } from "./mock-data.js";
 import type { TriageSuggestion, TriageProgressEvent } from "./triage.js";
 import { createToolsRouter } from "./tools-routes.js";
 import { createChatRouter } from "./chat-routes.js";
@@ -84,6 +84,40 @@ async function main() {
     // Create a dev user on first request if needed
     let devUserId: string | null = null;
 
+    async function seedMockChatMessages(userId: string): Promise<void> {
+      const pool = getPool();
+      // Check if a general conversation already exists
+      const existing = await pool.query(
+        `SELECT "id" FROM "suggestion_conversation"
+         WHERE "scope" = 'general' AND "user_id" = $1
+         LIMIT 1`,
+        [userId],
+      );
+      if (existing.rows.length > 0) return; // Already seeded
+
+      // Create a general conversation
+      const convResult = await pool.query(
+        `INSERT INTO "suggestion_conversation" ("scope", "run_id", "suggestion_index", "user_id")
+         VALUES ('general', NULL, NULL, $1)
+         RETURNING "id"`,
+        [userId],
+      );
+      const conversationId = convResult.rows[0].id as string;
+
+      // Insert mock messages with staggered timestamps
+      const baseTime = Date.now() - MOCK_GENERAL_CHAT_MESSAGES.length * 60_000;
+      for (let i = 0; i < MOCK_GENERAL_CHAT_MESSAGES.length; i++) {
+        const msg = MOCK_GENERAL_CHAT_MESSAGES[i];
+        const createdAt = new Date(baseTime + i * 60_000).toISOString();
+        await pool.query(
+          `INSERT INTO "suggestion_message" ("conversation_id", "role", "content", "created_at")
+           VALUES ($1, $2, $3, $4)`,
+          [conversationId, msg.role, msg.content, createdAt],
+        );
+      }
+      console.log(`[Dev] Seeded ${MOCK_GENERAL_CHAT_MESSAGES.length} mock chat messages`);
+    }
+
     async function ensureDevUser(): Promise<string> {
       if (devUserId) return devUserId;
       const pool = getPool();
@@ -100,6 +134,8 @@ async function main() {
         );
         devUserId = created.rows[0].id;
       }
+      // Seed mock chat messages (idempotent)
+      await seedMockChatMessages(devUserId!);
       return devUserId!;
     }
 
