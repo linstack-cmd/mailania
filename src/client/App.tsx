@@ -39,6 +39,14 @@ import ProposalSidebar from "./ProposalSidebar";
 import MobileProposalSheet from "./MobileProposalSheet";
 import type { TriageSuggestion } from "./TriageSuggestions";
 import { updateMobileDebug } from "./mobileDebug";
+import {
+  isTestUIMode,
+  TEST_INBOX_MESSAGES,
+  TEST_CHAT_MESSAGES,
+  TEST_SUGGESTIONS,
+  TEST_STATUS,
+  TEST_LATEST_TRIAGE,
+} from "./testUIMode";
 
 interface InboxMessage {
   id: string;
@@ -151,9 +159,10 @@ function InboxSkeletonRow() {
 }
 
 export default function App() {
-  const [status, setStatus] = useState<StatusData | null>(null);
-  const [messages, setMessages] = useState<InboxMessage[]>([]);
-  const [loading, setLoading] = useState(true);
+  const testMode = isTestUIMode();
+  const [status, setStatus] = useState<StatusData | null>(testMode ? TEST_STATUS as StatusData : null);
+  const [messages, setMessages] = useState<InboxMessage[]>(testMode ? TEST_INBOX_MESSAGES : []);
+  const [loading, setLoading] = useState(testMode ? false : true);
   const [error, setError] = useState<string | null>(null);
   const [inboxCollapsed, setInboxCollapsed] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
@@ -161,13 +170,13 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [signupName, setSignupName] = useState("");
-  const [generalChatMessages, setGeneralChatMessages] = useState<ChatMessageData[]>([]);
+  const [generalChatMessages, setGeneralChatMessages] = useState<ChatMessageData[]>(testMode ? TEST_CHAT_MESSAGES : []);
   const [generalChatInput, setGeneralChatInput] = useState("");
   const [generalChatLoading, setGeneralChatLoading] = useState(false);
   const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
-  const [latestTriageSummary, setLatestTriageSummary] = useState<LatestTriageSummary | null>(null);
-  const [latestSuggestions, setLatestSuggestions] = useState<TriageSuggestion[] | null | undefined>(undefined);
+  const [latestTriageSummary, setLatestTriageSummary] = useState<LatestTriageSummary | null>(testMode ? TEST_LATEST_TRIAGE : null);
+  const [latestSuggestions, setLatestSuggestions] = useState<TriageSuggestion[] | null | undefined>(testMode ? TEST_SUGGESTIONS : undefined);
 
   useEffect(() => {
     updateMobileDebug({
@@ -187,6 +196,7 @@ export default function App() {
   }, [status, messages.length, generalChatMessages.length, latestSuggestions, error, generalChatError, passkeyError]);
 
   useEffect(() => {
+    if (testMode) return; // Skip all API calls in test UI mode
     updateMobileDebug({ statusFetch: "pending" });
     fetch("/api/status")
       .then(async (r) => {
@@ -293,6 +303,7 @@ export default function App() {
   }
 
   async function refreshStatus() {
+    if (testMode) return;
     try {
       updateMobileDebug({ statusFetch: "pending" });
       const res = await fetch("/api/status");
@@ -317,6 +328,27 @@ export default function App() {
 
   async function sendGeneralChatMessage() {
     if (!generalChatInput.trim() || generalChatLoading) return;
+
+    // Test UI mode: return canned response, never hit the API
+    if (testMode) {
+      const msg = generalChatInput.trim();
+      const userMsg: ChatMessageData = {
+        id: `test-user-${Date.now()}`,
+        role: "user",
+        content: msg,
+        createdAt: new Date().toISOString(),
+      };
+      const botMsg: ChatMessageData = {
+        id: `test-bot-${Date.now()}`,
+        role: "assistant",
+        content: "🧪 **Test Mode** — This is a canned response. In production, Mailania would analyze your inbox and respond with real insights. No LLM calls are being made.",
+        createdAt: new Date().toISOString(),
+      };
+      setGeneralChatInput("");
+      setGeneralChatMessages((prev) => [...prev, userMsg, botMsg]);
+      return;
+    }
+
     const msg = generalChatInput.trim();
     const tempId = `temp-${Date.now()}`;
 
@@ -363,6 +395,7 @@ export default function App() {
   }
 
   async function handleLogout() {
+    if (testMode) return;
     await fetch("/auth/logout");
     setStatus({ authenticated: false });
     setMessages([]);
@@ -663,7 +696,7 @@ export default function App() {
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
           <h1 className={css({ fontSize: "1.25rem", fontWeight: "700", flexShrink: 0 })}>
-            📬 Mailania
+            📬 Mailania{testMode ? " 🧪" : ""}
           </h1>
           {status?.user && (
             <span
@@ -742,6 +775,29 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* Test Mode Banner */}
+      {testMode && (
+        <div
+          className={css((t) => ({
+            padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
+            background: "linear-gradient(135deg, #fef3c7, #fde68a)",
+            borderRadius: t.radius,
+            marginBottom: t.spacing(4),
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: t.spacing(2),
+            border: "2px dashed #f59e0b",
+            fontSize: "0.9rem",
+            fontWeight: "600",
+            color: "#92400e",
+          }))}
+        >
+          <span style={{ fontSize: "1.2rem" }}>🧪</span>
+          <span>Test Mode — Viewing mock data only. No real emails, no LLM calls.</span>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
