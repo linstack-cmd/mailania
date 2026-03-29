@@ -780,7 +780,7 @@ export default function App() {
         }))}
       >
         {/* Left column: Chat + Inbox */}
-        <div className={css((t) => ({ flex: "1 1 auto", minWidth: 0, display: "flex", flexDirection: "column", gap: t.spacing(5) }))}>
+        <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, width: "100%", maxWidth: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: t.spacing(5) }))}>
           {/* General Chat — primary surface */}
           <section>
             <div className={css((t) => ({ marginBottom: t.spacing(3) }))}>
