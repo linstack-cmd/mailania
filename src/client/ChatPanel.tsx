@@ -177,6 +177,9 @@ export function ChatPanel({
             padding: t.spacing(2.5),
             height: "auto",
           },
+          "@media (max-width: 360px)": {
+            paddingBottom: "65px",
+          },
         }))}
       >
         {initLoading && (
