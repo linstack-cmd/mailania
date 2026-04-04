@@ -11,6 +11,7 @@
  */
 
 import { Router } from "express";
+import Anthropic from "@anthropic-ai/sdk";
 import { getPool } from "./db.js";
 import { getConfig } from "./config.js";
 import { loadGmailClient, getUserId } from "./auth.js";
@@ -20,12 +21,21 @@ import {
   saveSuggestionRevision,
 } from "./agent-tools.js";
 import {
+  buildGeneralChatPrompt,
+  buildRevisionPrompt,
+  buildSuggestionChatPrompt,
   generateChatResponse,
   generateGeneralChatResponse,
   generateRevision,
   type ChatMessage,
   type LatestTriageContext,
 } from "./revision-engine.js";
+import {
+  getActivePromptHistory,
+  isCompactionSummaryMessage,
+  maybeCompactConversation,
+  type StoredChatMessage,
+} from "./chat-compaction.js";
 
 function getRequestUserId(req: any, config: ReturnType<typeof getConfig>): string | null {
   return config.localDevNoAuth ? req.session.userId : getUserId(req);
@@ -61,22 +71,6 @@ async function loadLatestTriageContext(userId: string): Promise<LatestTriageCont
   };
 }
 
-async function loadConversationMessages(conversationId: string): Promise<ChatMessage[]> {
-  const pool = getPool();
-  const result = await pool.query(
-    `SELECT "role", "content"
-     FROM "suggestion_message"
-     WHERE "conversation_id" = $1
-     ORDER BY "created_at" ASC`,
-    [conversationId],
-  );
-
-  return result.rows.map((row) => ({
-    role: row.role,
-    content: row.content,
-  }));
-}
-
 async function loadConversationMessageRows(conversationId: string) {
   const pool = getPool();
   const result = await pool.query(
@@ -93,6 +87,76 @@ async function loadConversationMessageRows(conversationId: string) {
     content: row.content,
     createdAt: row.created_at,
   }));
+}
+
+function stripStoredMessages(messages: StoredChatMessage[]): ChatMessage[] {
+  return messages.map(({ role, content }) => ({ role, content }));
+}
+
+function visibleChatMessages(messages: StoredChatMessage[]): StoredChatMessage[] {
+  return messages.filter((message) => !isCompactionSummaryMessage(message));
+}
+
+async function countSuggestionChatTokens(
+  original: TriageSuggestion,
+  history: ChatMessage[],
+  pendingMessages: ChatMessage[],
+  apiKey: string,
+  model: string,
+): Promise<number> {
+  const client = new Anthropic({ apiKey });
+  const promptHistory = [...history, ...pendingMessages];
+  const prompt = buildSuggestionChatPrompt(
+    original,
+    promptHistory.slice(0, -1),
+    promptHistory[promptHistory.length - 1]?.content ?? "",
+  );
+  const tokenCount = await client.messages.countTokens({
+    model,
+    system: prompt.system,
+    messages: prompt.messages,
+    tools: prompt.tools,
+  });
+  return tokenCount.input_tokens;
+}
+
+async function countGeneralChatTokens(
+  history: ChatMessage[],
+  pendingMessages: ChatMessage[],
+  apiKey: string,
+  model: string,
+  latestTriage: LatestTriageContext | null,
+): Promise<number> {
+  const client = new Anthropic({ apiKey });
+  const promptHistory = [...history, ...pendingMessages];
+  const prompt = buildGeneralChatPrompt(
+    promptHistory.slice(0, -1),
+    promptHistory[promptHistory.length - 1]?.content ?? "",
+    latestTriage,
+  );
+  const tokenCount = await client.messages.countTokens({
+    model,
+    system: prompt.system,
+    messages: prompt.messages,
+    tools: prompt.tools,
+  });
+  return tokenCount.input_tokens;
+}
+
+async function countRevisionTokens(
+  original: TriageSuggestion,
+  history: ChatMessage[],
+  apiKey: string,
+  model: string,
+): Promise<number> {
+  const client = new Anthropic({ apiKey });
+  const prompt = buildRevisionPrompt(original, history);
+  const tokenCount = await client.messages.countTokens({
+    model,
+    system: prompt.system,
+    messages: prompt.messages,
+  });
+  return tokenCount.input_tokens;
 }
 
 async function persistToolTraces(conversationId: string, traces: Array<{
@@ -149,7 +213,9 @@ export function createChatRouter(): Router {
       }
 
       const conv = convResult.rows[0];
-      const messages = await loadConversationMessageRows(conv.id as string);
+      const messages = visibleChatMessages(
+        await loadConversationMessageRows(conv.id as string),
+      );
 
       res.json({
         conversation: {
@@ -212,7 +278,29 @@ export function createChatRouter(): Router {
         conversationId = created.rows[0].id as string;
       }
 
-      const chatHistory = await loadConversationMessages(conversationId);
+      let chatHistory = await loadConversationMessageRows(conversationId);
+
+      chatHistory = await maybeCompactConversation({
+        pool,
+        conversationId,
+        history: chatHistory,
+        pendingMessages: [{ role: "user", content: message.trim() }],
+        apiKey: config.anthropicApiKey,
+        model: config.anthropicModel,
+        summaryContext: latestTriage
+          ? `GENERAL INBOX CHAT\n\nLATEST TRIAGE CONTEXT:\n${JSON.stringify(latestTriage, null, 2)}`
+          : "GENERAL INBOX CHAT",
+        estimatePromptTokens: (history, pendingMessages) =>
+          countGeneralChatTokens(
+            history,
+            pendingMessages,
+            config.anthropicApiKey!,
+            config.anthropicModel,
+            latestTriage,
+          ),
+      });
+
+      chatHistory = getActivePromptHistory(chatHistory);
 
       await pool.query(
         `INSERT INTO "suggestion_message" ("conversation_id", "role", "content")
@@ -222,7 +310,7 @@ export function createChatRouter(): Router {
 
       const auth = config.localDevNoAuth ? null : await loadGmailClient(req);
       const chatResult = await generateGeneralChatResponse(
-        chatHistory,
+        stripStoredMessages(chatHistory),
         message.trim(),
         config.anthropicApiKey,
         config.anthropicModel,
@@ -243,7 +331,9 @@ export function createChatRouter(): Router {
 
       await persistToolTraces(conversationId, chatResult.toolTraces);
 
-      const messages = await loadConversationMessageRows(conversationId);
+      const messages = visibleChatMessages(
+        await loadConversationMessageRows(conversationId),
+      );
 
       res.json({
         assistantMessage: chatResult.assistantText,
@@ -323,7 +413,9 @@ export function createChatRouter(): Router {
       }
 
       const conv = convResult.rows[0];
-      const messages = await loadConversationMessageRows(conv.id as string);
+      const messages = visibleChatMessages(
+        await loadConversationMessageRows(conv.id as string),
+      );
       const revResult = await pool.query(
         `SELECT "id", "revision_index", "suggestion_json", "source", "created_at"
          FROM "suggestion_revision"
@@ -421,7 +513,27 @@ export function createChatRouter(): Router {
         conversationId = newConv.rows[0].id as string;
       }
 
-      const chatHistory = await loadConversationMessages(conversationId);
+      let chatHistory = await loadConversationMessageRows(conversationId);
+
+      chatHistory = await maybeCompactConversation({
+        pool,
+        conversationId,
+        history: chatHistory,
+        pendingMessages: [{ role: "user", content: message.trim() }],
+        apiKey: config.anthropicApiKey,
+        model: config.anthropicModel,
+        summaryContext: `SUGGESTION CHAT\n\nORIGINAL SUGGESTION:\n${JSON.stringify(originalSuggestion, null, 2)}`,
+        estimatePromptTokens: (history, pendingMessages) =>
+          countSuggestionChatTokens(
+            originalSuggestion,
+            history,
+            pendingMessages,
+            config.anthropicApiKey!,
+            config.anthropicModel,
+          ),
+      });
+
+      chatHistory = getActivePromptHistory(chatHistory);
 
       await pool.query(
         `INSERT INTO "suggestion_message" ("conversation_id", "role", "content")
@@ -432,7 +544,7 @@ export function createChatRouter(): Router {
       const auth = config.localDevNoAuth ? null : await loadGmailClient(req);
       const chatResult = await generateChatResponse(
         originalSuggestion,
-        chatHistory,
+        stripStoredMessages(chatHistory),
         message.trim(),
         config.anthropicApiKey,
         config.anthropicModel,
@@ -482,11 +594,27 @@ export function createChatRouter(): Router {
           source: savedRevision.source,
         };
       } else {
-        const fullHistory: ChatMessage[] = [
-          ...chatHistory,
-          { role: "user", content: message.trim() },
-          { role: "assistant", content: assistantResponse },
-        ];
+        const persistedMessages = await loadConversationMessageRows(conversationId);
+        const fullHistory = stripStoredMessages(
+          getActivePromptHistory(
+            await maybeCompactConversation({
+              pool,
+              conversationId,
+              history: persistedMessages,
+              pendingMessages: [],
+              apiKey: config.anthropicApiKey,
+              model: config.anthropicModel,
+              summaryContext: `SUGGESTION CHAT REVISION\n\nORIGINAL SUGGESTION:\n${JSON.stringify(originalSuggestion, null, 2)}`,
+              estimatePromptTokens: (history) =>
+                countRevisionTokens(
+                  originalSuggestion,
+                  history,
+                  config.anthropicApiKey!,
+                  config.anthropicModel,
+                ),
+            }),
+          ),
+        );
 
         const revisedSuggestion = await generateRevision(
           originalSuggestion,
@@ -519,7 +647,9 @@ export function createChatRouter(): Router {
         };
       }
 
-      const messages = await loadConversationMessageRows(conversationId);
+      const messages = visibleChatMessages(
+        await loadConversationMessageRows(conversationId),
+      );
 
       res.json({
         assistantMessage: assistantResponse,

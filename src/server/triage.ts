@@ -10,6 +10,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import type { InboxMessage } from "./gmail.js";
+import { systemPrompt } from "./anthropic-cache.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -189,7 +190,7 @@ export async function generateTriageSuggestions(
   const response = await client.messages.create({
     model,
     max_tokens: 2048,
-    system: buildSystemPrompt(triagePreferences),
+    system: systemPrompt(buildSystemPrompt(triagePreferences)),
     messages: [{ role: "user", content: userMessage }],
   });
 
@@ -293,7 +294,7 @@ export async function generateTriageSuggestionsStreaming(
       const response = await client.messages.create({
         model,
         max_tokens: 2048,
-        system: buildSystemPrompt(triagePreferences),
+        system: systemPrompt(buildSystemPrompt(triagePreferences)),
         messages: [{ role: "user", content: userMessage }],
       });
 
