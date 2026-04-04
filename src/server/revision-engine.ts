@@ -17,6 +17,11 @@ import {
   type AgentToolContext,
   type ToolTrace,
 } from "./agent-tools.js";
+import {
+  systemPrompt,
+  textMessage,
+  withCacheBreakpoint,
+} from "./anthropic-cache.js";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -27,6 +32,15 @@ export interface ChatResponseWithTools {
   assistantText: string;
   toolTraces: ToolTrace[];
   suggestionUpdatedByTool: boolean;
+}
+
+export interface RevisionPromptSpec {
+  messages: Anthropic.MessageParam[];
+  system: Anthropic.TextBlockParam[];
+}
+
+export interface ChatPromptSpec extends RevisionPromptSpec {
+  tools: Anthropic.Tool[];
 }
 
 export interface LatestTriageContext {
@@ -91,11 +105,7 @@ SUGGESTION SCHEMA:
 
 Respond with the JSON object only.`;
 
-function buildSuggestionChatSystemPrompt(original: TriageSuggestion): string {
-  return `You are Mailania's triage assistant having a conversation about a specific email suggestion. You help the user refine what action to take.
-
-CONTEXT — Original suggestion:
-${JSON.stringify(original, null, 2)}
+const SUGGESTION_CHAT_SYSTEM_PROMPT = `You are Mailania's triage assistant having a conversation about a specific email suggestion. You help the user refine what action to take.
 
 RULES:
 - Be concise and helpful
@@ -120,13 +130,8 @@ TOOL USAGE:
 - Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
 - Use get_suggestion / set_suggestion to inspect or revise Mailania's recommendation itself
 - Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
-}
 
-function buildGeneralChatSystemPrompt(latestTriage: LatestTriageContext | null): string {
-  return `You are Mailania's inbox assistant having a general conversation about the user's inbox. You help with broad inbox questions, email search, reading/summarizing specific emails, saved triage preferences, and discussion of recent triage suggestions.
-
-LATEST TRIAGE CONTEXT:
-${latestTriage ? JSON.stringify(latestTriage, null, 2) : "No triage run is currently available."}
+const GENERAL_CHAT_SYSTEM_PROMPT = `You are Mailania's inbox assistant having a general conversation about the user's inbox. You help with broad inbox questions, email search, reading/summarizing specific emails, saved triage preferences, and discussion of recent triage suggestions.
 
 RULES:
 - Be concise and helpful
@@ -134,7 +139,7 @@ RULES:
 - Never claim to archive, delete, send, label, or otherwise mutate the mailbox
 - If the user asks for a mailbox-changing action, explain that you can only recommend or revise suggestions here
 - Keep responses under 220 words unless the user asks for more detail
-- If the user refers to a recent suggestion broadly (for example "the second suggestion"), use the latest triage context above to ground your answer
+- If the user refers to a recent suggestion broadly (for example "the second suggestion"), use the latest triage context provided in the conversation to ground your answer
 - If you revise or inspect a specific suggestion from general chat, call get_suggestion or set_suggestion with an explicit runId and suggestionIndex
 
 TOOL USAGE:
@@ -151,35 +156,109 @@ TOOL USAGE:
 - Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
 - Use get_suggestion / set_suggestion only when discussing a specific triage suggestion
 - Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
+
+function historyToMessages(chatHistory: ChatMessage[]): Anthropic.MessageParam[] {
+  const messages: Anthropic.MessageParam[] = [];
+
+  for (const m of chatHistory) {
+    if (m.role === "user" || m.role === "assistant") {
+      messages.push(textMessage(m.role, m.content));
+    }
+  }
+
+  if (messages.length > 0) {
+    messages[messages.length - 1] = withCacheBreakpoint(
+      messages[messages.length - 1],
+    );
+  }
+
+  return messages;
+}
+
+export function buildRevisionPrompt(
+  original: TriageSuggestion,
+  chatHistory: ChatMessage[],
+): RevisionPromptSpec {
+  const messages: Anthropic.MessageParam[] = [
+    textMessage(
+      "user",
+      `ORIGINAL SUGGESTION:\n${JSON.stringify(original, null, 2)}`,
+      true,
+    ),
+    ...historyToMessages(chatHistory),
+    textMessage(
+      "user",
+      "Produce the revised suggestion JSON based on the original suggestion and the chat transcript.",
+    ),
+  ];
+
+  return {
+    system: systemPrompt(REVISION_SYSTEM_PROMPT),
+    messages,
+  };
+}
+
+export function buildSuggestionChatPrompt(
+  original: TriageSuggestion,
+  chatHistory: ChatMessage[],
+  userMessage: string,
+): ChatPromptSpec {
+  const messages: Anthropic.MessageParam[] = [
+    textMessage(
+      "user",
+      `SUGGESTION CONTEXT:\n${JSON.stringify(original, null, 2)}`,
+      true,
+    ),
+    ...historyToMessages(chatHistory),
+    textMessage("user", userMessage),
+  ];
+
+  return {
+    system: systemPrompt(SUGGESTION_CHAT_SYSTEM_PROMPT),
+    messages,
+    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+  };
+}
+
+export function buildGeneralChatPrompt(
+  chatHistory: ChatMessage[],
+  userMessage: string,
+  latestTriage: LatestTriageContext | null,
+): ChatPromptSpec {
+  const triageContext = latestTriage
+    ? JSON.stringify(latestTriage, null, 2)
+    : "No triage run is currently available.";
+
+  const messages: Anthropic.MessageParam[] = [
+    textMessage("user", `LATEST TRIAGE CONTEXT:\n${triageContext}`, true),
+    ...historyToMessages(chatHistory),
+    textMessage("user", userMessage),
+  ];
+
+  return {
+    system: systemPrompt(GENERAL_CHAT_SYSTEM_PROMPT),
+    messages,
+    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+  };
 }
 
 async function runChatWithTools(
-  systemPrompt: string,
-  chatHistory: ChatMessage[],
-  userMessage: string,
+  prompt: ChatPromptSpec,
   apiKey: string,
   model: string,
   toolContext: AgentToolContext,
 ): Promise<ChatResponseWithTools> {
   const client = new Anthropic({ apiKey });
-  const messages: Anthropic.MessageParam[] = [];
-
-  for (const m of chatHistory) {
-    if (m.role === "user" || m.role === "assistant") {
-      messages.push({ role: m.role, content: m.content });
-    }
-  }
-  messages.push({ role: "user", content: userMessage });
-
+  const messages = [...prompt.messages];
   const MAX_TOOL_ROUNDS = 5;
   const toolTraces: ToolTrace[] = [];
 
   let response = await client.messages.create({
     model,
     max_tokens: 1024,
-    system: systemPrompt,
+    system: prompt.system,
     messages,
-    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+    tools: prompt.tools,
   });
 
   let rounds = 0;
@@ -237,14 +316,14 @@ async function runChatWithTools(
       }
     }
 
-    messages.push({ role: "user", content: toolResults });
+    messages.push(withCacheBreakpoint({ role: "user", content: toolResults }));
 
     response = await client.messages.create({
       model,
       max_tokens: 1024,
-      system: systemPrompt,
+      system: prompt.system,
       messages,
-      tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+      tools: prompt.tools,
     });
   }
 
@@ -272,16 +351,13 @@ export async function generateRevision(
   model: string,
 ): Promise<TriageSuggestion> {
   const client = new Anthropic({ apiKey });
-
-  const userPrompt = `ORIGINAL SUGGESTION:\n${JSON.stringify(original, null, 2)}\n\nCHAT TRANSCRIPT:\n${chatHistory
-    .map((m) => `[${m.role.toUpperCase()}]: ${m.content}`)
-    .join("\n")}\n\nProduce the revised suggestion JSON.`;
+  const prompt = buildRevisionPrompt(original, chatHistory);
 
   const response = await client.messages.create({
     model,
     max_tokens: 1024,
-    system: REVISION_SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
+    system: prompt.system,
+    messages: prompt.messages,
   });
 
   const textBlock = response.content.find((block) => block.type === "text");
@@ -345,9 +421,7 @@ export async function generateChatResponse(
   toolContext: AgentToolContext,
 ): Promise<ChatResponseWithTools> {
   return runChatWithTools(
-    buildSuggestionChatSystemPrompt(original),
-    chatHistory,
-    userMessage,
+    buildSuggestionChatPrompt(original, chatHistory, userMessage),
     apiKey,
     model,
     toolContext,
@@ -366,9 +440,7 @@ export async function generateGeneralChatResponse(
   latestTriage: LatestTriageContext | null,
 ): Promise<ChatResponseWithTools> {
   return runChatWithTools(
-    buildGeneralChatSystemPrompt(latestTriage),
-    chatHistory,
-    userMessage,
+    buildGeneralChatPrompt(chatHistory, userMessage, latestTriage),
     apiKey,
     model,
     toolContext,
@@ -385,10 +457,17 @@ export async function generateChatResponseSimple(
   apiKey: string,
   model: string,
 ): Promise<string> {
-  const result = await generateChatResponse(original, chatHistory, userMessage, apiKey, model, {
-    userId: "legacy-wrapper",
-    auth: null,
-    localDev: true,
-  });
+  const result = await generateChatResponse(
+    original,
+    chatHistory,
+    userMessage,
+    apiKey,
+    model,
+    {
+      userId: "legacy-wrapper",
+      auth: null,
+      localDev: true,
+    },
+  );
   return result.assistantText;
 }
