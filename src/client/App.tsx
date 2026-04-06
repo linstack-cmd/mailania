@@ -486,8 +486,6 @@ export default function App() {
 
     return (
       <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box", background: "linear-gradient(135deg, #f0f4ff, #e8edf8)" }))}>
-        <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", lineHeight: "1.15", "@media (max-width: 640px)": { fontSize: t.fontSize.lg } }))}>📬 Mailania</h1>
-
         {!isPasskeySupported() ? (
           <div className={css((t) => ({ textAlign: "center", maxWidth: "360px", padding: t.spacing(4) }))}>
             <p className={css((t) => ({ color: t.colors.error, fontSize: t.fontSize.sm, lineHeight: "1.6" }))}>
@@ -496,6 +494,9 @@ export default function App() {
           </div>
         ) : (
           <div className={css((t) => ({ width: "min(100%, 420px)", display: "flex", flexDirection: "column", gap: t.spacing(3), padding: `${t.spacing(4)} ${t.spacing(4.5)}`, border: `1px solid ${t.colors.borderLight}`, borderRadius: t.radius, background: t.colors.bg, boxShadow: t.shadow, boxSizing: "border-box", "@media (max-width: 480px)": { padding: `${t.spacing(3.5)} ${t.spacing(3)}` } }))}>
+            {/* Branding inside card */}
+            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", margin: "0 0 0.5rem", lineHeight: "1.2" }))}>📬 Mailania</h1>
+
             {/* Tab switcher */}
             <div className={css((t) => ({ display: "flex", borderBottom: `1px solid ${t.colors.borderLight}` }))}>
               <button
@@ -712,7 +713,7 @@ export default function App() {
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
           <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
-            <h1 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0 }))}>
+            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0 }))}>
               📬 Mailania
             </h1>
             {testMode && (

@@ -473,7 +473,7 @@ export default function ProposalSidebar({
           alignItems: "center",
           justifyContent: "space-between",
           width: "100%",
-          padding: `${t.spacing(2.5)} ${t.spacing(3.5)}`,
+          padding: `${t.spacing(3)} ${t.spacing(4)}`,
           border: `1px solid ${t.colors.border}`,
           borderRadius: t.radius,
           cursor: "pointer",

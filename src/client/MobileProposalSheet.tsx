@@ -350,6 +350,7 @@ export default function MobileProposalSheet({
   const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(window.matchMedia("(max-width: 640px)").matches);
+  const [isNarrowTab, setIsNarrowTab] = useState(window.matchMedia("(max-width: 360px)").matches);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const messageMap = new Map<string, InboxMessage>();
@@ -366,7 +367,16 @@ export default function MobileProposalSheet({
     const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
     setIsMobileViewport(mq.matches);
     mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+
+    const mqNarrow = window.matchMedia("(max-width: 360px)");
+    const handlerNarrow = (e: MediaQueryListEvent) => setIsNarrowTab(e.matches);
+    setIsNarrowTab(mqNarrow.matches);
+    mqNarrow.addEventListener("change", handlerNarrow);
+
+    return () => {
+      mq.removeEventListener("change", handler);
+      mqNarrow.removeEventListener("change", handlerNarrow);
+    };
   }, []);
 
   // Sync external props
@@ -553,8 +563,7 @@ export default function MobileProposalSheet({
             },
           }))}
         >
-          <span className={css({ "@media (max-width: 360px)": { display: "none" } })}>📋 Proposals</span>
-          <span className={css({ display: "none", "@media (max-width: 360px)": { display: "inline" } })}>📋</span>
+          {isNarrowTab ? "📋" : "📋 Proposals"}
           {(hasProposals || initialLoading || triageLoading) && (
             <span
               className={css((t) => ({
