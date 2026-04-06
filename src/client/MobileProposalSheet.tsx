@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { css } from "@flow-css/core/css";
+import t from "./theme";
 import {
   type TriageSuggestion,
   type InboxMessage,
@@ -92,7 +93,7 @@ function MobileProposalCard({
       >
         <span
           className={css((t) => ({
-            fontSize: "0.88rem",
+            fontSize: t.fontSize.sm,
             color: t.colors.textMuted,
             fontStyle: "italic",
             overflow: "hidden",
@@ -107,7 +108,7 @@ function MobileProposalCard({
           onClick={onDismiss}
           title="Restore"
           className={css((t) => ({
-            fontSize: "0.82rem",
+            fontSize: t.fontSize.sm,
             color: t.colors.primary,
             background: "none",
             border: "none",
@@ -146,7 +147,7 @@ function MobileProposalCard({
             display: "inline-flex",
             alignItems: "center",
             gap: t.spacing(1),
-            fontSize: "0.75rem",
+            fontSize: t.fontSize.xs,
             fontWeight: "600",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
@@ -156,7 +157,7 @@ function MobileProposalCard({
           {kindInfo.icon} {kindInfo.label}
         </span>
         <span
-          className={css({ fontSize: "0.72rem", fontWeight: "700", textTransform: "uppercase", padding: "2px 10px", borderRadius: "999px", letterSpacing: "0.02em" })}
+          className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "700", textTransform: "uppercase", padding: "2px 10px", borderRadius: "999px", letterSpacing: "0.02em" }))}
           style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
         >
           {suggestion.confidence}
@@ -166,7 +167,7 @@ function MobileProposalCard({
       {/* Title */}
       <h4
         className={css((t) => ({
-          fontSize: "0.95rem",
+          fontSize: t.fontSize.base,
           fontWeight: "600",
           margin: 0,
           lineHeight: "1.35",
@@ -180,7 +181,7 @@ function MobileProposalCard({
       {/* Rationale */}
       <p
         className={css((t) => ({
-          fontSize: "0.85rem",
+          fontSize: t.fontSize.sm,
           color: t.colors.textMuted,
           margin: 0,
           lineHeight: "1.5",
@@ -195,7 +196,7 @@ function MobileProposalCard({
 
       {/* Meta */}
       {msgCount > 0 && (
-        <span className={css((t) => ({ fontSize: "0.8rem", color: t.colors.textMuted }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted }))}>
           📧 {msgCount} message{msgCount !== 1 ? "s" : ""}
         </span>
       )}
@@ -211,9 +212,9 @@ function MobileProposalCard({
               border: "none",
               borderRadius: t.radiusSm,
               background: t.colors.primary,
-              color: "#fff",
+              color: t.colors.bg,
               fontWeight: "600",
-              fontSize: "0.88rem",
+              fontSize: t.fontSize.sm,
               cursor: "pointer",
               minHeight: "44px",
               transition: "background 0.15s",
@@ -234,7 +235,7 @@ function MobileProposalCard({
               background: t.colors.bgAlt,
               color: t.colors.textMuted,
               fontWeight: "500",
-              fontSize: "0.88rem",
+              fontSize: t.fontSize.sm,
               cursor: "not-allowed",
               minHeight: "44px",
             }))}
@@ -252,7 +253,7 @@ function MobileProposalCard({
             borderRadius: t.radiusSm,
             background: "transparent",
             color: t.colors.textMuted,
-            fontSize: "0.88rem",
+            fontSize: t.fontSize.sm,
             cursor: "pointer",
             minHeight: "44px",
             minWidth: "44px",
@@ -288,10 +289,10 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
       }))}
     >
       <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: t.spacing(2) }))}>
-        <span className={css((t) => ({ fontSize: "0.88rem", fontWeight: "600", color: t.colors.text }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: t.colors.text }))}>
           {progress.stage}
         </span>
-        <span className={css((t) => ({ fontSize: "0.82rem", fontWeight: "600", color: t.colors.primary }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: t.colors.primary }))}>
           {progress.percent}%
         </span>
       </div>
@@ -306,7 +307,7 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
         />
       </div>
       {(progress.suggestionsCount ?? 0) > 0 && (
-        <div className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, marginTop: t.spacing(1) }))}>
+        <div className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, marginTop: t.spacing(1) }))}>
           {progress.suggestionsCount} suggestion{progress.suggestionsCount !== 1 ? "s" : ""} so far
         </div>
       )}
@@ -348,6 +349,7 @@ export default function MobileProposalSheet({
   const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => new Set());
   const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(window.matchMedia("(max-width: 640px)").matches);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const messageMap = new Map<string, InboxMessage>();
@@ -357,6 +359,15 @@ export default function MobileProposalSheet({
     onMountChange?.(true);
     return () => onMountChange?.(false);
   }, [onMountChange]);
+
+  // Listen to media query changes and track mobile viewport state
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
+    setIsMobileViewport(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   // Sync external props
   useEffect(() => {
@@ -482,25 +493,23 @@ export default function MobileProposalSheet({
 
   return (
     <>
-      {/* Fixed bottom tab bar */}
+      {/* Fixed bottom tab bar — rendered conditionally based on viewport width */}
+      {isMobileViewport && (
       <div
         className={css((t) => ({
-          display: "none",
-          "@media (max-width: 640px)": {
-            display: "flex",
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            width: "100%",
-            maxWidth: "100vw",
-            zIndex: 100,
-            background: t.colors.bgAlt,
-            borderTop: `2px solid ${t.colors.border}`,
-            boxShadow: "0 -4px 16px rgba(0,0,0,0.12)",
-            padding: `${t.spacing(2.5)} ${t.spacing(3)} env(safe-area-inset-bottom, 8px)`,
-            boxSizing: "border-box",
-          },
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: "100%",
+          maxWidth: "100vw",
+          zIndex: 100,
+          background: t.colors.bgAlt,
+          borderTop: `2px solid ${t.colors.border}`,
+          boxShadow: "0 -4px 16px rgba(0,0,0,0.12)",
+          padding: `${t.spacing(2.5)} ${t.spacing(3)} env(safe-area-inset-bottom, 8px)`,
+          boxSizing: "border-box",
+          display: "flex",
           "@media (max-width: 360px)": {
             /* Collapse to a small floating pill at very narrow widths */
             position: "fixed",
@@ -518,7 +527,7 @@ export default function MobileProposalSheet({
       >
         <button
           onClick={openSheet}
-          style={hasProposals ? { background: "#2563eb", color: "#fff" } : { background: "#fafafa", color: "#6b7280" }}
+          style={hasProposals ? { background: t.colors.primary, color: t.colors.bg } : { background: t.colors.bgAlt, color: t.colors.textMuted }}
           className={css((t) => ({
             display: "flex",
             alignItems: "center",
@@ -529,7 +538,7 @@ export default function MobileProposalSheet({
             border: "none",
             borderRadius: t.radius,
             fontWeight: "600",
-            fontSize: "0.95rem",
+            fontSize: t.fontSize.base,
             cursor: "pointer",
             minHeight: "48px",
             transition: "background 0.15s, color 0.15s",
@@ -537,7 +546,7 @@ export default function MobileProposalSheet({
             "@media (max-width: 360px)": {
               padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
               minHeight: "40px",
-              fontSize: "0.82rem",
+              fontSize: t.fontSize.sm,
               borderRadius: "999px",
               boxShadow: "0 2px 12px rgba(0,0,0,0.15)",
               flex: "none",
@@ -551,17 +560,17 @@ export default function MobileProposalSheet({
               className={css((t) => ({
                 padding: "2px 10px",
                 borderRadius: "999px",
-                fontSize: "0.78rem",
+                fontSize: t.fontSize.xs,
                 fontWeight: "700",
                 "@media (max-width: 360px)": {
                   padding: "1px 6px",
-                  fontSize: "0.72rem",
+                  fontSize: t.fontSize.xs,
                 },
               }))}
               style={
                 hasProposals
-                  ? { background: "rgba(255,255,255,0.25)", color: "#fff" }
-                  : { background: "#e5e7eb", color: "#6b7280" }
+                  ? { background: "rgba(255,255,255,0.25)", color: t.colors.bg }
+                  : { background: t.colors.border, color: t.colors.textMuted }
               }
             >
               {triageLoading || initialLoading ? "…" : visibleCount}
@@ -569,49 +578,43 @@ export default function MobileProposalSheet({
           )}
         </button>
       </div>
+      )}
 
       {/* Bottom sheet overlay */}
-      {isOpen && (
+      {isOpen && isMobileViewport && (
         <div
           style={{ animation: isClosing ? "sheet-backdrop-in 0.28s ease reverse" : "sheet-backdrop-in 0.2s ease forwards" }}
-          className={css({
-            display: "none",
-            "@media (max-width: 640px)": {
-              display: "block",
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.45)",
-              zIndex: 200,
-            },
-          })}
+          className={css((t) => ({
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 200,
+          }))}
           onClick={closeSheet}
         />
       )}
 
-      {isOpen && (
+      {isOpen && isMobileViewport && (
         <div
           ref={sheetRef}
           style={{ animation: isClosing ? "sheet-slide-down 0.28s ease forwards" : "sheet-slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1) forwards" }}
           className={css((t) => ({
-            display: "none",
-            "@media (max-width: 640px)": {
-              display: "flex",
-              flexDirection: "column",
-              position: "fixed",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              width: "100%",
-              maxWidth: "100vw",
-              zIndex: 201,
-              background: t.colors.bg,
-              borderRadius: "1rem 1rem 0 0",
-              boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
-              maxHeight: "85dvh",
-              overflow: "hidden",
-              boxSizing: "border-box",
-              overscrollBehavior: "contain",
-            },
+            display: "flex",
+            flexDirection: "column",
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            maxWidth: "100vw",
+            zIndex: 201,
+            background: t.colors.bg,
+            borderRadius: "1rem 1rem 0 0",
+            boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
+            maxHeight: "85dvh",
+            overflow: "hidden",
+            boxSizing: "border-box",
+            overscrollBehavior: "contain",
           }))}
         >
           {/* Drag handle */}
@@ -652,7 +655,7 @@ export default function MobileProposalSheet({
             }))}
           >
             <div className={css({ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, overflow: "hidden" })}>
-              <h2 className={css({ fontSize: "1rem", fontWeight: "700", margin: 0, flexShrink: 0 })}>
+              <h2 className={css((thm) => ({ fontSize: thm.fontSize.base, fontWeight: "700", margin: 0, flexShrink: 0 }))}>
                 📋 Proposals
               </h2>
               {activeSuggestions.length > 0 && (
@@ -660,14 +663,14 @@ export default function MobileProposalSheet({
                   className={css((t) => ({
                     padding: "2px 8px",
                     borderRadius: "999px",
-                    fontSize: "0.75rem",
+                    fontSize: t.fontSize.xs,
                     fontWeight: "700",
                     flexShrink: 0,
                   }))}
                   style={
                     visibleCount > 0
-                      ? { background: "#2563eb", color: "#fff" }
-                      : { background: "#e5e7eb", color: "#6b7280" }
+                      ? { background: t.colors.primary, color: t.colors.bg }
+                      : { background: t.colors.border, color: t.colors.textMuted }
                   }
                 >
                   {visibleCount}
@@ -682,7 +685,7 @@ export default function MobileProposalSheet({
                   padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
                   border: "none",
                   borderRadius: t.radiusSm,
-                  fontSize: "0.8rem",
+                  fontSize: t.fontSize.sm,
                   fontWeight: "600",
                   cursor: "pointer",
                   minHeight: "36px",
@@ -692,8 +695,8 @@ export default function MobileProposalSheet({
                 }))}
                 style={
                   triageLoading || initialLoading
-                    ? { background: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed" }
-                    : { background: "#eff6ff", color: "#1d4ed8" }
+                    ? { background: t.colors.border, color: t.colors.textMuted, cursor: "not-allowed" }
+                    : { background: t.colors.primaryLight, color: t.colors.primary }
                 }
               >
                 {triageLoading ? "Analyzing…" : suggestions ? "↻ Re-run" : "✦ Generate"}
@@ -711,7 +714,7 @@ export default function MobileProposalSheet({
                   borderRadius: t.radius,
                   background: "transparent",
                   color: t.colors.textMuted,
-                  fontSize: "1.1rem",
+                  fontSize: t.fontSize.lg,
                   cursor: "pointer",
                   flexShrink: 0,
                   transition: "background 0.15s",
@@ -740,8 +743,8 @@ export default function MobileProposalSheet({
           >
             {/* Last run info */}
             {lastRunAt && !triageLoading && (
-              <p className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, margin: 0 }))}>
-                Last run: {new Date(lastRunAt).toLocaleString()}
+              <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, margin: 0 }))}>
+                Last run: {new Date(lastRunAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             )}
 
@@ -753,7 +756,7 @@ export default function MobileProposalSheet({
                   background: "#fef2f2",
                   borderRadius: t.radiusSm,
                   color: t.colors.error,
-                  fontSize: "0.88rem",
+                  fontSize: t.fontSize.sm,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
@@ -770,7 +773,7 @@ export default function MobileProposalSheet({
                     background: "transparent",
                     color: t.colors.error,
                     cursor: "pointer",
-                    fontSize: "0.82rem",
+                    fontSize: t.fontSize.sm,
                     fontWeight: "600",
                     flexShrink: 0,
                     minHeight: "44px",
@@ -802,9 +805,9 @@ export default function MobileProposalSheet({
                   borderRadius: t.radius,
                 }))}
               >
-                <div className={css({ fontSize: "2.5rem", marginBottom: "8px" })}>✨</div>
-                <p className={css({ fontWeight: "600", fontSize: "0.95rem", margin: "0 0 6px" })}>No proposals yet</p>
-                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", margin: 0, lineHeight: "1.5" }))}>
+                <div className={css((thm) => ({ fontSize: thm.fontSize.xl, marginBottom: "8px" }))}>✨</div>
+                <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base, margin: "0 0 6px" }))}>No proposals yet</p>
+                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm, margin: 0, lineHeight: "1.5" }))}>
                   Tap "Generate" to create triage suggestions, or discuss with the chat agent.
                 </p>
               </div>
@@ -825,18 +828,18 @@ export default function MobileProposalSheet({
                 ))}
 
                 {dismissedIds.size > 0 && (
-                  <p className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted, textAlign: "center", margin: 0 }))}>
+                  <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, textAlign: "center", margin: 0 }))}>
                     {dismissedIds.size} dismissed — tap ↩ Restore to undo
                   </p>
                 )}
 
                 <div
-                  className={css((t) => ({
-                    padding: t.spacing(3),
-                    background: "#eff6ff",
-                    borderRadius: t.radiusSm,
-                    fontSize: "0.85rem",
-                    color: "#1e40af",
+                  className={css((thm) => ({
+                    padding: thm.spacing(3),
+                    background: thm.colors.bgSubtle,
+                    borderRadius: thm.radiusSm,
+                    fontSize: thm.fontSize.sm,
+                    color: thm.colors.primary,
                     lineHeight: "1.5",
                   }))}
                 >

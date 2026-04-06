@@ -122,8 +122,8 @@ export function ChatPanel({
             display: "flex",
             alignItems: "center",
             gap: t.spacing(2),
-            fontWeight: "700",
-            fontSize: "0.9rem",
+            fontWeight: t.fontWeight.bold,
+            fontSize: t.fontSize.sm,
           }))}
         >
           <span>💬</span>
@@ -131,9 +131,9 @@ export function ChatPanel({
           {messages.length > 0 && (
             <span
               className={css((t) => ({
-                fontSize: "0.72rem",
+                fontSize: t.fontSize.xs,
                 color: t.colors.textMuted,
-                fontWeight: "500",
+                fontWeight: t.fontWeight.medium,
               }))}
             >
               ({messages.length} message{messages.length !== 1 ? "s" : ""})
@@ -144,9 +144,9 @@ export function ChatPanel({
           <p
             className={css((t) => ({
               margin: `${t.spacing(1.5)} 0 0`,
-              fontSize: "0.8rem",
+              fontSize: t.fontSize.xs,
               color: t.colors.textMuted,
-              lineHeight: "1.5",
+              lineHeight: t.lineHeight.normal,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -189,7 +189,7 @@ export function ChatPanel({
             className={css((t) => ({
               textAlign: "center",
               color: t.colors.textMuted,
-              fontSize: "0.85rem",
+              fontSize: t.fontSize.sm,
               padding: t.spacing(4),
             }))}
           >
@@ -202,9 +202,9 @@ export function ChatPanel({
             className={css((t) => ({
               textAlign: "center",
               color: t.colors.textMuted,
-              fontSize: "0.85rem",
+              fontSize: t.fontSize.sm,
               padding: t.spacing(4),
-              lineHeight: "1.6",
+              lineHeight: t.lineHeight.relaxed,
             }))}
           >
             {emptyState}
@@ -231,7 +231,7 @@ export function ChatPanel({
                   color: t.colors.text,
                   borderRadius: "999px",
                   padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
-                  fontSize: "0.78rem",
+                  fontSize: t.fontSize.xs,
                   cursor: "pointer",
                   transition: "all 0.15s",
                   maxWidth: "100%",
@@ -240,7 +240,7 @@ export function ChatPanel({
                   "&:hover:not(:disabled)": {
                     borderColor: t.colors.primary,
                     color: t.colors.primary,
-                    background: "#eef2ff",
+                    background: t.colors.primaryLight,
                   },
                   "&:disabled": {
                     opacity: 0.5,
@@ -273,7 +273,7 @@ export function ChatPanel({
             padding: `${t.spacing(2)} ${t.spacing(4)}`,
             background: "#fef2f2",
             color: t.colors.error,
-            fontSize: "0.82rem",
+            fontSize: t.fontSize.xs,
             borderTop: `1px solid ${t.colors.borderLight}`,
             flexShrink: 0,
           }))}
@@ -329,16 +329,17 @@ export function ChatPanel({
             padding: `${t.spacing(2)} ${t.spacing(3)}`,
             border: `1px solid ${t.colors.border}`,
             borderRadius: t.radiusSm,
-            fontSize: "0.88rem",
+            fontSize: t.fontSize.sm,
             resize: "none",
             fontFamily: "inherit",
-            lineHeight: "1.5",
+            lineHeight: t.lineHeight.normal,
             outline: "none",
             transition: "border-color 0.15s",
             overflowX: "hidden",
             overflowY: "auto",
             boxSizing: "border-box",
             "&:focus": { borderColor: t.colors.primary },
+            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
             "&:disabled": { opacity: 0.6 },
           }))}
         />
@@ -352,9 +353,9 @@ export function ChatPanel({
             background: t.colors.primary,
             color: "#fff",
             cursor: "pointer",
-            fontSize: "0.85rem",
-            fontWeight: "700",
-            transition: "background 0.15s, opacity 0.15s",
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.bold,
+            transition: "background 0.15s, opacity 0.15s, outline 0.15s",
             alignSelf: "flex-end",
             minHeight: "44px",
             flexShrink: 0,
@@ -363,6 +364,7 @@ export function ChatPanel({
               alignSelf: "stretch",
             },
             "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
           }))}
         >
@@ -392,8 +394,8 @@ const chatBubbleUserClass = css((t) => ({
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
   borderRadius: "12px",
   borderBottomRightRadius: "4px",
-  fontSize: "0.88rem",
-  lineHeight: "1.6",
+  fontSize: t.fontSize.sm,
+  lineHeight: t.lineHeight.relaxed,
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   overflowWrap: "anywhere",
@@ -411,8 +413,8 @@ const chatBubbleAssistantClass = css((t) => ({
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
   borderRadius: "12px",
   borderBottomLeftRadius: "4px",
-  fontSize: "0.88rem",
-  lineHeight: "1.6",
+  fontSize: t.fontSize.sm,
+  lineHeight: t.lineHeight.relaxed,
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   overflowWrap: "anywhere",
@@ -427,7 +429,7 @@ const chatBubbleAssistantClass = css((t) => ({
 }));
 
 const chatMetaClass = css((t) => ({
-  fontSize: "0.7rem",
+  fontSize: t.fontSize.xs,
   color: t.colors.textMuted,
   padding: "0 4px",
   maxWidth: "100%",

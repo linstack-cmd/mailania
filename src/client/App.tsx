@@ -23,7 +23,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
         <div style={{ padding: "24px", fontFamily: "monospace", color: "#dc2626", background: "#fef2f2", minHeight: "100vh" }}>
           <h2 style={{ marginBottom: "12px" }}>⚠️ App crashed</h2>
           <p style={{ marginBottom: "12px", color: "#7f1d1d" }}>Open the debug badge in the bottom-right and send Danny a screenshot of both this error and the panel.</p>
-          <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.85rem" }}>{this.state.error.message}{"\n"}{this.state.error.stack}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: "0.75rem" }}>{this.state.error.message}{"\n"}{this.state.error.stack}</pre>
         </div>
       );
     }
@@ -177,6 +177,15 @@ export default function App() {
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
   const [latestTriageSummary, setLatestTriageSummary] = useState<LatestTriageSummary | null>(testMode ? TEST_LATEST_TRIAGE : null);
   const [latestSuggestions, setLatestSuggestions] = useState<TriageSuggestion[] | null | undefined>(testMode ? TEST_SUGGESTIONS : undefined);
+  const [isNarrowHeader, setIsNarrowHeader] = useState(
+    () => window.matchMedia("(max-width: 480px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 480px)");
+    const handler = (e: MediaQueryListEvent) => setIsNarrowHeader(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     updateMobileDebug({
@@ -223,6 +232,7 @@ export default function App() {
       .catch((err: any) => {
         const message = err?.message || "Cannot reach server";
         updateMobileDebug({ statusFetch: "error", statusFetchError: message, appError: message });
+        setStatus({ authenticated: false });
         setError("Cannot reach server");
         setLoading(false);
       });
@@ -462,10 +472,11 @@ export default function App() {
       background: "transparent",
       color: t.colors.textMuted,
       fontWeight: "500",
-      fontSize: "0.92rem",
+      fontSize: t.fontSize.sm,
       cursor: "pointer",
       transition: "color 0.15s, border-color 0.15s",
       "&:hover": { color: t.colors.primary },
+      "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
     }));
     const tabActiveClass = css((t) => ({
       borderBottomColor: t.colors.primary,
@@ -474,12 +485,12 @@ export default function App() {
     }));
 
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box" }))}>
-        <h1 className={css((t) => ({ fontSize: "2rem", fontWeight: "700", textAlign: "center", lineHeight: "1.15", "@media (max-width: 640px)": { fontSize: "1.75rem" } }))}>📬 Mailania</h1>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box", background: "linear-gradient(135deg, #f0f4ff, #e8edf8)" }))}>
+        <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", lineHeight: "1.15", "@media (max-width: 640px)": { fontSize: t.fontSize.lg } }))}>📬 Mailania</h1>
 
         {!isPasskeySupported() ? (
           <div className={css((t) => ({ textAlign: "center", maxWidth: "360px", padding: t.spacing(4) }))}>
-            <p className={css((t) => ({ color: t.colors.error, fontSize: "0.92rem", lineHeight: "1.6" }))}>
+            <p className={css((t) => ({ color: t.colors.error, fontSize: t.fontSize.sm, lineHeight: "1.6" }))}>
               Your browser does not support passkeys. Mailania requires a browser with WebAuthn support (Chrome, Safari, Firefox, Edge).
             </p>
           </div>
@@ -503,7 +514,7 @@ export default function App() {
 
             {authMode === "login" ? (
               <>
-                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", textAlign: "center", lineHeight: "1.5" }))}>
+                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm, textAlign: "center", lineHeight: t.lineHeight.normal }))}>
                   Use your passkey to sign in.
                 </p>
                 <button
@@ -520,10 +531,12 @@ export default function App() {
                     borderRadius: t.radius,
                     border: "none",
                     fontWeight: "600",
-                    fontSize: "1rem",
+                    fontSize: t.fontSize.base,
                     cursor: "pointer",
+                    minHeight: "44px",
                     transition: "background 0.15s",
                     "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+                    "&:focus-visible": { outline: `2px solid #fff`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
@@ -532,7 +545,7 @@ export default function App() {
               </>
             ) : (
               <>
-                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", textAlign: "center", lineHeight: "1.5" }))}>
+                <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm, textAlign: "center", lineHeight: t.lineHeight.normal }))}>
                   Create your account with a passkey. You'll connect Gmail after.
                 </p>
                 <input
@@ -546,10 +559,11 @@ export default function App() {
                     padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
                     borderRadius: t.radius,
                     border: `1px solid ${t.colors.border}`,
-                    fontSize: "0.95rem",
+                    fontSize: t.fontSize.base,
                     outline: "none",
                     transition: "border-color 0.15s",
                     "&:focus": { borderColor: t.colors.primary },
+                    "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
                   }))}
                 />
                 <button
@@ -566,10 +580,12 @@ export default function App() {
                     borderRadius: t.radius,
                     border: "none",
                     fontWeight: "600",
-                    fontSize: "1rem",
+                    fontSize: t.fontSize.base,
                     cursor: "pointer",
+                    minHeight: "44px",
                     transition: "background 0.15s",
                     "&:hover:not(:disabled)": { background: t.colors.primaryHover },
+                    "&:focus-visible": { outline: `2px solid #fff`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
@@ -580,7 +596,7 @@ export default function App() {
 
             {/* Error */}
             {passkeyError && (
-              <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: "0.85rem", textAlign: "center" }))}>
+              <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: t.fontSize.xs, textAlign: "center" }))}>
                 {passkeyError}
               </div>
             )}
@@ -594,13 +610,13 @@ export default function App() {
   if (!gmailConnected && !status?.localDev) {
     return (
       <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box" }))}>
-        <h1 className={css((t) => ({ fontSize: "1.5rem", fontWeight: "700", textAlign: "center", lineHeight: "1.2" }))}>📬 Mailania</h1>
+        <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: "700", textAlign: "center", lineHeight: "1.2" }))}>📬 Mailania</h1>
         <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
           Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
         </p>
 
         {error && (
-          <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: "0.9rem", textAlign: "center", maxWidth: "420px" }))}>
+          <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: t.fontSize.sm, textAlign: "center", maxWidth: "420px" }))}>
             {error}
           </div>
         )}
@@ -617,7 +633,7 @@ export default function App() {
             borderRadius: t.radius,
             textDecoration: "none",
             fontWeight: "600",
-            fontSize: "1rem",
+            fontSize: t.fontSize.base,
             transition: "background 0.15s",
             "&:hover": { background: t.colors.primaryHover },
           }))}
@@ -632,7 +648,7 @@ export default function App() {
             border: "none",
             background: "transparent",
             cursor: "pointer",
-            fontSize: "0.85rem",
+            fontSize: t.fontSize.xs,
             color: t.colors.textMuted,
             "&:hover": { color: t.colors.text },
           }))}
@@ -695,13 +711,20 @@ export default function App() {
         }))}
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
-          <h1 className={css({ fontSize: "1.25rem", fontWeight: "700", flexShrink: 0 })}>
-            📬 Mailania{testMode ? " 🧪" : ""}
-          </h1>
+          <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
+            <h1 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0 }))}>
+              📬 Mailania
+            </h1>
+            {testMode && (
+              <span className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "700", textTransform: "uppercase", padding: `${t.spacing(0.5)} ${t.spacing(1.5)}`, borderRadius: "999px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", letterSpacing: "0.05em" }))}>
+                TEST
+              </span>
+            )}
+          </div>
           {status?.user && (
             <span
               className={css((t) => ({
-                fontSize: "0.78rem",
+                fontSize: t.fontSize.xs,
                 color: t.colors.textMuted,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -729,12 +752,18 @@ export default function App() {
               borderRadius: t.radiusSm,
               background: t.colors.bg,
               cursor: "pointer",
-              fontSize: "0.85rem",
+              fontSize: t.fontSize.xs,
+              minHeight: "44px",
+              minWidth: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background 0.15s",
               "&:hover": { background: t.colors.borderLight },
+              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
           >
-            <span className={css({ "@media (max-width: 480px)": { display: "none" } })}>↻ Refresh</span>
-            <span className={css({ display: "none", "@media (max-width: 480px)": { display: "inline" } })}>↻</span>
+            {isNarrowHeader ? "↻" : "↻ Refresh"}
           </button>
           <a
             href="/settings"
@@ -745,16 +774,20 @@ export default function App() {
               borderRadius: t.radiusSm,
               background: t.colors.bg,
               cursor: "pointer",
-              fontSize: "0.85rem",
+              fontSize: t.fontSize.xs,
               textDecoration: "none",
               color: t.colors.text,
               display: "inline-flex",
               alignItems: "center",
+              justifyContent: "center",
+              minHeight: "44px",
+              minWidth: "44px",
+              transition: "background 0.15s",
               "&:hover": { background: t.colors.borderLight },
+              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
           >
-            <span className={css({ "@media (max-width: 480px)": { display: "none" } })}>⚙️ Account</span>
-            <span className={css({ display: "none", "@media (max-width: 480px)": { display: "inline" } })}>⚙️</span>
+            {isNarrowHeader ? "⚙️" : "⚙️ Account"}
           </a>
           <button
             onClick={handleLogout}
@@ -765,13 +798,19 @@ export default function App() {
               borderRadius: t.radiusSm,
               background: t.colors.bg,
               cursor: "pointer",
-              fontSize: "0.85rem",
+              fontSize: t.fontSize.xs,
               color: t.colors.textMuted,
-              "&:hover": { background: t.colors.borderLight },
+              minHeight: "44px",
+              minWidth: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background 0.15s, color 0.15s",
+              "&:hover": { background: t.colors.borderLight, color: t.colors.text },
+              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
           >
-            <span className={css({ "@media (max-width: 480px)": { display: "none" } })}>Sign out</span>
-            <span className={css({ display: "none", "@media (max-width: 480px)": { display: "inline" } })}>↪</span>
+            {isNarrowHeader ? "↪" : "Sign out"}
           </button>
         </div>
       </header>
@@ -789,8 +828,8 @@ export default function App() {
             justifyContent: "center",
             gap: t.spacing(2),
             border: "2px dashed #f59e0b",
-            fontSize: "0.9rem",
-            fontWeight: "600",
+            fontSize: t.fontSize.sm,
+            fontWeight: t.fontWeight.semibold,
             color: "#92400e",
           }))}
         >
@@ -812,8 +851,8 @@ export default function App() {
               background: "transparent",
               color: t.colors.error,
               cursor: "pointer",
-              fontSize: "0.85rem",
-              fontWeight: "600",
+              fontSize: t.fontSize.sm,
+              fontWeight: t.fontWeight.semibold,
               flexShrink: 0,
               "&:hover": { background: "rgba(239,68,68,0.08)" },
             }))}
@@ -840,18 +879,18 @@ export default function App() {
         }))}
       >
         {/* Left column: Chat + Inbox */}
-        <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, width: "100%", maxWidth: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: t.spacing(5) }))}>
+        <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, width: "100%", maxWidth: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: t.spacing(5), borderRight: `1px solid ${t.colors.border}`, "@media (max-width: 960px)": { borderRight: "none" } }))}>
           {/* General Chat — primary surface */}
           <section>
             <div className={css((t) => ({ marginBottom: t.spacing(3) }))}>
-              <h2 className={css({ fontSize: "1.25rem", fontWeight: "700", margin: "0" })}>🗣️ Inbox Chat</h2>
-              <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: "1.5" }))}>
+              <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0" }))}>🗣️ Inbox Chat</h2>
+              <p className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: t.lineHeight.normal }))}>
                 Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
               </p>
               {latestTriageSummary && (
                 <p
                   className={css((t) => ({
-                    fontSize: "0.78rem",
+                    fontSize: t.fontSize.xs,
                     color: t.colors.textMuted,
                     margin: `${t.spacing(1.5)} 0 0`,
                     overflow: "hidden",
@@ -898,14 +937,13 @@ export default function App() {
                 justifyContent: "space-between",
                 width: "100%",
                 padding: `${t.spacing(3)} ${t.spacing(4)}`,
-                background: t.colors.bgAlt,
                 border: `1px solid ${t.colors.border}`,
                 borderRadius: t.radius,
                 cursor: "pointer",
-                fontSize: "0.95rem",
-                fontWeight: "700",
+                fontSize: t.fontSize.base,
+                fontWeight: t.fontWeight.bold,
                 color: t.colors.text,
-                transition: "background 0.15s, border-radius 0.15s",
+                transition: "background 0.15s, border-radius 0.15s, border-color 0.15s",
                 minWidth: 0,
                 gap: t.spacing(2),
                 "&:hover": { background: t.colors.borderLight },
@@ -914,7 +952,16 @@ export default function App() {
                   outlineOffset: "-2px",
                 },
               }))}
-              style={inboxCollapsed ? undefined : { borderRadius: "0.5rem 0.5rem 0 0" }}
+              style={inboxCollapsed
+                ? { backgroundColor: "#fafaf8" }
+                : {
+                    backgroundColor: "#eef2ff",
+                    borderColor: "#4f46e5",
+                    borderBottomColor: "transparent",
+                    borderRadius: "0.5rem 0.5rem 0 0",
+                    color: "#4f46e5",
+                    fontWeight: "700",
+                  }}
             >
               <span>
                 📥 Inbox
@@ -979,8 +1026,8 @@ export default function App() {
                 {!loading && messages.length === 0 && !error && (
                   <div className={css((t) => ({ textAlign: "center", padding: `${t.spacing(8)} ${t.spacing(4)}` }))}>
                     <div className={css((t) => ({ fontSize: "2rem", marginBottom: t.spacing(2) }))}>🎉</div>
-                    <p className={css({ fontWeight: "600", fontSize: "0.95rem" })}>Inbox zero!</p>
-                    <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.85rem", marginTop: t.spacing(1) }))}>
+                    <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base }))}>Inbox zero!</p>
+                    <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, marginTop: t.spacing(1) }))}>
                       Check back later or run triage.
                     </p>
                   </div>
@@ -1060,7 +1107,7 @@ const msgRowClass = css((t) => ({
   minWidth: 0,
   boxSizing: "border-box",
   "&:hover": {
-    background: "#eef2ff",
+    background: t.colors.primaryLight,
     borderLeftColor: t.colors.primary,
   },
   "&:last-child": { borderBottom: "none" },
@@ -1076,27 +1123,27 @@ const unreadDotClass = css((t) => ({
   background: t.colors.primary,
 }));
 
-const msgFromUnreadClass = css({
-  fontWeight: "700",
-  fontSize: "0.88rem",
+const msgFromUnreadClass = css((t) => ({
+  fontWeight: t.fontWeight.bold,
+  fontSize: t.fontSize.sm,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
   minWidth: 0,
-});
+}));
 
-const msgFromReadClass = css({
-  fontWeight: "500",
-  fontSize: "0.88rem",
+const msgFromReadClass = css((t) => ({
+  fontWeight: t.fontWeight.medium,
+  fontSize: t.fontSize.sm,
   overflow: "hidden",
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
   minWidth: 0,
-});
+}));
 
 const msgSubjectUnreadClass = css((t) => ({
-  fontSize: "0.88rem",
-  fontWeight: "600",
+  fontSize: t.fontSize.sm,
+  fontWeight: t.fontWeight.semibold,
   marginTop: t.spacing(0.5),
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -1111,8 +1158,8 @@ const msgSubjectUnreadClass = css((t) => ({
 }));
 
 const msgSubjectReadClass = css((t) => ({
-  fontSize: "0.88rem",
-  fontWeight: "400",
+  fontSize: t.fontSize.sm,
+  fontWeight: t.fontWeight.normal,
   marginTop: t.spacing(0.5),
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -1128,7 +1175,7 @@ const msgSubjectReadClass = css((t) => ({
 
 const msgSnippetUnreadClass = css((t) => ({
   color: t.colors.textMuted,
-  fontSize: "0.8rem",
+  fontSize: t.fontSize.xs,
   marginTop: t.spacing(0.5),
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -1143,8 +1190,8 @@ const msgSnippetUnreadClass = css((t) => ({
 }));
 
 const msgSnippetReadClass = css((t) => ({
-  color: "#9ca3af",
-  fontSize: "0.8rem",
+  color: t.colors.textMuted,
+  fontSize: t.fontSize.xs,
   marginTop: t.spacing(0.5),
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -1160,11 +1207,11 @@ const msgSnippetReadClass = css((t) => ({
 
 const msgDateClass = css((t) => ({
   color: t.colors.textMuted,
-  fontSize: "0.75rem",
+  fontSize: t.fontSize.xs,
   flexShrink: 0,
   whiteSpace: "nowrap",
   "@media (max-width: 480px)": {
-    fontSize: "0.72rem",
+    fontSize: t.fontSize.xs,
   },
 }));
 

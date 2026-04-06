@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { css } from "@flow-css/core/css";
+import theme from "./theme";
 import {
   type TriageSuggestion,
   type InboxMessage,
@@ -101,14 +102,14 @@ function ProposalCard({
           gap: t.spacing(2),
         }))}
       >
-        <span className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, fontStyle: "italic" }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, fontStyle: "italic" }))}>
           {kindInfo.icon} {suggestion.title}
         </span>
         <button
           onClick={onDismiss}
           title="Restore"
           className={css((t) => ({
-            fontSize: "0.75rem",
+            fontSize: t.fontSize.xs,
             color: t.colors.primary,
             background: "none",
             border: "none",
@@ -145,8 +146,8 @@ function ProposalCard({
             display: "inline-flex",
             alignItems: "center",
             gap: t.spacing(1),
-            fontSize: "0.7rem",
-            fontWeight: "600",
+            fontSize: t.fontSize.xs,
+            fontWeight: t.fontWeight.semibold,
             textTransform: "uppercase",
             letterSpacing: "0.05em",
             color: t.colors.textMuted,
@@ -155,7 +156,7 @@ function ProposalCard({
           {kindInfo.icon} {kindInfo.label}
         </span>
         <span
-          className={css({ fontSize: "0.68rem", fontWeight: "700", textTransform: "uppercase", padding: "1px 8px", borderRadius: "999px", letterSpacing: "0.02em" })}
+          className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: t.fontWeight.bold, textTransform: "uppercase", padding: "1px 8px", borderRadius: "999px", letterSpacing: "0.02em" }))}
           style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
         >
           {suggestion.confidence}
@@ -163,14 +164,14 @@ function ProposalCard({
       </div>
 
       {/* Title */}
-      <h4 className={css((t) => ({ fontSize: "0.9rem", fontWeight: "600", margin: 0, lineHeight: "1.35" }))}>
+      <h4 className={css((t) => ({ fontSize: t.fontSize.base, fontWeight: t.fontWeight.semibold, margin: 0, lineHeight: "1.35" }))}>
         {suggestion.title}
       </h4>
 
       {/* Rationale — truncated to 2 lines */}
       <p
         className={css((t) => ({
-          fontSize: "0.8rem",
+          fontSize: t.fontSize.xs,
           color: t.colors.textMuted,
           margin: 0,
           lineHeight: "1.45",
@@ -185,7 +186,7 @@ function ProposalCard({
 
       {/* Meta: message count */}
       {msgCount > 0 && (
-        <span className={css((t) => ({ fontSize: "0.75rem", color: t.colors.textMuted }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted }))}>
           📧 {msgCount} message{msgCount !== 1 ? "s" : ""}
         </span>
       )}
@@ -202,11 +203,12 @@ function ProposalCard({
               borderRadius: t.radiusSm,
               background: t.colors.primary,
               color: "#fff",
-              fontWeight: "600",
-              fontSize: "0.78rem",
+              fontWeight: t.fontWeight.semibold,
+              fontSize: t.fontSize.xs,
               cursor: "pointer",
               transition: "background 0.15s",
               "&:hover": { background: t.colors.primaryHover },
+              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
           >
             ⚡ Accept / Apply
@@ -221,8 +223,8 @@ function ProposalCard({
               borderRadius: t.radiusSm,
               background: t.colors.bgAlt,
               color: t.colors.textMuted,
-              fontWeight: "500",
-              fontSize: "0.78rem",
+              fontWeight: t.fontWeight.medium,
+              fontSize: t.fontSize.xs,
               cursor: "not-allowed",
             }))}
             title="Discuss in chat to refine this suggestion"
@@ -239,10 +241,11 @@ function ProposalCard({
             borderRadius: t.radiusSm,
             background: "transparent",
             color: t.colors.textMuted,
-            fontSize: "0.78rem",
+            fontSize: t.fontSize.xs,
             cursor: "pointer",
             transition: "background 0.15s, color 0.15s",
             "&:hover": { background: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
+            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
           }))}
         >
           ✕ Dismiss
@@ -266,10 +269,10 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
       }))}
     >
       <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: t.spacing(2) }))}>
-        <span className={css((t) => ({ fontSize: "0.82rem", fontWeight: "600", color: t.colors.text }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: t.fontWeight.semibold, color: t.colors.text }))}>
           {progress.stage}
         </span>
-        <span className={css((t) => ({ fontSize: "0.78rem", fontWeight: "600", color: t.colors.primary }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: t.fontWeight.semibold, color: t.colors.primary }))}>
           {progress.percent}%
         </span>
       </div>
@@ -284,7 +287,7 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
         />
       </div>
       {(progress.suggestionsCount ?? 0) > 0 && (
-        <div className={css((t) => ({ fontSize: "0.72rem", color: t.colors.textMuted, marginTop: t.spacing(1) }))}>
+        <div className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, marginTop: t.spacing(1) }))}>
           {progress.suggestionsCount} suggestion{progress.suggestionsCount !== 1 ? "s" : ""} so far
         </div>
       )}
@@ -471,17 +474,26 @@ export default function ProposalSidebar({
           justifyContent: "space-between",
           width: "100%",
           padding: `${t.spacing(2.5)} ${t.spacing(3.5)}`,
-          background: t.colors.bgAlt,
           border: `1px solid ${t.colors.border}`,
           borderRadius: t.radius,
           cursor: "pointer",
-          fontSize: "0.92rem",
-          fontWeight: "700",
+          fontSize: t.fontSize.sm,
+          fontWeight: t.fontWeight.bold,
           color: t.colors.text,
-          transition: "background 0.15s, border-radius 0.15s",
+          transition: "background 0.15s, border-radius 0.15s, border-color 0.15s",
           "&:hover": { background: t.colors.borderLight },
+          "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
         }))}
-        style={sidebarCollapsed ? undefined : { borderRadius: "0.5rem 0.5rem 0 0" }}
+        style={sidebarCollapsed
+          ? { backgroundColor: "#fafaf8" }
+          : {
+              backgroundColor: "#eef2ff",
+              borderColor: "#4f46e5",
+              borderBottomColor: "transparent",
+              borderRadius: "0.5rem 0.5rem 0 0",
+              color: "#4f46e5",
+              fontWeight: "700",
+            }}
       >
         <span className={css({ display: "flex", alignItems: "center", gap: "8px" })}>
           📋 Proposals
@@ -490,14 +502,10 @@ export default function ProposalSidebar({
               className={css((t) => ({
                 padding: "1px 8px",
                 borderRadius: "999px",
-                fontSize: "0.72rem",
-                fontWeight: "600",
+                fontSize: t.fontSize.xs,
+                fontWeight: t.fontWeight.semibold,
               }))}
-              style={
-                visibleCount > 0
-                  ? { background: "#2563eb", color: "#fff" }
-                  : { background: "#e5e7eb", color: "#6b7280" }
-              }
+              style={visibleCount > 0 ? { background: theme.colors.primary, color: "#fff" } : { background: theme.colors.border, color: theme.colors.textMuted }}
             >
               {visibleCount}
             </span>
@@ -538,11 +546,11 @@ export default function ProposalSidebar({
           <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(2) }))}>
             <div>
               {lastRunAt && !triageLoading ? (
-                <p className={css((t) => ({ fontSize: "0.72rem", color: t.colors.textMuted, margin: 0 }))}>
-                  Run: {new Date(lastRunAt).toLocaleString()}
+                <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, margin: 0 }))}>
+                  Last run: {new Date(lastRunAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </p>
               ) : !triageLoading && !initialLoading ? (
-                <p className={css((t) => ({ fontSize: "0.72rem", color: t.colors.textMuted, margin: 0 }))}>
+                <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, margin: 0 }))}>
                   No triage run yet
                 </p>
               ) : null}
@@ -554,16 +562,17 @@ export default function ProposalSidebar({
                 padding: `${t.spacing(1)} ${t.spacing(3)}`,
                 border: "none",
                 borderRadius: t.radiusSm,
-                fontSize: "0.75rem",
-                fontWeight: "600",
+                fontSize: t.fontSize.xs,
+                fontWeight: t.fontWeight.semibold,
                 cursor: "pointer",
                 transition: "background 0.15s",
                 flexShrink: 0,
+                "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
               }))}
               style={
                 triageLoading || initialLoading
-                  ? { background: "#e5e7eb", color: "#9ca3af", cursor: "not-allowed" }
-                  : { background: "#eff6ff", color: "#1d4ed8" }
+                  ? { background: theme.colors.border, color: theme.colors.textMuted, cursor: "not-allowed" }
+                  : { background: theme.colors.primaryLight, color: theme.colors.primary }
               }
             >
               {triageLoading ? "Analyzing…" : suggestions ? "↻ Regenerate" : "✦ Generate Triage"}
@@ -578,7 +587,7 @@ export default function ProposalSidebar({
                 background: "#fef2f2",
                 borderRadius: t.radiusSm,
                 color: t.colors.error,
-                fontSize: "0.82rem",
+                fontSize: t.fontSize.sm,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -595,8 +604,8 @@ export default function ProposalSidebar({
                   background: "transparent",
                   color: t.colors.error,
                   cursor: "pointer",
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
+                  fontSize: t.fontSize.xs,
+                  fontWeight: t.fontWeight.semibold,
                   flexShrink: 0,
                   "&:hover": { background: "rgba(239,68,68,0.08)" },
                 }))}
@@ -628,8 +637,8 @@ export default function ProposalSidebar({
               }))}
             >
               <div className={css({ fontSize: "2rem", marginBottom: "6px" })}>✨</div>
-              <p className={css({ fontWeight: "600", fontSize: "0.88rem", margin: "0 0 4px" })}>No proposals yet</p>
-              <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.8rem", margin: 0 }))}>
+              <p className={css((t) => ({ fontWeight: t.fontWeight.semibold, fontSize: t.fontSize.sm, margin: "0 0 4px" }))}>No proposals yet</p>
+              <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, margin: 0 }))}>
                 Run triage to generate suggestions, or ask the chat agent.
               </p>
             </div>
@@ -651,7 +660,7 @@ export default function ProposalSidebar({
 
               {/* Hint about dismissed items */}
               {dismissedIds.size > 0 && (
-                <p className={css((t) => ({ fontSize: "0.72rem", color: t.colors.textMuted, textAlign: "center", margin: 0 }))}>
+                <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, textAlign: "center", margin: 0 }))}>
                   {dismissedIds.size} dismissed — click ↩ Restore to undo
                 </p>
               )}
@@ -663,11 +672,11 @@ export default function ProposalSidebar({
             <div
               className={css((t) => ({
                 padding: t.spacing(2.5),
-                background: "#eff6ff",
+                background: t.colors.primaryLight,
                 borderRadius: t.radiusSm,
-                fontSize: "0.78rem",
+                fontSize: t.fontSize.xs,
                 color: "#1e40af",
-                lineHeight: "1.5",
+                lineHeight: t.lineHeight.normal,
               }))}
             >
               💬 Refine any proposal by discussing it in the chat. The agent will update suggestions based on your instructions.

@@ -111,10 +111,10 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
     >
       {/* Stage text */}
       <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: t.spacing(3) }))}>
-        <span className={css((t) => ({ fontSize: "0.9rem", fontWeight: "600", color: t.colors.text }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: t.colors.text }))}>
           {progress.stage}
         </span>
-        <span className={css((t) => ({ fontSize: "0.82rem", fontWeight: "600", color: t.colors.primary }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "600", color: t.colors.primary }))}>
           {progress.percent}%
         </span>
       </div>
@@ -140,7 +140,7 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
 
       {/* Stats row */}
       {(progress.totalMessages !== undefined || progress.suggestionsCount !== undefined) && (
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(4), marginTop: t.spacing(2.5), fontSize: "0.78rem", color: t.colors.textMuted }))}>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(4), marginTop: t.spacing(2.5), fontSize: t.fontSize.xs, color: t.colors.textMuted }))}>
           {progress.totalMessages !== undefined && progress.totalMessages > 0 && (
             <span>{progress.totalMessages} unread message{progress.totalMessages !== 1 ? "s" : ""}</span>
           )}
@@ -166,7 +166,7 @@ function ZeroUnreadState({ onBack }: { onBack?: () => void }) {
       className={css((t) => ({
         textAlign: "center",
         padding: `${t.spacing(12)} ${t.spacing(4)}`,
-        background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #eff6ff 100%)",
+        background: "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 50%, #eef2ff 100%)",
         borderRadius: t.radius,
         marginTop: t.spacing(4),
         border: `1px solid #a7f3d0`,
@@ -176,7 +176,7 @@ function ZeroUnreadState({ onBack }: { onBack?: () => void }) {
       <h3 className={css({ fontSize: "1.3rem", fontWeight: "700", margin: "0 0 8px", color: "#065f46" })}>
         Inbox zero — you're all caught up!
       </h3>
-      <p className={css({ fontSize: "0.9rem", color: "#047857", lineHeight: "1.6", maxWidth: "360px", margin: "0 auto" })}>
+      <p className={css((t) => ({ fontSize: t.fontSize.sm, color: "#047857", lineHeight: "1.6", maxWidth: "360px", margin: "0 auto" }))}>
         No unread emails to triage. Enjoy the calm. ☀️
       </p>
     </div>
@@ -341,8 +341,8 @@ export default function TriageSuggestions({
       {/* Header row */}
       <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: t.spacing(3) }))}>
         <div>
-          <h2 className={css({ fontSize: "1.25rem", fontWeight: "700", margin: "0" })}>🧹 Triage Suggestions</h2>
-          <p className={css((t) => ({ fontSize: "0.82rem", color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
+          <h2 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: "700", margin: "0" }))}>🧹 Triage Suggestions</h2>
+          <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0` }))}>
             {lastRunAt && !loading
               ? `Last run: ${new Date(lastRunAt).toLocaleString()}`
               : `AI-powered inbox organization — up to ${TRIAGE_MAX_UNREAD_MESSAGES} unread emails`}
@@ -357,7 +357,7 @@ export default function TriageSuggestions({
                 padding: `${t.spacing(2)} ${t.spacing(5)}`,
                 border: "none",
                 borderRadius: t.radiusSm,
-                fontSize: "0.88rem",
+                fontSize: t.fontSize.sm,
                 fontWeight: "600",
                 transition: "background 0.15s, transform 0.1s",
                 "&:active": { transform: "scale(0.97)" },
@@ -381,7 +381,7 @@ export default function TriageSuggestions({
             background: "#fef2f2",
             borderRadius: t.radius,
             color: t.colors.error,
-            fontSize: "0.9rem",
+            fontSize: t.fontSize.sm,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -398,7 +398,7 @@ export default function TriageSuggestions({
               background: "transparent",
               color: t.colors.error,
               cursor: "pointer",
-              fontSize: "0.85rem",
+              fontSize: t.fontSize.xs,
               fontWeight: "600",
               flexShrink: 0,
               "&:hover": { background: "rgba(239,68,68,0.08)" },
@@ -435,8 +435,8 @@ export default function TriageSuggestions({
           }))}
         >
           <div className={css((t) => ({ fontSize: "2.5rem", marginBottom: t.spacing(2) }))}>✨</div>
-          <p className={css({ fontWeight: "600", fontSize: "1.05rem" })}>Your inbox looks good!</p>
-          <p className={css((t) => ({ color: t.colors.textMuted, fontSize: "0.88rem", marginTop: t.spacing(1) }))}>
+          <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base }))}>Your inbox looks good!</p>
+          <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm, marginTop: t.spacing(1) }))}>
             No suggestions right now — check back later.
           </p>
         </div>
@@ -495,7 +495,7 @@ export function Toast({ message, onDone }: { message: string; onDone: () => void
         color: "#fff",
         padding: `${t.spacing(3)} ${t.spacing(5)}`,
         borderRadius: t.radius,
-        fontSize: "0.88rem",
+        fontSize: t.fontSize.sm,
         fontWeight: "500",
         boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
         zIndex: 9999,
@@ -571,7 +571,7 @@ function SuggestionCard({
             display: "inline-flex",
             alignItems: "center",
             gap: t.spacing(1),
-            fontSize: "0.72rem",
+            fontSize: t.fontSize.xs,
             fontWeight: "600",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
@@ -581,14 +581,14 @@ function SuggestionCard({
           {kindInfo.icon} {kindInfo.label}
         </span>
         <span
-          className={css({
-            fontSize: "0.72rem",
+          className={css((t) => ({
+            fontSize: t.fontSize.xs,
             fontWeight: "700",
             textTransform: "uppercase",
             padding: "2px 10px",
             borderRadius: "999px",
             letterSpacing: "0.02em",
-          })}
+          }))}
           style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
         >
           {s.confidence}
@@ -596,12 +596,12 @@ function SuggestionCard({
       </div>
 
       {/* Title */}
-      <h3 className={css((t) => ({ fontSize: "1rem", fontWeight: "600", marginTop: t.spacing(2), lineHeight: "1.35" }))}>{s.title}</h3>
+      <h3 className={css((t) => ({ fontSize: t.fontSize.base, fontWeight: "600", marginTop: t.spacing(2), lineHeight: "1.35" }))}>{s.title}</h3>
 
       {/* Rationale — truncated to 2 lines */}
       <p
         className={css((t) => ({
-          fontSize: "0.85rem",
+          fontSize: t.fontSize.xs,
           color: t.colors.textMuted,
           marginTop: t.spacing(1.5),
           lineHeight: "1.5",
@@ -628,17 +628,17 @@ function SuggestionCard({
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
           {msgCount > 0 && (
-            <span className={css((t) => ({ fontSize: "0.78rem", color: t.colors.textMuted }))}>
+            <span className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted }))}>
               {msgCount} message{msgCount !== 1 ? "s" : ""}
             </span>
           )}
           {isReviewed && (
-            <span className={css({ fontSize: "0.78rem", color: "#10b981", fontWeight: "600" })}>
+            <span className={css((t) => ({ fontSize: t.fontSize.xs, color: "#10b981", fontWeight: "600" }))}>
               ✓ Reviewed
             </span>
           )}
         </div>
-        <span className={css((t) => ({ fontSize: "0.78rem", color: t.colors.primary, fontWeight: "500" }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.primary, fontWeight: "500" }))}>
           View details →
         </span>
       </div>
@@ -781,7 +781,7 @@ export function ApprovalConfirmModal({
         {/* Header */}
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
           <span className={css({ fontSize: "1.4rem" })}>{kindInfo.icon}</span>
-          <h3 className={css({ fontSize: "1.1rem", fontWeight: "700", margin: 0, lineHeight: "1.3" })}>
+          <h3 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: "700", margin: 0, lineHeight: "1.3" }))}>
             Confirm: {suggestion.title}
           </h3>
         </div>
@@ -793,7 +793,7 @@ export function ApprovalConfirmModal({
             background: "#fffbeb",
             border: "1px solid #fbbf24",
             borderRadius: t.radiusSm,
-            fontSize: "0.85rem",
+            fontSize: t.fontSize.xs,
             color: "#92400e",
             fontWeight: "500",
             display: "flex",
@@ -812,14 +812,14 @@ export function ApprovalConfirmModal({
         </div>
 
         {/* Rationale */}
-        <div className={css((t) => ({ fontSize: "0.88rem", color: t.colors.textMuted, lineHeight: "1.6" }))}>
+        <div className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, lineHeight: "1.6" }))}>
           <p>{suggestion.rationale}</p>
         </div>
 
         {/* Affected messages */}
         {resolvedMessages && resolvedMessages.length > 0 && (
-          <div className={css((t) => ({ fontSize: "0.82rem", maxHeight: "140px", overflowY: "auto", scrollbarWidth: "thin" }))}>
-            <div className={css((t) => ({ fontWeight: "600", fontSize: "0.78rem", textTransform: "uppercase", color: t.colors.textMuted, marginBottom: t.spacing(1.5), letterSpacing: "0.04em" }))}>
+          <div className={css((t) => ({ fontSize: t.fontSize.xs, maxHeight: "140px", overflowY: "auto", scrollbarWidth: "thin" }))}>
+            <div className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.xs, textTransform: "uppercase", color: t.colors.textMuted, marginBottom: t.spacing(1.5), letterSpacing: "0.04em" }))}>
               {resolvedMessages.length} message{resolvedMessages.length !== 1 ? "s" : ""} affected
             </div>
             {resolvedMessages.slice(0, 6).map((msg) => {
@@ -842,7 +842,7 @@ export function ApprovalConfirmModal({
 
         {/* Filter draft preview */}
         {suggestion.filterDraft && (
-          <div className={css((t) => ({ fontFamily: "monospace", fontSize: "0.82rem", background: t.colors.bgAlt, padding: t.spacing(3), borderRadius: t.radiusSm, border: `1px solid ${t.colors.borderLight}`, lineHeight: "1.6" }))}>
+          <div className={css((t) => ({ fontFamily: "monospace", fontSize: t.fontSize.xs, background: t.colors.bgAlt, padding: t.spacing(3), borderRadius: t.radiusSm, border: `1px solid ${t.colors.borderLight}`, lineHeight: "1.6" }))}>
             {suggestion.filterDraft.from && <div>from: {suggestion.filterDraft.from}</div>}
             {suggestion.filterDraft.label && <div>label: {suggestion.filterDraft.label}</div>}
             {suggestion.filterDraft.archive && <div>archive: yes</div>}
@@ -851,14 +851,14 @@ export function ApprovalConfirmModal({
 
         {/* Error */}
         {errorMsg && (
-          <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radiusSm, color: t.colors.error, fontSize: "0.85rem" }))}>
+          <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radiusSm, color: t.colors.error, fontSize: t.fontSize.xs }))}>
             {errorMsg}
           </div>
         )}
 
         {/* Success */}
         {status === "done" && (
-          <div className={css((t) => ({ padding: t.spacing(3), background: "#ecfdf5", borderRadius: t.radiusSm, color: "#065f46", fontSize: "0.88rem", fontWeight: "600", textAlign: "center" }))}>
+          <div className={css((t) => ({ padding: t.spacing(3), background: "#ecfdf5", borderRadius: t.radiusSm, color: "#065f46", fontSize: t.fontSize.sm, fontWeight: "600", textAlign: "center" }))}>
             ✅ Action completed successfully
           </div>
         )}
@@ -874,7 +874,7 @@ export function ApprovalConfirmModal({
                 border: `1px solid ${t.colors.border}`,
                 borderRadius: t.radiusSm,
                 background: "transparent",
-                fontSize: "0.88rem",
+                fontSize: t.fontSize.sm,
                 fontWeight: "500",
                 "&:hover": { background: t.colors.bgAlt },
               }))}
@@ -893,7 +893,7 @@ export function ApprovalConfirmModal({
                 background: "#dc2626",
                 color: "#fff",
                 cursor: "pointer",
-                fontSize: "0.88rem",
+                fontSize: t.fontSize.sm,
                 fontWeight: "700",
                 transition: "background 0.15s",
                 "&:hover": { background: "#b91c1c" },
@@ -903,7 +903,7 @@ export function ApprovalConfirmModal({
             </button>
           )}
           {status === "executing" && (
-            <div className={css((t) => ({ padding: `${t.spacing(2.5)} ${t.spacing(5)}`, fontSize: "0.88rem", fontWeight: "600", color: t.colors.textMuted }))}>
+            <div className={css((t) => ({ padding: `${t.spacing(2.5)} ${t.spacing(5)}`, fontSize: t.fontSize.sm, fontWeight: "600", color: t.colors.textMuted }))}>
               Executing…
             </div>
           )}
@@ -919,7 +919,7 @@ export function DetailSection({ label, children }: { label: string; children: Re
     <div className={css((t) => ({ marginBottom: t.spacing(5) }))}>
       <h3
         className={css((t) => ({
-          fontSize: "0.78rem",
+          fontSize: t.fontSize.xs,
           fontWeight: "700",
           textTransform: "uppercase",
           letterSpacing: "0.06em",
