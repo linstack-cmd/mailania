@@ -30,10 +30,10 @@ import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
 
 // ===== Type Definitions =====
 
-export type SuggestionKind = "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read";
+export type SuggestionKind = "archive_bulk" | "create_filter" | "needs_user_input";
 
 export interface ActionPlanStep {
-  type: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read" | "label_messages";
+  type: "archive_bulk" | "create_filter" | "needs_user_input" | "label_messages";
   params: Record<string, unknown>;
   rationale?: string;
 }
@@ -60,7 +60,6 @@ const ALLOWED_SUGGESTION_KINDS: SuggestionKind[] = [
   "archive_bulk",
   "create_filter",
   "needs_user_input",
-  "mark_read",
 ];
 const ALLOWED_CONFIDENCE = new Set(["low", "medium", "high"]);
 const AGENT_SUGGESTION_SOURCE = "agent_tool";
@@ -333,7 +332,6 @@ function normalizeActionPlan(value: unknown): ActionPlanStep[] | undefined {
       rawType !== "archive_bulk" &&
       rawType !== "create_filter" &&
       rawType !== "needs_user_input" &&
-      rawType !== "mark_read" &&
       rawType !== "label_messages"
     ) {
       throw new Error(`actionPlan[${index}].type is not allowed`);

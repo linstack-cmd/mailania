@@ -174,6 +174,38 @@ function MobileProposalCard({
         {suggestion.rationale}
       </p>
 
+      {/* Questions — for needs_user_input cards */}
+      {suggestion.kind === "needs_user_input" && suggestion.questions && suggestion.questions.length > 0 && (
+        <div className={css((t) => ({ marginTop: t.spacing(1) }))}>
+          <p className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "600", color: t.colors.text, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.03em" }))}>
+            ❓ Questions for you:
+          </p>
+          <ul className={css((t) => ({ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }))}>
+            {suggestion.questions.map((q, idx) => (
+              <li key={idx} className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, lineHeight: "1.4" }))}>
+                • {q}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Filter draft summary — for create_filter cards */}
+      {suggestion.kind === "create_filter" && suggestion.filterDraft && (
+        <div className={css((t) => ({ marginTop: t.spacing(1), fontSize: t.fontSize.xs, color: t.colors.text }))}>
+          <p className={css((t) => ({ margin: "0 0 6px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.03em" }))}>
+            🔀 Filter:
+          </p>
+          <div className={css((t) => ({ color: t.colors.textMuted, lineHeight: "1.4" }))}>
+            {suggestion.filterDraft.from && <span>{suggestion.filterDraft.from}</span>}
+            {suggestion.filterDraft.from && (suggestion.filterDraft.label || suggestion.filterDraft.archive) && <span> → </span>}
+            {suggestion.filterDraft.archive && <span>archive</span>}
+            {suggestion.filterDraft.archive && suggestion.filterDraft.label && <span>, </span>}
+            {suggestion.filterDraft.label && <span>label: {suggestion.filterDraft.label}</span>}
+          </div>
+        </div>
+      )}
+
       {/* Meta */}
       {msgCount > 0 && (
         <span className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted }))}>

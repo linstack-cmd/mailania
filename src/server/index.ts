@@ -17,7 +17,7 @@ import {
   unlinkGmailAccount,
   logout,
 } from "./auth.js";
-import { listInbox, listUnreadInbox } from "./gmail.js";
+import { listInbox } from "./gmail.js";
 import { getGmailAuthFailure } from "./gmail-auth-errors.js";
 import { MOCK_INBOX_MESSAGES, MOCK_GENERAL_CHAT_MESSAGES, MOCK_SUGGESTIONS } from "./mock-data.js";
 import type { TriageSuggestion } from "./agent-tools.js";

@@ -312,9 +312,9 @@ export const TEST_SUGGESTIONS: TestSuggestionWithId[] = [
     id: "00000000-0000-0000-0000-000000000004",
     status: "pending",
     suggestion: {
-      kind: "mark_read",
-      title: "Mark 3 newsletters as read",
-      rationale: "Dev.to digest, Hashnode comment notification, and GitHub Copilot summary are informational and don't need action.",
+      kind: "archive_bulk",
+      title: "Archive 3 read newsletters",
+      rationale: "Dev.to digest, Hashnode comment notification, and GitHub Copilot summary are informational and don't need further action.",
       confidence: "medium",
       messageIds: ["test-011", "test-012", "test-017"],
     },

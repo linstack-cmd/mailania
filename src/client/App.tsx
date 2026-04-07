@@ -884,11 +884,41 @@ export default function App() {
         <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, width: "100%", maxWidth: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: t.spacing(5), borderRight: `1px solid ${t.colors.border}`, "@media (max-width: 960px)": { borderRight: "none" } }))}>
           {/* General Chat — primary surface */}
           <section>
-            <div className={css((t) => ({ marginBottom: t.spacing(3) }))}>
-              <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0" }))}>🗣️ Inbox Chat</h2>
-              <p className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: t.lineHeight.normal }))}>
-                Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
-              </p>
+            <div className={css((t) => ({ marginBottom: t.spacing(3), display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: t.spacing(3) }))}>
+              <div>
+                <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0" }))}>🗣️ Inbox Chat</h2>
+                <p className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: t.lineHeight.normal }))}>
+                  Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/chat", { method: "DELETE" });
+                    if (res.ok) {
+                      setGeneralChatMessages([]);
+                    }
+                  } catch (err) {
+                    console.error("Failed to clear chat:", err);
+                  }
+                }}
+                title="Clear chat history"
+                className={css((t) => ({
+                  padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
+                  border: "none",
+                  background: "transparent",
+                  color: t.colors.textMuted,
+                  fontSize: t.fontSize.xs,
+                  cursor: "pointer",
+                  borderRadius: t.radiusSm,
+                  whiteSpace: "nowrap",
+                  transition: "background 0.15s, color 0.15s",
+                  "&:hover": { background: t.colors.bgAlt, color: t.colors.text },
+                  "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+                }))}
+              >
+                Clear chat
+              </button>
             </div>
 
             <ChatPanel

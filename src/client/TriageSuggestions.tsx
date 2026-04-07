@@ -20,13 +20,13 @@ export interface FilterDraft {
 }
 
 export interface ActionPlanStep {
-  type: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read" | "label_messages";
+  type: "archive_bulk" | "create_filter" | "needs_user_input" | "label_messages";
   params: Record<string, unknown>;
   rationale?: string;
 }
 
 export interface TriageSuggestion {
-  kind: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read";
+  kind: "archive_bulk" | "create_filter" | "needs_user_input";
   title: string;
   rationale: string;
   confidence: "low" | "medium" | "high";
@@ -40,7 +40,6 @@ export const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label
   archive_bulk: { icon: "📦", label: "Archive", desc: "Bulk archive safe-to-dismiss messages" },
   create_filter: { icon: "🔀", label: "Filter", desc: "Create a Gmail filter for recurring patterns" },
   needs_user_input: { icon: "❓", label: "Needs Input", desc: "Requires your decision before proceeding" },
-  mark_read: { icon: "👁️", label: "Mark Read", desc: "Mark messages as read without archiving" },
 };
 
 export const CONFIDENCE_STYLES: Record<string, { bg: string; text: string; border: string }> = {
@@ -807,7 +806,7 @@ export function ApprovalConfirmModal({
           <span>
             This will modify your Gmail.
             {suggestion.kind === "archive_bulk"
-              ? " Messages will be removed from your inbox (reversible via unarchive)."
+              ? " Messages will be removed from your inbox. This action cannot be undone from Mailania."
               : " A filter will be created that applies to future emails."}
           </span>
         </div>
