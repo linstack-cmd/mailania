@@ -6,6 +6,7 @@
  */
 
 import type { InboxMessage } from "./gmail.js";
+import type { TriageSuggestion } from "./agent-tools.js";
 
 export interface MockChatMessage {
   role: "user" | "assistant";
@@ -131,4 +132,26 @@ export const MOCK_INBOX_MESSAGES: InboxMessage[] = [
       "The SSL certificate for mailania.probablydanny.com will auto-renew in 7 days.",
     isRead: true,
   },
+];
+
+export const MOCK_SUGGESTIONS: TriageSuggestion[] = [
+  {
+    kind: "create_filter",
+    title: "Auto-archive Mountain Warehouse promotions",
+    rationale: "8 near-identical promotional emails from Mountain Warehouse in one week.",
+    confidence: "high",
+    messageIds: [],
+    filterDraft: { from: "mountainwarehouse.com", subjectContains: "50% or More Off", archive: true },
+    questions: [],
+    actionPlan: []
+  },
+  {
+    kind: "archive_bulk",
+    title: "Archive old newsletter digests",
+    rationale: "23 unread newsletter digest emails older than 30 days taking up inbox space.",
+    confidence: "medium",
+    messageIds: ["mock-msg-001", "mock-msg-002", "mock-msg-003"],
+    questions: [],
+    actionPlan: []
+  }
 ];

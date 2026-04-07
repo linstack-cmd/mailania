@@ -19,7 +19,7 @@ import {
 } from "./auth.js";
 import { listInbox, listUnreadInbox } from "./gmail.js";
 import { getGmailAuthFailure } from "./gmail-auth-errors.js";
-import { MOCK_INBOX_MESSAGES, MOCK_GENERAL_CHAT_MESSAGES } from "./mock-data.js";
+import { MOCK_INBOX_MESSAGES, MOCK_GENERAL_CHAT_MESSAGES, MOCK_SUGGESTIONS } from "./mock-data.js";
 import type { TriageSuggestion } from "./agent-tools.js";
 import { createToolsRouter } from "./tools-routes.js";
 import { createChatRouter } from "./chat-routes.js";
@@ -117,6 +117,28 @@ async function main() {
       console.log(`[Dev] Seeded ${MOCK_GENERAL_CHAT_MESSAGES.length} mock chat messages`);
     }
 
+    async function seedMockSuggestions(userId: string): Promise<void> {
+      const pool = getPool();
+      // Check if suggestions already exist for this user
+      const existing = await pool.query(
+        `SELECT "id" FROM "suggestion"
+         WHERE "user_id" = $1
+         LIMIT 1`,
+        [userId],
+      );
+      if (existing.rows.length > 0) return; // Already seeded
+
+      // Insert mock suggestions
+      for (const suggestion of MOCK_SUGGESTIONS) {
+        await pool.query(
+          `INSERT INTO "suggestion" ("user_id", "suggestion_json", "status")
+           VALUES ($1, $2, 'pending')`,
+          [userId, JSON.stringify(suggestion)],
+        );
+      }
+      console.log(`[Dev] Seeded ${MOCK_SUGGESTIONS.length} mock suggestions`);
+    }
+
     async function ensureDevUser(): Promise<string> {
       if (devUserId) return devUserId;
       const pool = getPool();
@@ -135,6 +157,8 @@ async function main() {
       }
       // Seed mock chat messages (idempotent)
       await seedMockChatMessages(devUserId!);
+      // Seed mock suggestions (idempotent)
+      await seedMockSuggestions(devUserId!);
       return devUserId!;
     }
 
