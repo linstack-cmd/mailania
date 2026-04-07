@@ -260,42 +260,64 @@ export const TEST_CHAT_MESSAGES: ChatMessageData[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Mock triage suggestions / proposals
+// Mock suggestions / proposals
 // ---------------------------------------------------------------------------
 
-export const TEST_SUGGESTIONS: TriageSuggestion[] = [
+interface TestSuggestionWithId {
+  id: string;
+  suggestion: TriageSuggestion;
+  status: string;
+}
+
+export const TEST_SUGGESTIONS: TestSuggestionWithId[] = [
   {
-    kind: "archive_bulk",
-    title: "Archive 5 automated notifications",
-    rationale: "These are read CI alerts, deployment notifications, and certificate renewals that don't need further action.",
-    confidence: "high",
-    messageIds: ["test-008", "test-013", "test-017", "test-012", "test-015"],
-  },
-  {
-    kind: "create_filter",
-    title: 'Auto-label billing emails as "Receipts"',
-    rationale: "You receive regular billing emails from AWS, Vercel, and Stripe. A filter would auto-label and skip inbox.",
-    confidence: "medium",
-    filterDraft: {
-      from: "billing@aws.amazon.com OR billing@vercel.com OR receipts@stripe.com",
-      label: "Receipts",
-      archive: true,
+    id: "00000000-0000-0000-0000-000000000001",
+    status: "pending",
+    suggestion: {
+      kind: "archive_bulk",
+      title: "Archive 5 automated notifications",
+      rationale: "These are read CI alerts, deployment notifications, and certificate renewals that don't need further action.",
+      confidence: "high",
+      messageIds: ["test-008", "test-013", "test-017", "test-012", "test-015"],
     },
   },
   {
-    kind: "needs_user_input",
-    title: "Reply to Alex about Thursday coffee",
-    rationale: "Alex confirmed Thursday 3pm at Blue Bottle. A quick confirmation would lock this in.",
-    confidence: "high",
-    messageIds: ["test-007"],
-    questions: ["Should I draft a quick confirmation reply?"],
+    id: "00000000-0000-0000-0000-000000000002",
+    status: "pending",
+    suggestion: {
+      kind: "create_filter",
+      title: 'Auto-label billing emails as "Receipts"',
+      rationale: "You receive regular billing emails from AWS, Vercel, and Stripe. A filter would auto-label and skip inbox.",
+      confidence: "medium",
+      filterDraft: {
+        from: "billing@aws.amazon.com OR billing@vercel.com OR receipts@stripe.com",
+        label: "Receipts",
+        archive: true,
+      },
+    },
   },
   {
-    kind: "mark_read",
-    title: "Mark 3 newsletters as read",
-    rationale: "Dev.to digest, Hashnode comment notification, and GitHub Copilot summary are informational and don't need action.",
-    confidence: "medium",
-    messageIds: ["test-011", "test-012", "test-017"],
+    id: "00000000-0000-0000-0000-000000000003",
+    status: "pending",
+    suggestion: {
+      kind: "needs_user_input",
+      title: "Reply to Alex about Thursday coffee",
+      rationale: "Alex confirmed Thursday 3pm at Blue Bottle. A quick confirmation would lock this in.",
+      confidence: "high",
+      messageIds: ["test-007"],
+      questions: ["Should I draft a quick confirmation reply?"],
+    },
+  },
+  {
+    id: "00000000-0000-0000-0000-000000000004",
+    status: "pending",
+    suggestion: {
+      kind: "mark_read",
+      title: "Mark 3 newsletters as read",
+      rationale: "Dev.to digest, Hashnode comment notification, and GitHub Copilot summary are informational and don't need action.",
+      confidence: "medium",
+      messageIds: ["test-011", "test-012", "test-017"],
+    },
   },
 ];
 
@@ -322,10 +344,4 @@ export const TEST_STATUS = {
   gmailConnected: true,
   hasPasskey: true,
   activeGmailAccountId: "test-gmail-001",
-};
-
-export const TEST_LATEST_TRIAGE = {
-  runId: "test-run-001",
-  createdAt: daysAgo(0),
-  suggestionCount: TEST_SUGGESTIONS.length,
 };

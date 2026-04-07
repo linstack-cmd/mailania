@@ -4,6 +4,8 @@
  * On mobile (≤640px), proposals are hidden from the sidebar and
  * surfaced via a fixed "Proposals (N)" tab at the bottom of the screen.
  * Tapping it reveals a slide-up sheet with the full proposal UI.
+ * 
+ * Fetches suggestions from GET /api/suggestions on mount and when refreshKey changes.
  */
 
 import { useState, useEffect, useRef } from "react";
@@ -17,6 +19,12 @@ import {
   ApprovalConfirmModal,
   Toast,
 } from "./TriageSuggestions";
+
+interface SuggestionWithId {
+  id: string;
+  suggestion: TriageSuggestion;
+  status: string;
+}
 
 // ---------------------------------------------------------------------------
 // Skeleton shimmer
@@ -58,73 +66,35 @@ function ProposalSkeletonCard() {
 // ---------------------------------------------------------------------------
 // ProposalCard (mobile version — slightly larger touch targets)
 // ---------------------------------------------------------------------------
-function MobileProposalCard({
-  suggestion,
-  messageMap,
-  isDismissed,
-  onAccept,
-  onDismiss,
-}: {
+interface MobileProposalCardProps {
+  id: string;
   suggestion: TriageSuggestion;
   messageMap: Map<string, InboxMessage>;
-  isDismissed: boolean;
   onAccept: () => void;
-  onDismiss: () => void;
-}) {
+  onDismiss: () => Promise<void>;
+}
+
+function MobileProposalCard({
+  id,
+  suggestion,
+  messageMap,
+  onAccept,
+  onDismiss,
+}: MobileProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
   const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
   const msgCount = suggestion.messageIds?.length ?? 0;
   const canApply = suggestion.kind === "archive_bulk" || suggestion.kind === "create_filter";
+  const [dismissing, setDismissing] = useState(false);
 
-  if (isDismissed) {
-    return (
-      <div
-        className={css((t) => ({
-          padding: `${t.spacing(3)} ${t.spacing(3.5)}`,
-          border: `1px dashed ${t.colors.borderLight}`,
-          borderRadius: t.radius,
-          background: t.colors.bgAlt,
-          opacity: 0.5,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: t.spacing(2),
-        }))}
-      >
-        <span
-          className={css((t) => ({
-            fontSize: t.fontSize.sm,
-            color: t.colors.textMuted,
-            fontStyle: "italic",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            minWidth: 0,
-          }))}
-        >
-          {kindInfo.icon} {suggestion.title}
-        </span>
-        <button
-          onClick={onDismiss}
-          title="Restore"
-          className={css((t) => ({
-            fontSize: t.fontSize.sm,
-            color: t.colors.primary,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-            minHeight: "44px",
-            minWidth: "44px",
-            flexShrink: 0,
-            "&:hover": { textDecoration: "underline" },
-          }))}
-        >
-          ↩ Restore
-        </button>
-      </div>
-    );
-  }
+  const handleDismiss = async () => {
+    setDismissing(true);
+    try {
+      await onDismiss();
+    } finally {
+      setDismissing(false);
+    }
+  };
 
   return (
     <div
@@ -245,7 +215,8 @@ function MobileProposalCard({
           </button>
         )}
         <button
-          onClick={onDismiss}
+          onClick={handleDismiss}
+          disabled={dismissing}
           title="Dismiss this suggestion"
           className={css((t) => ({
             padding: `${t.spacing(3)} ${t.spacing(3)}`,
@@ -258,59 +229,14 @@ function MobileProposalCard({
             minHeight: "44px",
             minWidth: "44px",
             transition: "background 0.15s, color 0.15s",
-            "&:hover": { background: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
-            "&:active": { background: "#fef2f2", color: "#dc2626" },
+            "&:hover:not(:disabled)": { background: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
+            "&:active:not(:disabled)": { background: "#fef2f2", color: "#dc2626" },
+            "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
           }))}
         >
-          ✕
+          {dismissing ? "…" : "✕"}
         </button>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Progress bar
-// ---------------------------------------------------------------------------
-interface ProgressState {
-  stage: string;
-  percent: number;
-  suggestionsCount?: number;
-}
-
-function TriageProgressBar({ progress }: { progress: ProgressState }) {
-  return (
-    <div
-      className={css((t) => ({
-        padding: t.spacing(3),
-        background: t.colors.bgAlt,
-        borderRadius: t.radius,
-        border: `1px solid ${t.colors.borderLight}`,
-      }))}
-    >
-      <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: t.spacing(2) }))}>
-        <span className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: t.colors.text }))}>
-          {progress.stage}
-        </span>
-        <span className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: t.colors.primary }))}>
-          {progress.percent}%
-        </span>
-      </div>
-      <div className={css((t) => ({ height: "6px", borderRadius: "3px", background: t.colors.borderLight, overflow: "hidden" }))}>
-        <div
-          style={{ width: `${progress.percent}%`, transition: "width 0.4s ease-out" }}
-          className={css((t) => ({
-            height: "100%",
-            borderRadius: "3px",
-            background: `linear-gradient(90deg, ${t.colors.primary}, #6366f1)`,
-          }))}
-        />
-      </div>
-      {(progress.suggestionsCount ?? 0) > 0 && (
-        <div className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, marginTop: t.spacing(1) }))}>
-          {progress.suggestionsCount} suggestion{progress.suggestionsCount !== 1 ? "s" : ""} so far
-        </div>
-      )}
     </div>
   );
 }
@@ -321,33 +247,22 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
 export interface MobileProposalSheetProps {
   messages: InboxMessage[];
   onAuthLost: () => void;
-  externalSuggestions?: TriageSuggestion[] | null;
-  externalRunId?: string | null;
-  externalLastRunAt?: string | null;
+  refreshKey: number;
   onMountChange?: (mounted: boolean) => void;
 }
 
 export default function MobileProposalSheet({
   messages,
   onAuthLost,
-  externalSuggestions,
-  externalRunId,
-  externalLastRunAt,
+  refreshKey,
   onMountChange,
 }: MobileProposalSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [suggestions, setSuggestions] = useState<TriageSuggestion[] | null>(
-    externalSuggestions ?? null
-  );
-  const [lastRunAt, setLastRunAt] = useState<string | null>(externalLastRunAt ?? null);
-  const [runId, setRunId] = useState<string | null>(externalRunId ?? null);
-  const [initialLoading, setInitialLoading] = useState(externalSuggestions === undefined);
-  const [triageLoading, setTriageLoading] = useState(false);
+  const [suggestionsWithIds, setSuggestionsWithIds] = useState<SuggestionWithId[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<ProgressState | null>(null);
-  const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => new Set());
-  const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isMobileViewport, setIsMobileViewport] = useState(window.matchMedia("(max-width: 640px)").matches);
   const [isNarrowTab, setIsNarrowTab] = useState(window.matchMedia("(max-width: 360px)").matches);
@@ -379,38 +294,31 @@ export default function MobileProposalSheet({
     };
   }, []);
 
-  // Sync external props
+  // Load suggestions on mount and when refreshKey changes
   useEffect(() => {
-    if (externalSuggestions !== undefined) {
-      setSuggestions(externalSuggestions);
-      setInitialLoading(false);
-    }
-    if (externalRunId !== undefined) setRunId(externalRunId ?? null);
-    if (externalLastRunAt !== undefined) setLastRunAt(externalLastRunAt ?? null);
-  }, [externalSuggestions, externalRunId, externalLastRunAt]);
-
-  // Load on mount if not externally controlled
-  useEffect(() => {
-    if (externalSuggestions !== undefined) return;
-    async function loadLatest() {
+    async function loadSuggestions() {
+      setLoading(true);
+      setError(null);
       try {
-        const res = await fetch("/api/triage/latest");
-        if (res.status === 401) { onAuthLost(); return; }
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.suggestions)) {
-            setSuggestions(data.suggestions);
-            setLastRunAt(data.createdAt);
-            setRunId(data.runId?.toString() ?? null);
-          } else {
-            setSuggestions(null);
-          }
+        const res = await fetch("/api/suggestions");
+        if (res.status === 401) {
+          onAuthLost();
+          return;
         }
-      } catch { /* silently ignore */ }
-      finally { setInitialLoading(false); }
+        if (!res.ok) {
+          throw new Error(`Failed to load suggestions (${res.status})`);
+        }
+        const data = await res.json();
+        setSuggestionsWithIds(Array.isArray(data.suggestions) ? data.suggestions : []);
+      } catch (err: any) {
+        setError(err.message || "Failed to load suggestions");
+        setSuggestionsWithIds([]);
+      } finally {
+        setLoading(false);
+      }
     }
-    loadLatest();
-  }, []);
+    loadSuggestions();
+  }, [refreshKey]);
 
   // Prevent body scroll when sheet is open
   useEffect(() => {
@@ -435,71 +343,49 @@ export default function MobileProposalSheet({
     }, 280);
   }
 
-  async function runTriage() {
-    setTriageLoading(true);
-    setError(null);
-    setSuggestions(null);
-    setLastRunAt(null);
-    setRunId(null);
-    setDismissedIds(new Set());
-    setProgress({ stage: "Starting triage…", percent: 0 });
-
+  async function dismissSuggestion(id: string) {
     try {
-      const res = await fetch("/api/triage/suggest-stream", { method: "POST" });
-      if (res.status === 401) { onAuthLost(); setTriageLoading(false); setProgress(null); return; }
-      if (!res.ok) { throw new Error(await res.text() || `Server error (${res.status})`); }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("Streaming not supported");
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (!json) continue;
-          try {
-            const event = JSON.parse(json);
-            if (event.type === "progress" || event.type === "batch_done") {
-              setProgress({ stage: event.stage || "Processing…", percent: event.percent ?? 0, suggestionsCount: event.suggestionsCount });
-            } else if (event.type === "complete") {
-              setSuggestions(Array.isArray(event.suggestions) ? event.suggestions : []);
-              setProgress(null);
-            } else if (event.type === "saved") {
-              setRunId(event.runId?.toString() ?? null);
-              setLastRunAt(event.createdAt ?? null);
-            } else if (event.type === "error") {
-              setError(event.error || "Triage failed");
-              setProgress(null);
-            }
-          } catch { /* skip malformed */ }
-        }
+      const res = await fetch(`/api/suggestions/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "dismissed" }),
+      });
+      if (res.status === 401) {
+        onAuthLost();
+        return;
       }
-    } catch (e: any) {
-      setError(e.message || "Failed to generate suggestions");
-      setProgress(null);
-    } finally {
-      setTriageLoading(false);
+      if (!res.ok) {
+        throw new Error(`Failed to dismiss suggestion (${res.status})`);
+      }
+      // Remove from local list
+      setSuggestionsWithIds((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      setError(err.message || "Failed to dismiss suggestion");
     }
   }
 
-  function toggleDismiss(index: number) {
-    setDismissedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index); else next.add(index);
-      return next;
-    });
+  async function acceptSuggestion(id: string) {
+    try {
+      const res = await fetch(`/api/suggestions/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "accepted" }),
+      });
+      if (res.status === 401) {
+        onAuthLost();
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`Failed to accept suggestion (${res.status})`);
+      }
+      // Remove from local list
+      setSuggestionsWithIds((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      setError(err.message || "Failed to accept suggestion");
+    }
   }
 
-  const activeSuggestions = suggestions ?? [];
-  const visibleCount = activeSuggestions.filter((_, i) => !dismissedIds.has(i)).length;
-  const hasProposals = activeSuggestions.length > 0;
+  const hasProposals = suggestionsWithIds.length > 0;
 
   return (
     <>
@@ -564,7 +450,7 @@ export default function MobileProposalSheet({
           }))}
         >
           {isNarrowTab ? "📋" : "📋 Proposals"}
-          {(hasProposals || initialLoading || triageLoading) && (
+          {hasProposals && (
             <span
               className={css((t) => ({
                 padding: "2px 10px",
@@ -576,13 +462,9 @@ export default function MobileProposalSheet({
                   fontSize: t.fontSize.xs,
                 },
               }))}
-              style={
-                hasProposals
-                  ? { background: "rgba(255,255,255,0.25)", color: t.colors.bg }
-                  : { background: t.colors.border, color: t.colors.textMuted }
-              }
+              style={{ background: "rgba(255,255,255,0.25)", color: t.colors.bg }}
             >
-              {triageLoading || initialLoading ? "…" : visibleCount}
+              {suggestionsWithIds.length}
             </span>
           )}
         </button>
@@ -667,7 +549,7 @@ export default function MobileProposalSheet({
               <h2 className={css((thm) => ({ fontSize: thm.fontSize.base, fontWeight: "700", margin: 0, flexShrink: 0 }))}>
                 📋 Proposals
               </h2>
-              {activeSuggestions.length > 0 && (
+              {suggestionsWithIds.length > 0 && (
                 <span
                   className={css((t) => ({
                     padding: "2px 8px",
@@ -676,63 +558,34 @@ export default function MobileProposalSheet({
                     fontWeight: "700",
                     flexShrink: 0,
                   }))}
-                  style={
-                    visibleCount > 0
-                      ? { background: t.colors.primary, color: t.colors.bg }
-                      : { background: t.colors.border, color: t.colors.textMuted }
-                  }
+                  style={{ background: t.colors.primary, color: t.colors.bg }}
                 >
-                  {visibleCount}
+                  {suggestionsWithIds.length}
                 </span>
               )}
             </div>
-            <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5), flexShrink: 0, "@media (max-width: 380px)": { width: "100%" } }))}>
-              <button
-                onClick={runTriage}
-                disabled={triageLoading || initialLoading}
-                className={css((t) => ({
-                  padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
-                  border: "none",
-                  borderRadius: t.radiusSm,
-                  fontSize: t.fontSize.sm,
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  minHeight: "36px",
-                  whiteSpace: "nowrap",
-                  transition: "background 0.15s",
-                  "@media (max-width: 380px)": { flex: 1 },
-                }))}
-                style={
-                  triageLoading || initialLoading
-                    ? { background: t.colors.border, color: t.colors.textMuted, cursor: "not-allowed" }
-                    : { background: t.colors.primaryLight, color: t.colors.primary }
-                }
-              >
-                {triageLoading ? "Analyzing…" : suggestions ? "↻ Re-run" : "✦ Generate"}
-              </button>
-              <button
-                onClick={closeSheet}
-                aria-label="Close proposals"
-                className={css((t) => ({
-                  width: "36px",
-                  height: "36px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: `1px solid ${t.colors.borderLight}`,
-                  borderRadius: t.radius,
-                  background: "transparent",
-                  color: t.colors.textMuted,
-                  fontSize: t.fontSize.lg,
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  transition: "background 0.15s",
-                  "&:active": { background: t.colors.bgAlt },
-                }))}
-              >
-                ✕
-              </button>
-            </div>
+            <button
+              onClick={closeSheet}
+              aria-label="Close proposals"
+              className={css((t) => ({
+                width: "36px",
+                height: "36px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: `1px solid ${t.colors.borderLight}`,
+                borderRadius: t.radius,
+                background: "transparent",
+                color: t.colors.textMuted,
+                fontSize: t.fontSize.lg,
+                cursor: "pointer",
+                flexShrink: 0,
+                transition: "background 0.15s",
+                "&:active": { background: t.colors.bgAlt },
+              }))}
+            >
+              ✕
+            </button>
           </div>
 
           {/* Scrollable content */}
@@ -750,13 +603,6 @@ export default function MobileProposalSheet({
               minWidth: 0,
             }))}
           >
-            {/* Last run info */}
-            {lastRunAt && !triageLoading && (
-              <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, margin: 0 }))}>
-                Last run: {new Date(lastRunAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-              </p>
-            )}
-
             {/* Error */}
             {error && (
               <div
@@ -766,38 +612,14 @@ export default function MobileProposalSheet({
                   borderRadius: t.radiusSm,
                   color: t.colors.error,
                   fontSize: t.fontSize.sm,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: t.spacing(2),
                 }))}
               >
                 <span>{error}</span>
-                <button
-                  onClick={runTriage}
-                  className={css((t) => ({
-                    padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
-                    border: `1px solid ${t.colors.error}`,
-                    borderRadius: t.radiusSm,
-                    background: "transparent",
-                    color: t.colors.error,
-                    cursor: "pointer",
-                    fontSize: t.fontSize.sm,
-                    fontWeight: "600",
-                    flexShrink: 0,
-                    minHeight: "44px",
-                  }))}
-                >
-                  Retry
-                </button>
               </div>
             )}
 
-            {/* Progress */}
-            {progress && <TriageProgressBar progress={progress} />}
-
             {/* Loading skeleton */}
-            {initialLoading && !progress && (
+            {loading && (
               <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3) }))}>
                 <ProposalSkeletonCard />
                 <ProposalSkeletonCard />
@@ -805,7 +627,7 @@ export default function MobileProposalSheet({
             )}
 
             {/* Empty state */}
-            {!initialLoading && !triageLoading && !progress && activeSuggestions.length === 0 && (
+            {!loading && suggestionsWithIds.length === 0 && (
               <div
                 className={css((t) => ({
                   textAlign: "center",
@@ -817,38 +639,32 @@ export default function MobileProposalSheet({
                 <div className={css((thm) => ({ fontSize: thm.fontSize.xl, marginBottom: "8px" }))}>✨</div>
                 <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base, margin: "0 0 6px" }))}>No proposals yet</p>
                 <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm, margin: 0, lineHeight: "1.5" }))}>
-                  Tap "Generate" to create triage suggestions, or discuss with the chat agent.
+                  Ask the chat agent to create suggestions for your inbox.
                 </p>
               </div>
             )}
 
             {/* Proposal cards */}
-            {!initialLoading && activeSuggestions.length > 0 && (
+            {!loading && suggestionsWithIds.length > 0 && (
               <>
-                {activeSuggestions.map((s, i) => (
+                {suggestionsWithIds.map((item) => (
                   <MobileProposalCard
-                    key={i}
-                    suggestion={s}
+                    key={item.id}
+                    id={item.id}
+                    suggestion={item.suggestion}
                     messageMap={messageMap}
-                    isDismissed={dismissedIds.has(i)}
-                    onAccept={() => setAcceptingIndex(i)}
-                    onDismiss={() => toggleDismiss(i)}
+                    onAccept={() => setAcceptingId(item.id)}
+                    onDismiss={() => dismissSuggestion(item.id)}
                   />
                 ))}
-
-                {dismissedIds.size > 0 && (
-                  <p className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, textAlign: "center", margin: 0 }))}>
-                    {dismissedIds.size} dismissed — tap ↩ Restore to undo
-                  </p>
-                )}
 
                 <div
                   className={css((thm) => ({
                     padding: thm.spacing(3),
-                    background: thm.colors.bgSubtle,
+                    background: thm.colors.primaryLight,
                     borderRadius: thm.radiusSm,
                     fontSize: thm.fontSize.sm,
-                    color: thm.colors.primary,
+                    color: "#1e40af",
                     lineHeight: "1.5",
                   }))}
                 >
@@ -861,19 +677,16 @@ export default function MobileProposalSheet({
       )}
 
       {/* Approval modal */}
-      {acceptingIndex !== null && suggestions?.[acceptingIndex] && (
+      {acceptingId && suggestionsWithIds.find((s) => s.id === acceptingId) && (
         <ApprovalConfirmModal
-          suggestion={suggestions[acceptingIndex]}
+          suggestion={suggestionsWithIds.find((s) => s.id === acceptingId)!.suggestion}
           messageMap={messageMap}
-          onClose={() => setAcceptingIndex(null)}
+          onClose={() => setAcceptingId(null)}
           onSuccess={(msg) => {
-            setAcceptingIndex(null);
+            setAcceptingId(null);
             setToastMsg(msg);
-            setDismissedIds((prev) => {
-              const next = new Set(prev);
-              next.add(acceptingIndex!);
-              return next;
-            });
+            // Mark as accepted and remove from list
+            acceptSuggestion(acceptingId);
           }}
         />
       )}

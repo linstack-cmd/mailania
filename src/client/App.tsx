@@ -31,13 +31,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
 }
 import { Router, Route, Switch } from "wouter";
-import SuggestionDetailPage from "./SuggestionDetailPage";
 import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
 import AccountSettings from "./AccountSettings";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import MobileProposalSheet from "./MobileProposalSheet";
-import type { TriageSuggestion } from "./TriageSuggestions";
 import { updateMobileDebug } from "./mobileDebug";
 import {
   isTestUIMode,
@@ -45,7 +43,6 @@ import {
   TEST_CHAT_MESSAGES,
   TEST_SUGGESTIONS,
   TEST_STATUS,
-  TEST_LATEST_TRIAGE,
 } from "./testUIMode";
 
 interface InboxMessage {
@@ -80,11 +77,7 @@ interface StatusData {
   activeGmailAccountId?: string;
 }
 
-interface LatestTriageSummary {
-  runId: string;
-  createdAt: string;
-  suggestionCount: number;
-}
+
 
 function normalizeInboxMessages(payload: unknown): InboxMessage[] {
   if (!Array.isArray(payload)) return [];
@@ -99,10 +92,6 @@ function normalizeInboxMessages(payload: unknown): InboxMessage[] {
       isRead: typeof record.isRead === "boolean" ? record.isRead : undefined,
     };
   });
-}
-
-function normalizeLatestSuggestions(payload: unknown): TriageSuggestion[] | null {
-  return Array.isArray(payload) ? payload as TriageSuggestion[] : null;
 }
 
 function formatFrom(raw: string): string {
@@ -175,8 +164,7 @@ export default function App() {
   const [generalChatLoading, setGeneralChatLoading] = useState(false);
   const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
-  const [latestTriageSummary, setLatestTriageSummary] = useState<LatestTriageSummary | null>(testMode ? TEST_LATEST_TRIAGE : null);
-  const [latestSuggestions, setLatestSuggestions] = useState<TriageSuggestion[] | null | undefined>(testMode ? TEST_SUGGESTIONS : undefined);
+  const [suggestionsRefreshKey, setSuggestionsRefreshKey] = useState(0);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
@@ -194,15 +182,9 @@ export default function App() {
       statusUserExists: status?.user ? true : false,
       messagesCount: messages.length,
       generalChatMessagesCount: generalChatMessages.length,
-      latestSuggestionsState:
-        latestSuggestions === undefined
-          ? "undefined"
-          : latestSuggestions === null
-            ? "null"
-            : `count:${latestSuggestions.length}`,
       appError: error ?? generalChatError ?? passkeyError ?? null,
     });
-  }, [status, messages.length, generalChatMessages.length, latestSuggestions, error, generalChatError, passkeyError]);
+  }, [status, messages.length, generalChatMessages.length, error, generalChatError, passkeyError]);
 
   useEffect(() => {
     if (testMode) return; // Skip all API calls in test UI mode
@@ -270,42 +252,20 @@ export default function App() {
     setGeneralChatInitLoading(true);
     setGeneralChatError(null);
     try {
-      const [chatRes, triageRes] = await Promise.all([
-        fetch("/api/chat/general"),
-        fetch("/api/triage/latest"),
-      ]);
+      const res = await fetch("/api/chat/general");
 
-      if (chatRes.status === 401) {
+      if (res.status === 401) {
         setStatus((s) => s ? { ...s, authenticated: false } : null);
         setGeneralChatMessages([]);
-        setLatestTriageSummary(null);
-        setLatestSuggestions(null);
         return;
       }
-      if (!chatRes.ok) {
+      if (!res.ok) {
         throw new Error("Failed to load inbox chat");
       }
-      const data = await chatRes.json();
+      const data = await res.json();
       setGeneralChatMessages(Array.isArray(data.messages) ? data.messages : []);
-      setLatestTriageSummary(data.latestTriage
-        ? {
-            runId: data.latestTriage.runId,
-            createdAt: data.latestTriage.createdAt,
-            suggestionCount: data.latestTriage.suggestionCount,
-          }
-        : null);
-
-      // Load latest triage suggestions for the proposal sidebar
-      if (triageRes.ok) {
-        const triageData = await triageRes.json();
-        setLatestSuggestions(normalizeLatestSuggestions(triageData.suggestions));
-      } else {
-        setLatestSuggestions(null);
-      }
     } catch {
       setGeneralChatMessages([]);
-      setLatestTriageSummary(null);
-      setLatestSuggestions(null);
       setGeneralChatError("Failed to load inbox chat");
     } finally {
       setGeneralChatInitLoading(false);
@@ -389,13 +349,10 @@ export default function App() {
 
       const data = await res.json();
       setGeneralChatMessages(Array.isArray(data.messages) ? data.messages : []);
-      setLatestTriageSummary(data.latestTriage
-        ? {
-            runId: data.latestTriage.runId,
-            createdAt: data.latestTriage.createdAt,
-            suggestionCount: data.latestTriage.suggestionCount,
-          }
-        : null);
+      // If suggestions were created/modified, trigger a refetch
+      if (data.suggestionsChanged) {
+        setSuggestionsRefreshKey((k) => k + 1);
+      }
     } catch (err: any) {
       setGeneralChatError(err.message || "Failed to send message");
       setGeneralChatMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -410,8 +367,6 @@ export default function App() {
     setStatus({ authenticated: false });
     setMessages([]);
     setGeneralChatMessages([]);
-    setLatestTriageSummary(null);
-    setLatestSuggestions(undefined);
   }
 
   async function handlePasskeyLogin() {
@@ -665,9 +620,6 @@ export default function App() {
     <ErrorBoundary>
     <Router>
     <Switch>
-      <Route path="/suggestions/:runId/:index">
-        <SuggestionDetailPage />
-      </Route>
       <Route path="/settings">
         <AccountSettings
           status={status}
@@ -888,20 +840,6 @@ export default function App() {
               <p className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: t.lineHeight.normal }))}>
                 Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
               </p>
-              {latestTriageSummary && (
-                <p
-                  className={css((t) => ({
-                    fontSize: t.fontSize.xs,
-                    color: t.colors.textMuted,
-                    margin: `${t.spacing(1.5)} 0 0`,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }))}
-                >
-                  Latest triage: {latestTriageSummary.suggestionCount} proposal{latestTriageSummary.suggestionCount !== 1 ? "s" : ""} · {new Date(latestTriageSummary.createdAt).toLocaleString()}
-                </p>
-              )}
             </div>
 
             <ChatPanel
@@ -1029,7 +967,7 @@ export default function App() {
                     <div className={css((t) => ({ fontSize: "2rem", marginBottom: t.spacing(2) }))}>🎉</div>
                     <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base }))}>Inbox zero!</p>
                     <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, marginTop: t.spacing(1) }))}>
-                      Check back later or run triage.
+                      Check back later or ask the chat to create suggestions.
                     </p>
                   </div>
                 )}
@@ -1059,12 +997,8 @@ export default function App() {
               setStatus((s) => s ? { ...s, authenticated: false } : null);
               setMessages([]);
               setGeneralChatMessages([]);
-              setLatestTriageSummary(null);
-              setLatestSuggestions(undefined);
             }}
-            externalSuggestions={latestSuggestions}
-            externalRunId={latestTriageSummary?.runId ?? null}
-            externalLastRunAt={latestTriageSummary?.createdAt ?? null}
+            refreshKey={suggestionsRefreshKey}
           />
         </div>
       </div>
@@ -1076,12 +1010,8 @@ export default function App() {
           setStatus((s) => s ? { ...s, authenticated: false } : null);
           setMessages([]);
           setGeneralChatMessages([]);
-          setLatestTriageSummary(null);
-          setLatestSuggestions(undefined);
         }}
-        externalSuggestions={latestSuggestions}
-        externalRunId={latestTriageSummary?.runId ?? null}
-        externalLastRunAt={latestTriageSummary?.createdAt ?? null}
+        refreshKey={suggestionsRefreshKey}
         onMountChange={(mounted) => updateMobileDebug({ mobileProposalSheetMounted: mounted })}
       />
     </div>

@@ -27,7 +27,33 @@ import {
   searchMessages,
 } from "./gmail.js";
 import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
-import type { TriageSuggestion, ActionPlanStep, SuggestionKind } from "./triage.js";
+
+// ===== Type Definitions =====
+
+export type SuggestionKind = "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read";
+
+export interface ActionPlanStep {
+  type: "archive_bulk" | "create_filter" | "needs_user_input" | "mark_read" | "label_messages";
+  params: Record<string, unknown>;
+  rationale?: string;
+}
+
+export interface TriageSuggestion {
+  kind: SuggestionKind;
+  title: string;
+  rationale: string;
+  confidence: "low" | "medium" | "high";
+  messageIds?: string[];
+  filterDraft?: {
+    from?: string;
+    subjectContains?: string;
+    hasWords?: string;
+    label?: string;
+    archive?: boolean;
+  };
+  questions?: string[];
+  actionPlan?: ActionPlanStep[];
+}
 
 const MAX_SEARCH_RESULTS = 25;
 const ALLOWED_SUGGESTION_KINDS: SuggestionKind[] = [
@@ -43,9 +69,6 @@ export interface AgentToolContext {
   userId: string;
   auth: OAuth2Client | null;
   localDev: boolean;
-  runId?: string;
-  suggestionIndex?: number;
-  conversationId?: string;
 }
 
 export interface ToolTrace {
@@ -58,14 +81,6 @@ export interface ToolTrace {
 export interface ToolExecResult {
   result: unknown;
   trace: ToolTrace;
-}
-
-export interface SuggestionRevisionRecord {
-  id: string;
-  revisionIndex: number;
-  suggestion: TriageSuggestion;
-  source: string;
-  createdAt: Date;
 }
 
 export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
@@ -97,36 +112,28 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
     name: "get_suggestion",
     description:
-      "Get the current suggestion for a triage item, including the original suggestion, latest saved revision, and active suggestion.",
+      "Get a suggestion by its ID. Returns the current suggestion payload and status.",
     input_schema: {
       type: "object" as const,
       properties: {
-        runId: {
+        suggestionId: {
           type: "string",
-          description: "Triage run ID. Optional when operating on the current chat suggestion.",
-        },
-        suggestionIndex: {
-          type: "number",
-          description: "Zero-based suggestion index. Optional when operating on the current chat suggestion.",
+          description: "Suggestion ID (UUID)",
         },
       },
-      required: [],
+      required: ["suggestionId"],
     },
   },
   {
     name: "set_suggestion",
     description:
-      "Save a revised recommendation for a triage item. This only updates Mailania's stored suggestion/recommendation. It must never execute any mailbox action.",
+      "Update an existing suggestion's content. Takes a suggestion ID and the new suggestion fields.",
     input_schema: {
       type: "object" as const,
       properties: {
-        runId: {
+        suggestionId: {
           type: "string",
-          description: "Triage run ID. Optional when operating on the current chat suggestion.",
-        },
-        suggestionIndex: {
-          type: "number",
-          description: "Zero-based suggestion index. Optional when operating on the current chat suggestion.",
+          description: "Suggestion ID (UUID)",
         },
         kind: {
           type: "string",
@@ -182,7 +189,7 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
           description: "Optional multi-step recommendation plan. This is still recommendation-only.",
         },
       },
-      required: ["kind", "title", "rationale", "confidence"],
+      required: ["suggestionId", "kind", "title", "rationale", "confidence"],
     },
   },
   {
@@ -222,7 +229,7 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   {
     name: "create_suggestion",
     description:
-      "Create a brand new suggestion and append it to the current triage run. This adds a new suggestion to the list of recommendations.",
+      "Create a new actionable suggestion and add it to the user's approval queue. Use this when the user asks you to propose a new inbox action.",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -286,23 +293,6 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
 ];
 
 const ALLOWED_TOOLS = new Set(MAILANIA_AGENT_TOOL_DEFINITIONS.map((tool) => tool.name));
-
-function requireCurrentSuggestionTarget(context: AgentToolContext, args: Record<string, unknown>) {
-  const runId = (args.runId as string | undefined) ?? context.runId;
-  const rawIndex = (args.suggestionIndex as number | undefined) ?? context.suggestionIndex;
-
-  if (!runId) {
-    throw new Error("runId is required for suggestion tools outside an active suggestion chat");
-  }
-  if (typeof rawIndex !== "number" || !Number.isInteger(rawIndex) || rawIndex < 0) {
-    throw new Error("suggestionIndex is required and must be a non-negative integer");
-  }
-
-  return {
-    runId,
-    suggestionIndex: rawIndex,
-  };
-}
 
 function normalizeStringArray(value: unknown): string[] | undefined {
   if (value == null) return undefined;
@@ -405,153 +395,6 @@ function normalizeSuggestionArgs(args: Record<string, unknown>): TriageSuggestio
   };
 }
 
-async function loadSuggestionState(
-  userId: string,
-  runId: string,
-  suggestionIndex: number,
-): Promise<{
-  originalSuggestion: TriageSuggestion;
-  latestRevision: SuggestionRevisionRecord | null;
-  activeSuggestion: TriageSuggestion;
-}> {
-  const pool = getPool();
-
-  const runResult = await pool.query(
-    `SELECT "suggestions" FROM "triage_run"
-     WHERE "id" = $1 AND "user_id" = $2`,
-    [runId, userId],
-  );
-
-  if (runResult.rows.length === 0) {
-    throw new Error("Triage run not found");
-  }
-
-  const suggestions = runResult.rows[0].suggestions as TriageSuggestion[];
-  if (suggestionIndex < 0 || suggestionIndex >= suggestions.length) {
-    throw new Error("Suggestion index out of range");
-  }
-
-  const originalSuggestion = suggestions[suggestionIndex];
-
-  const revResult = await pool.query(
-    `SELECT sr."id", sr."revision_index", sr."suggestion_json", sr."source", sr."created_at"
-     FROM "suggestion_conversation" sc
-     JOIN "suggestion_revision" sr ON sr."conversation_id" = sc."id"
-     WHERE sc."run_id" = $1 AND sc."suggestion_index" = $2 AND sc."user_id" = $3
-     ORDER BY sr."revision_index" DESC, sr."created_at" DESC, sr."id" DESC
-     LIMIT 1`,
-    [runId, suggestionIndex, userId],
-  );
-
-  const latestRevision = revResult.rows.length > 0
-    ? {
-        id: revResult.rows[0].id as string,
-        revisionIndex: Number(revResult.rows[0].revision_index),
-        suggestion: revResult.rows[0].suggestion_json as TriageSuggestion,
-        source: revResult.rows[0].source as string,
-        createdAt: revResult.rows[0].created_at as Date,
-      }
-    : null;
-
-  return {
-    originalSuggestion,
-    latestRevision,
-    activeSuggestion: latestRevision?.suggestion ?? originalSuggestion,
-  };
-}
-
-async function ensureConversation(
-  userId: string,
-  runId: string,
-  suggestionIndex: number,
-  existingConversationId?: string,
-): Promise<string> {
-  if (existingConversationId) return existingConversationId;
-
-  const pool = getPool();
-  const existing = await pool.query(
-    `SELECT "id" FROM "suggestion_conversation"
-     WHERE "run_id" = $1 AND "suggestion_index" = $2 AND "user_id" = $3`,
-    [runId, suggestionIndex, userId],
-  );
-
-  if (existing.rows.length > 0) {
-    return existing.rows[0].id as string;
-  }
-
-  const created = await pool.query(
-    `INSERT INTO "suggestion_conversation" ("run_id", "suggestion_index", "user_id")
-     VALUES ($1, $2, $3)
-     RETURNING "id"`,
-    [runId, suggestionIndex, userId],
-  );
-
-  return created.rows[0].id as string;
-}
-
-export async function saveSuggestionRevision(
-  context: AgentToolContext,
-  params: {
-    runId?: string;
-    suggestionIndex?: number;
-    suggestion: TriageSuggestion;
-    source?: string;
-  },
-): Promise<SuggestionRevisionRecord> {
-  const target = requireCurrentSuggestionTarget(context, params as unknown as Record<string, unknown>);
-  const pool = getPool();
-
-  await loadSuggestionState(context.userId, target.runId, target.suggestionIndex);
-
-  const conversationId = await ensureConversation(
-    context.userId,
-    target.runId,
-    target.suggestionIndex,
-    context.conversationId,
-  );
-
-  const revCountResult = await pool.query(
-    `SELECT COALESCE(MAX("revision_index"), -1)::int as max_idx
-     FROM "suggestion_revision"
-     WHERE "conversation_id" = $1`,
-    [conversationId],
-  );
-  const nextRevisionIndex = Number(revCountResult.rows[0].max_idx) + 1;
-
-  const insertResult = await pool.query(
-    `INSERT INTO "suggestion_revision" ("conversation_id", "revision_index", "suggestion_json", "source")
-     VALUES ($1, $2, $3, $4)
-     RETURNING "id", "created_at"`,
-    [conversationId, nextRevisionIndex, JSON.stringify(params.suggestion), params.source ?? AGENT_SUGGESTION_SOURCE],
-  );
-
-  await pool.query(
-    `UPDATE "suggestion_conversation" SET "updated_at" = now() WHERE "id" = $1`,
-    [conversationId],
-  );
-
-  return {
-    id: insertResult.rows[0].id as string,
-    revisionIndex: nextRevisionIndex,
-    suggestion: params.suggestion,
-    source: params.source ?? AGENT_SUGGESTION_SOURCE,
-    createdAt: insertResult.rows[0].created_at as Date,
-  };
-}
-
-export async function getLatestSuggestionRevision(
-  context: AgentToolContext,
-  runId?: string,
-  suggestionIndex?: number,
-): Promise<SuggestionRevisionRecord | null> {
-  const target = requireCurrentSuggestionTarget(context, {
-    runId,
-    suggestionIndex,
-  });
-  const state = await loadSuggestionState(context.userId, target.runId, target.suggestionIndex);
-  return state.latestRevision;
-}
-
 export async function executeAgentTool(
   context: AgentToolContext,
   toolName: string,
@@ -588,49 +431,67 @@ export async function executeAgentTool(
     }
 
     case "get_suggestion": {
-      const target = requireCurrentSuggestionTarget(context, args);
-      const state = await loadSuggestionState(
-        context.userId,
-        target.runId,
-        target.suggestionIndex,
+      const suggestionId = args.suggestionId;
+      if (typeof suggestionId !== "string" || !suggestionId.trim()) {
+        throw new Error("suggestionId is required");
+      }
+
+      const pool = getPool();
+      const result_query = await pool.query(
+        `SELECT "id", "suggestion_json", "status", "created_at", "updated_at"
+         FROM "suggestion"
+         WHERE "id" = $1 AND "user_id" = $2`,
+        [suggestionId, context.userId],
       );
+
+      if (result_query.rows.length === 0) {
+        throw new Error("Suggestion not found or does not belong to you");
+      }
+
+      const row = result_query.rows[0];
+      const suggestion = row.suggestion_json as TriageSuggestion;
+
       result = {
-        runId: target.runId,
-        suggestionIndex: target.suggestionIndex,
-        originalSuggestion: state.originalSuggestion,
-        latestRevision: state.latestRevision
-          ? {
-              id: state.latestRevision.id,
-              revisionIndex: state.latestRevision.revisionIndex,
-              suggestion: state.latestRevision.suggestion,
-              source: state.latestRevision.source,
-              createdAt: state.latestRevision.createdAt,
-            }
-          : null,
-        activeSuggestion: state.activeSuggestion,
+        id: row.id,
+        suggestion,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
       };
-      summary = `loaded suggestion ${target.suggestionIndex} for run ${target.runId}`;
+      summary = `loaded suggestion ${suggestionId} (${suggestion.kind})`;
       break;
     }
 
     case "set_suggestion": {
-      const target = requireCurrentSuggestionTarget(context, args);
+      const suggestionId = args.suggestionId;
+      if (typeof suggestionId !== "string" || !suggestionId.trim()) {
+        throw new Error("suggestionId is required");
+      }
+
       const suggestion = normalizeSuggestionArgs(args);
-      const revision = await saveSuggestionRevision(context, {
-        runId: target.runId,
-        suggestionIndex: target.suggestionIndex,
-        suggestion,
-        source: AGENT_SUGGESTION_SOURCE,
-      });
+      const pool = getPool();
+
+      // Update the suggestion with user isolation check
+      const update_result = await pool.query(
+        `UPDATE "suggestion"
+         SET "suggestion_json" = $1, "updated_at" = now()
+         WHERE "id" = $2 AND "user_id" = $3
+         RETURNING "id", "suggestion_json", "updated_at"`,
+        [JSON.stringify(suggestion), suggestionId, context.userId],
+      );
+
+      if (update_result.rowCount === 0) {
+        throw new Error("Suggestion not found or does not belong to you");
+      }
+
+      const updated = update_result.rows[0];
+
       result = {
-        runId: target.runId,
-        suggestionIndex: target.suggestionIndex,
-        revisionIndex: revision.revisionIndex,
-        suggestion: revision.suggestion,
-        source: revision.source,
-        createdAt: revision.createdAt,
+        id: updated.id,
+        suggestion: updated.suggestion_json,
+        updatedAt: updated.updated_at,
       };
-      summary = `saved suggestion revision v${revision.revisionIndex + 1} (${suggestion.kind})`;
+      summary = `updated suggestion ${suggestionId} (${suggestion.kind})`;
       break;
     }
 
@@ -700,63 +561,29 @@ export async function executeAgentTool(
     }
 
     case "create_suggestion": {
-      // Validate that runId is set in context
-      if (!context.runId) {
-        throw new Error("runId is required for create_suggestion tool");
+      if (!context.userId) {
+        throw new Error("User ID is required for create_suggestion");
       }
 
+      const newSuggestion = normalizeSuggestionArgs(args);
       const pool = getPool();
 
-      // Load current suggestions to get the next index
-      const runResult = await pool.query(
-        `SELECT "suggestions" FROM "triage_run"
-         WHERE "id" = $1 AND "user_id" = $2`,
-        [context.runId, context.userId],
-      );
-
-      if (runResult.rows.length === 0) {
-        throw new Error("Triage run not found");
-      }
-
-      const suggestions = (runResult.rows[0].suggestions || []) as TriageSuggestion[];
-      const newSuggestionIndex = suggestions.length;
-
-      // Normalize and validate the suggestion payload
-      const newSuggestion = normalizeSuggestionArgs(args);
-
-      // Append to suggestions array using JSONB concatenation
-      await pool.query(
-        `UPDATE "triage_run" 
-         SET "suggestions" = COALESCE("suggestions", '[]'::jsonb) || $1::jsonb
-         WHERE "id" = $2 AND "user_id" = $3`,
-        [JSON.stringify([newSuggestion]), context.runId, context.userId],
-      );
-
-      // Create a suggestion_conversation record (if needed for tracking)
-      // Don't pass context.conversationId — let it create a fresh conversation for the new suggestion
-      const conversationId = await ensureConversation(
-        context.userId,
-        context.runId,
-        newSuggestionIndex,
-      );
-
-      // Save initial revision with source "agent_tool"
+      // Insert directly into the suggestion table
       const insertResult = await pool.query(
-        `INSERT INTO "suggestion_revision" ("conversation_id", "revision_index", "suggestion_json", "source")
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO "suggestion" ("user_id", "suggestion_json", "status")
+         VALUES ($1, $2, 'pending')
          RETURNING "id", "created_at"`,
-        [conversationId, 0, JSON.stringify(newSuggestion), AGENT_SUGGESTION_SOURCE],
+        [context.userId, JSON.stringify(newSuggestion)],
       );
+
+      const created = insertResult.rows[0];
 
       result = {
-        runId: context.runId,
-        suggestionIndex: newSuggestionIndex,
+        id: created.id,
         suggestion: newSuggestion,
-        revisionIndex: 0,
-        source: AGENT_SUGGESTION_SOURCE,
-        createdAt: insertResult.rows[0].created_at as Date,
+        createdAt: created.created_at,
       };
-      summary = `created new suggestion (kind=${newSuggestion.kind}) at index ${newSuggestionIndex}`;
+      summary = `created new suggestion (kind=${newSuggestion.kind})`;
       break;
     }
 

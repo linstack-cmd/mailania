@@ -47,6 +47,7 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
       DROP TABLE IF EXISTS "suggestion_message" CASCADE;
       DROP TABLE IF EXISTS "suggestion_conversation" CASCADE;
       DROP TABLE IF EXISTS "suggestion_feedback" CASCADE;
+      DROP TABLE IF EXISTS "suggestion" CASCADE;
       DROP TABLE IF EXISTS "action_log" CASCADE;
       DROP TABLE IF EXISTS "approval_token" CASCADE;
       DROP TABLE IF EXISTS "triage_run" CASCADE;
@@ -95,6 +96,26 @@ export async function initDb(databaseUrl: string): Promise<pg.Pool> {
     ON "mailania_user" ("email") WHERE "email" IS NOT NULL
   `);
   console.log("[DB] User table ready");
+
+  // =====================================================================
+  // Suggestions — first-class suggestion objects owned by users
+  // =====================================================================
+  await _pool.query(`
+    CREATE TABLE IF NOT EXISTS "suggestion" (
+      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      "user_id" UUID NOT NULL REFERENCES "mailania_user"("id") ON DELETE CASCADE,
+      "suggestion_json" JSONB NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'pending'
+        CHECK ("status" IN ('pending', 'accepted', 'dismissed')),
+      "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+      "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await _pool.query(`
+    CREATE INDEX IF NOT EXISTS "suggestion_user_status_idx"
+      ON "suggestion" ("user_id", "status", "created_at" DESC)
+  `);
+  console.log("[DB] Suggestion table ready");
 
   // =====================================================================
   // Passkey credentials (WebAuthn)
