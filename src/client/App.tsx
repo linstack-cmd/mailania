@@ -275,12 +275,16 @@ export default function App() {
     }
   }
 
+  // Derived auth state — declared before any useEffect that references it to avoid TDZ in bundle
+  const authenticated = status?.authenticated ?? false;
+
   // Fetch mention suggestions keyed on suggestionsRefreshKey
   useEffect(() => {
     if (testMode) {
       setMentionSuggestions(TEST_SUGGESTIONS.map((s) => ({ id: s.id, title: s.suggestion.title, kind: s.suggestion.kind })));
       return;
     }
+    if (!authenticated) return;
     async function fetchMentionSuggestions() {
       try {
         const res = await fetch("/api/suggestions");
@@ -299,7 +303,7 @@ export default function App() {
       }
     }
     fetchMentionSuggestions();
-  }, [suggestionsRefreshKey, testMode]);
+  }, [suggestionsRefreshKey, testMode, authenticated]);
 
   async function refreshStatus() {
     if (testMode) return;
@@ -445,7 +449,6 @@ export default function App() {
     }, 0);
   }
 
-  const authenticated = status?.authenticated ?? false;
   const gmailConnected = status?.gmailConnected ?? false;
   const unreadCount = messages.filter((m) => m.isRead === false).length;
 
