@@ -231,6 +231,7 @@ export function createChatRouter(): Router {
           auth,
           localDev: config.localDevNoAuth,
           conversationId,
+          runId: latestTriage?.runId,
         },
         latestTriage,
       );

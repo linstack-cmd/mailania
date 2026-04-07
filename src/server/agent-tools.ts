@@ -10,6 +10,7 @@
  * 4) set_suggestion
  * 5) read_email
  * 6) search_emails
+ * 7) create_suggestion
  *
  * No mailbox mutation tools are exposed here.
  */
@@ -216,6 +217,70 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
         },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "create_suggestion",
+    description:
+      "Create a brand new suggestion and append it to the current triage run. This adds a new suggestion to the list of recommendations.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        kind: {
+          type: "string",
+          enum: ALLOWED_SUGGESTION_KINDS,
+          description: "Recommendation kind",
+        },
+        title: {
+          type: "string",
+          description: "Short title for the recommendation",
+        },
+        rationale: {
+          type: "string",
+          description: "Why this recommendation makes sense",
+        },
+        confidence: {
+          type: "string",
+          enum: ["low", "medium", "high"],
+          description: "Confidence level",
+        },
+        messageIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional related Gmail message IDs",
+        },
+        filterDraft: {
+          type: "object",
+          description: "Optional filter draft for recommendation-only filter suggestions",
+          properties: {
+            from: { type: "string" },
+            subjectContains: { type: "string" },
+            hasWords: { type: "string" },
+            label: { type: "string" },
+            archive: { type: "boolean" },
+          },
+          required: [],
+        },
+        questions: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional clarifying questions for the user",
+        },
+        actionPlan: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string" },
+              params: { type: "object" },
+              rationale: { type: "string" },
+            },
+            required: ["type", "params"],
+          },
+          description: "Optional multi-step recommendation plan. This is still recommendation-only.",
+        },
+      },
+      required: ["kind", "title", "rationale", "confidence"],
     },
   },
 ];
@@ -631,6 +696,67 @@ export async function executeAgentTool(
         result = searchResult;
         summary = `search_emails \"${query}\": ${searchResult.count} returned, ~${searchResult.resultSizeEstimate ?? "?"} estimated`;
       }
+      break;
+    }
+
+    case "create_suggestion": {
+      // Validate that runId is set in context
+      if (!context.runId) {
+        throw new Error("runId is required for create_suggestion tool");
+      }
+
+      const pool = getPool();
+
+      // Load current suggestions to get the next index
+      const runResult = await pool.query(
+        `SELECT "suggestions" FROM "triage_run"
+         WHERE "id" = $1 AND "user_id" = $2`,
+        [context.runId, context.userId],
+      );
+
+      if (runResult.rows.length === 0) {
+        throw new Error("Triage run not found");
+      }
+
+      const suggestions = (runResult.rows[0].suggestions || []) as TriageSuggestion[];
+      const newSuggestionIndex = suggestions.length;
+
+      // Normalize and validate the suggestion payload
+      const newSuggestion = normalizeSuggestionArgs(args);
+
+      // Append to suggestions array using JSONB concatenation
+      await pool.query(
+        `UPDATE "triage_run" 
+         SET "suggestions" = COALESCE("suggestions", '[]'::jsonb) || $1::jsonb
+         WHERE "id" = $2 AND "user_id" = $3`,
+        [JSON.stringify([newSuggestion]), context.runId, context.userId],
+      );
+
+      // Create a suggestion_conversation record (if needed for tracking)
+      // Don't pass context.conversationId — let it create a fresh conversation for the new suggestion
+      const conversationId = await ensureConversation(
+        context.userId,
+        context.runId,
+        newSuggestionIndex,
+      );
+
+      // Save initial revision with source "agent_tool"
+      const insertResult = await pool.query(
+        `INSERT INTO "suggestion_revision" ("conversation_id", "revision_index", "suggestion_json", "source")
+         VALUES ($1, $2, $3, $4)
+         RETURNING "id", "created_at"`,
+        [conversationId, 0, JSON.stringify(newSuggestion), AGENT_SUGGESTION_SOURCE],
+      );
+
+      result = {
+        runId: context.runId,
+        suggestionIndex: newSuggestionIndex,
+        suggestion: newSuggestion,
+        revisionIndex: 0,
+        source: AGENT_SUGGESTION_SOURCE,
+        createdAt: insertResult.rows[0].created_at as Date,
+      };
+      summary = `created new suggestion (kind=${newSuggestion.kind}) at index ${newSuggestionIndex}`;
       break;
     }
 

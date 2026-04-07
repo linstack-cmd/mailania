@@ -113,12 +113,14 @@ TOOL USAGE:
   4) set_suggestion
   5) read_email
   6) search_emails
+  7) create_suggestion - Create a brand new suggestion and append it to the current triage run
 - These tools are recommendation-only. They do NOT apply mailbox actions.
 - Use search_emails to answer impact questions ("how many?", "which messages?", "show me examples")
 - When reporting counts, cite resultSizeEstimate (approximate total) and include 2-3 sample messages when helpful
 - Use read_email when the user asks about a specific message
 - Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
 - Use get_suggestion / set_suggestion to inspect or revise Mailania's recommendation itself
+- Use create_suggestion when the user asks for a new recommendation to be added (not a modification to the current one)
 - Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
 }
 
@@ -145,12 +147,84 @@ TOOL USAGE:
   4) set_suggestion
   5) read_email
   6) search_emails
+  7) create_suggestion - Create a brand new suggestion and append it to the current triage run
 - These tools are recommendation-only. They do NOT apply mailbox actions.
 - Use search_emails for inbox-wide questions, finding messages, counting matches, or identifying examples
 - Use read_email when the user asks to inspect or summarize a specific message
 - Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
 - Use get_suggestion / set_suggestion only when discussing a specific triage suggestion
+- Use create_suggestion when the user asks for a new recommendation to be added to the current triage run
 - Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
+}
+
+/**
+ * Estimate tokens from a message array using a character-based heuristic.
+ * Standard estimate: ~1 token per 4 characters.
+ */
+function estimateTokens(messages: Anthropic.MessageParam[]): number {
+  let charCount = 0;
+  for (const msg of messages) {
+    if (typeof msg.content === "string") {
+      charCount += msg.content.length;
+    } else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (typeof block === "object" && "text" in block && typeof (block as any).text === "string") {
+          charCount += (block as any).text.length;
+        }
+      }
+    }
+  }
+  return Math.ceil(charCount / 4);
+}
+
+/**
+ * Compact messages to fit within a token budget.
+ * Drops messages from the front (oldest) until under budget.
+ * Ensures first message is user role, and adds synthetic trim marker if needed.
+ */
+function compactMessagesToBudget(
+  messages: Anthropic.MessageParam[],
+  budgetTokens: number,
+): Anthropic.MessageParam[] {
+  if (messages.length === 0) return messages;
+
+  const estimatedTokens = estimateTokens(messages);
+  if (estimatedTokens <= budgetTokens) {
+    return messages; // Fast path: no compaction needed
+  }
+
+  // Start from the last message (current user message) and work backwards
+  let compacted = [...messages];
+
+  // Drop from the front until we fit the budget
+  while (compacted.length > 1 && estimateTokens(compacted) > budgetTokens) {
+    compacted.shift();
+  }
+
+  // If there's at least one message left, ensure it's a user message
+  // (API requires messages to start with "user" role)
+  if (compacted.length > 0 && compacted[0].role === "assistant") {
+    compacted.shift();
+  }
+
+  // If we dropped messages, prepend a synthetic trim marker
+  if (compacted.length < messages.length) {
+    const trimmedCount = messages.length - compacted.length;
+    const trimmarker: Anthropic.MessageParam[] = [
+      {
+        role: "user" as const,
+        content: `[Earlier messages trimmed for context length (${trimmedCount} message${trimmedCount !== 1 ? "s" : ""} removed)]`,
+      },
+      {
+        role: "assistant" as const,
+        content:
+          "I understand. I'll continue our conversation with the context provided.",
+      },
+    ];
+    compacted = [...trimmarker, ...compacted];
+  }
+
+  return compacted;
 }
 
 async function runChatWithTools(
@@ -171,14 +245,18 @@ async function runChatWithTools(
   }
   messages.push({ role: "user", content: userMessage });
 
+  // Compact messages to fit within 100k token budget for history
+  const HISTORY_BUDGET_TOKENS = 100000;
+  const compacted = compactMessagesToBudget(messages, HISTORY_BUDGET_TOKENS);
+
   const MAX_TOOL_ROUNDS = 5;
   const toolTraces: ToolTrace[] = [];
 
   let response = await client.messages.create({
     model,
-    max_tokens: 1024,
+    max_tokens: 4096,
     system: systemPrompt,
-    messages,
+    messages: compacted,
     tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
   });
 
@@ -189,7 +267,7 @@ async function runChatWithTools(
     const toolUseBlocks = response.content.filter((block) => block.type === "tool_use");
     if (toolUseBlocks.length === 0) break;
 
-    messages.push({
+    compacted.push({
       role: "assistant",
       content: response.content.map((block) => {
         if (block.type === "tool_use") {
@@ -237,13 +315,13 @@ async function runChatWithTools(
       }
     }
 
-    messages.push({ role: "user", content: toolResults });
+    compacted.push({ role: "user", content: toolResults });
 
     response = await client.messages.create({
       model,
-      max_tokens: 1024,
+      max_tokens: 4096,
       system: systemPrompt,
-      messages,
+      messages: compacted,
       tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
     });
   }
@@ -257,9 +335,57 @@ async function runChatWithTools(
     assistantText: textBlock.text.trim(),
     toolTraces,
     suggestionUpdatedByTool: toolTraces.some(
-      (trace) => trace.toolName === "set_suggestion" && !trace.resultSummary.startsWith("error:"),
+      (trace) => (trace.toolName === "set_suggestion" || trace.toolName === "create_suggestion") && !trace.resultSummary.startsWith("error:"),
     ),
   };
+}
+
+/**
+ * Truncate chat transcript to fit within a character budget.
+ * Keeps first and last few exchanges, with a marker in between.
+ */
+function truncateTranscript(
+  chatHistory: ChatMessage[],
+  budgetChars: number,
+): ChatMessage[] {
+  if (chatHistory.length === 0) return [];
+
+  // Serialize to estimate size
+  const serialized = chatHistory
+    .map((m) => `[${m.role.toUpperCase()}]: ${m.content}`)
+    .join("\n");
+
+  if (serialized.length <= budgetChars) {
+    return chatHistory; // Fits as-is
+  }
+
+  // Keep first 2 and last 2 exchanges (pairs of user/assistant)
+  const keepFirst = 4; // 2 exchanges = 4 messages minimum
+  const keepLast = 4;
+
+  if (chatHistory.length <= keepFirst + keepLast) {
+    return chatHistory; // Not enough to truncate meaningfully
+  }
+
+  const firstExchanges = chatHistory.slice(0, keepFirst);
+  const lastExchanges = chatHistory.slice(-keepLast);
+
+  // Build truncated history with a marker
+  const truncated: ChatMessage[] = [
+    ...firstExchanges,
+    {
+      role: "user",
+      content:
+        "[Earlier conversation omitted for length]",
+    },
+    {
+      role: "assistant",
+      content: "Understood, continuing with the recent context.",
+    },
+    ...lastExchanges,
+  ];
+
+  return truncated;
 }
 
 /**
@@ -273,13 +399,17 @@ export async function generateRevision(
 ): Promise<TriageSuggestion> {
   const client = new Anthropic({ apiKey });
 
-  const userPrompt = `ORIGINAL SUGGESTION:\n${JSON.stringify(original, null, 2)}\n\nCHAT TRANSCRIPT:\n${chatHistory
+  // Truncate transcript to fit within 80k token budget (~320k characters @ 4 chars/token)
+  const TRANSCRIPT_BUDGET_CHARS = 320000;
+  const truncatedHistory = truncateTranscript(chatHistory, TRANSCRIPT_BUDGET_CHARS);
+
+  const userPrompt = `ORIGINAL SUGGESTION:\n${JSON.stringify(original, null, 2)}\n\nCHAT TRANSCRIPT:\n${truncatedHistory
     .map((m) => `[${m.role.toUpperCase()}]: ${m.content}`)
     .join("\n")}\n\nProduce the revised suggestion JSON.`;
 
   const response = await client.messages.create({
     model,
-    max_tokens: 1024,
+    max_tokens: 4096,
     system: REVISION_SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
   });
