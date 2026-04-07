@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { css } from "@flow-css/core/css";
+import { KIND_LABELS } from "./TriageSuggestions";
 
 function canSafelyAutoFocus(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -14,6 +15,12 @@ export interface ChatMessageData {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
+}
+
+interface MentionSuggestion {
+  id: string;
+  title: string;
+  kind: string;
 }
 
 export function ChatPanel({
@@ -31,6 +38,7 @@ export function ChatPanel({
   assistantName = "Mailania",
   starterPrompts,
   onMountChange,
+  mentionSuggestions = [],
 }: {
   title: string;
   subtitle?: string;
@@ -46,12 +54,117 @@ export function ChatPanel({
   assistantName?: string;
   starterPrompts?: string[];
   onMountChange?: (mounted: boolean) => void;
+  mentionSuggestions?: Array<{id: string, title: string, kind: string}>;
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
   const prevLoadingRef = useRef(loading);
+  
+  // Mention dropdown state
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionAnchorIndex, setMentionAnchorIndex] = useState(-1);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+
+  // Detect @-mentions and manage dropdown
+  const handleInputChange = (newInput: string) => {
+    onInputChange(newInput);
+    
+    // Check for @ at word boundary (start of string or preceded by whitespace)
+    const atIndex = newInput.lastIndexOf("@");
+    if (atIndex === -1 || (atIndex > 0 && !/\s/.test(newInput[atIndex - 1]))) {
+      setMentionActive(false);
+      return;
+    }
+    
+    // Extract query from @ to cursor
+    const query = newInput.slice(atIndex + 1);
+    
+    // Close dropdown if query contains space (user typed space after @word)
+    if (query.includes(" ")) {
+      setMentionActive(false);
+      return;
+    }
+    
+    // Close dropdown if we've backspaced past the @
+    if (mentionActive && atIndex < mentionAnchorIndex) {
+      setMentionActive(false);
+      return;
+    }
+    
+    setMentionActive(true);
+    setMentionAnchorIndex(atIndex);
+    setMentionQuery(query);
+    setHighlightedIndex(0);
+  };
+
+  // Filter suggestions by query
+  const filteredSuggestions = mentionSuggestions.filter((s) =>
+    s.title.toLowerCase().includes(mentionQuery.toLowerCase())
+  );
+
+  // Handle mention selection
+  const selectMention = (suggestion: MentionSuggestion | undefined) => {
+    if (!suggestion) return;
+    const before = input.slice(0, mentionAnchorIndex);
+    const mentionText = `@[${suggestion.title}](${suggestion.id})`;
+    const after = input.slice(mentionAnchorIndex + mentionQuery.length + 1);
+    const newInput = before + mentionText + " " + after;
+    onInputChange(newInput);
+    setMentionActive(false);
+  };
+
+  // Handle keyboard navigation in dropdown
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!mentionActive) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        onSend();
+      }
+      return;
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (filteredSuggestions.length === 0) return;
+      setHighlightedIndex((prev) => (prev - 1 + filteredSuggestions.length) % filteredSuggestions.length);
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (filteredSuggestions.length === 0) return;
+      setHighlightedIndex((prev) => (prev + 1) % filteredSuggestions.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (filteredSuggestions.length > 0) {
+        const clampedIndex = Math.min(highlightedIndex, filteredSuggestions.length - 1);
+        selectMention(filteredSuggestions[clampedIndex]);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setMentionActive(false);
+    }
+  };
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!mentionActive) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        chatInputRef.current &&
+        !chatInputRef.current.contains(event.target as Node)
+      ) {
+        setMentionActive(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [mentionActive]);
 
   useEffect(() => {
     const textarea = chatInputRef.current;
@@ -292,6 +405,7 @@ export function ChatPanel({
           minWidth: 0,
           alignItems: "flex-end",
           flexShrink: 0,
+          position: "relative",
           "@media (max-width: 640px)": {
             padding: t.spacing(2),
             gap: t.spacing(1.5),
@@ -302,50 +416,150 @@ export function ChatPanel({
           },
         }))}
       >
-        <textarea
-          ref={chatInputRef}
-          value={input}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              onSend();
-            }
-          }}
-          placeholder={placeholder}
-          rows={1}
-          disabled={loading}
-          onInput={(e) => {
-            const el = e.currentTarget;
-            el.style.height = "auto";
-            el.style.height = el.scrollHeight + "px";
-          }}
+        <div
           className={css((t) => ({
             flex: 1,
             minWidth: 0,
             maxWidth: "100%",
-            minHeight: "44px",
-            maxHeight: "180px",
-            padding: `${t.spacing(2)} ${t.spacing(3)}`,
-            border: `1px solid ${t.colors.border}`,
-            borderRadius: t.radiusSm,
-            fontSize: t.fontSize.sm,
-            resize: "none",
-            fontFamily: "inherit",
-            lineHeight: t.lineHeight.normal,
-            outline: "none",
-            transition: "border-color 0.15s",
-            overflowX: "hidden",
-            overflowY: "auto",
-            boxSizing: "border-box",
-            "&:focus": { borderColor: t.colors.primary },
-            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
-            "&:disabled": { opacity: 0.6 },
+            position: "relative",
           }))}
-        />
+        >
+          <textarea
+            ref={chatInputRef}
+            value={input}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            rows={1}
+            disabled={loading}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = "auto";
+              el.style.height = el.scrollHeight + "px";
+            }}
+            className={css((t) => ({
+              flex: 1,
+              minWidth: 0,
+              maxWidth: "100%",
+              minHeight: "44px",
+              maxHeight: "180px",
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              border: `1px solid ${t.colors.border}`,
+              borderRadius: t.radiusSm,
+              fontSize: t.fontSize.sm,
+              resize: "none",
+              fontFamily: "inherit",
+              lineHeight: t.lineHeight.normal,
+              outline: "none",
+              transition: "border-color 0.15s",
+              overflowX: "hidden",
+              overflowY: "auto",
+              boxSizing: "border-box",
+              width: "100%",
+              "&:focus": { borderColor: t.colors.primary },
+              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+              "&:disabled": { opacity: 0.6 },
+            }))}
+          />
+          
+          {/* Mention dropdown */}
+          {mentionActive && mentionSuggestions.length > 0 && (
+            <div
+              ref={dropdownRef}
+              className={css((t) => ({
+                position: "absolute",
+                bottom: "calc(100% + 8px)",
+                left: 0,
+                right: 0,
+                background: t.colors.bg,
+                border: `1px solid ${t.colors.border}`,
+                borderRadius: t.radiusSm,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                maxHeight: "200px",
+                overflowY: "auto",
+                zIndex: 1000,
+              }))}
+            >
+              {filteredSuggestions.length === 0 ? (
+                <div
+                  className={css((t) => ({
+                    padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+                    fontSize: t.fontSize.xs,
+                    color: t.colors.textMuted,
+                    textAlign: "center",
+                  }))}
+                >
+                  No matching suggestions
+                </div>
+              ) : (
+                filteredSuggestions.map((suggestion, idx) => (
+                  <div
+                    key={suggestion.id}
+                    onClick={() => selectMention(suggestion)}
+                    className={css((t) => ({
+                      padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+                      borderBottom: `1px solid ${t.colors.borderLight}`,
+                      cursor: "pointer",
+                      transition: "background 0.15s",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: t.spacing(2),
+                      fontSize: t.fontSize.sm,
+                      "&:last-child": { borderBottom: "none" },
+                      "&:hover": { background: t.colors.primaryLight },
+                    }))}
+                    style={idx === highlightedIndex ? { background: "#eef2ff" } : undefined}
+                  >
+                    <span className={css({ fontSize: "0.85rem", flexShrink: 0 })}>
+                      {KIND_LABELS[suggestion.kind as keyof typeof KIND_LABELS]?.icon ?? "📋"}
+                    </span>
+                    <div className={css({ flex: 1, minWidth: 0, overflow: "hidden" })}>
+                      <div className={css((t) => ({ fontWeight: t.fontWeight.medium, fontSize: t.fontSize.sm, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>
+                        {suggestion.title}
+                      </div>
+                      <div className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted }))}>
+                        {suggestion.kind}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          
+          {/* Empty state */}
+          {mentionActive && mentionSuggestions.length === 0 && (
+            <div
+              ref={dropdownRef}
+              className={css((t) => ({
+                position: "absolute",
+                bottom: "calc(100% + 8px)",
+                left: 0,
+                right: 0,
+                background: t.colors.bg,
+                border: `1px solid ${t.colors.border}`,
+                borderRadius: t.radiusSm,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                zIndex: 1000,
+              }))}
+            >
+              <div
+                className={css((t) => ({
+                  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+                  fontSize: t.fontSize.xs,
+                  color: t.colors.textMuted,
+                  textAlign: "center",
+                }))}
+              >
+                No pending suggestions
+              </div>
+            </div>
+          )}
+        </div>
+        
         <button
           onClick={onSend}
-          disabled={loading || !input.trim()}
+          disabled={loading || !input.trim() || mentionActive}
           className={css((t) => ({
             padding: `${t.spacing(2)} ${t.spacing(3.5)}`,
             border: "none",

@@ -157,6 +157,35 @@ export function createChatRouter(): Router {
   });
 
   // -----------------------------------------------------------------------
+  // DELETE /api/chat
+  // -----------------------------------------------------------------------
+  router.delete("/chat", async (req, res) => {
+    try {
+      const config = getConfig();
+      const userId = getRequestUserId(req, config);
+      if (!userId) {
+        res.status(401).json({ error: "Not authenticated" });
+        return;
+      }
+
+      const pool = getPool();
+      await pool.query(
+        `DELETE FROM "suggestion_message"
+         WHERE "conversation_id" IN (
+           SELECT "id" FROM "suggestion_conversation"
+           WHERE "user_id" = $1 AND "scope" = 'general'
+         )`,
+        [userId],
+      );
+
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Delete chat error:", err);
+      res.status(500).json({ error: "Failed to clear chat" });
+    }
+  });
+
+  // -----------------------------------------------------------------------
   // POST /api/chat/general
   // -----------------------------------------------------------------------
   router.post("/chat/general", async (req, res) => {

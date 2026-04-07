@@ -165,6 +165,7 @@ export default function App() {
   const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
   const [suggestionsRefreshKey, setSuggestionsRefreshKey] = useState(0);
+  const [mentionSuggestions, setMentionSuggestions] = useState<Array<{id: string, title: string, kind: string}>>([]);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
@@ -271,6 +272,32 @@ export default function App() {
       setGeneralChatInitLoading(false);
     }
   }
+
+  // Fetch mention suggestions keyed on suggestionsRefreshKey
+  useEffect(() => {
+    if (testMode) {
+      setMentionSuggestions(TEST_SUGGESTIONS.map((s) => ({ id: s.id, title: s.suggestion.title, kind: s.suggestion.kind })));
+      return;
+    }
+    async function fetchMentionSuggestions() {
+      try {
+        const res = await fetch("/api/suggestions");
+        if (!res.ok) return;
+        const data = await res.json();
+        const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+        setMentionSuggestions(
+          suggestions.map((s: any) => ({
+            id: s.id,
+            title: s.suggestion?.title || "",
+            kind: s.suggestion?.kind || "",
+          }))
+        );
+      } catch {
+        setMentionSuggestions([]);
+      }
+    }
+    fetchMentionSuggestions();
+  }, [suggestionsRefreshKey, testMode]);
 
   async function refreshStatus() {
     if (testMode) return;
@@ -861,6 +888,7 @@ export default function App() {
                 "Summarize the latest triage suggestions",
               ]}
               onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
+              mentionSuggestions={mentionSuggestions}
             />
           </section>
 
