@@ -185,6 +185,7 @@ export default function App() {
       messagesCount: messages.length,
       generalChatMessagesCount: generalChatMessages.length,
       appError: error ?? generalChatError ?? passkeyError ?? null,
+      localDev: status?.localDev,
     });
   }, [status, messages.length, generalChatMessages.length, error, generalChatError, passkeyError]);
 

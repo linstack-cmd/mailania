@@ -226,6 +226,7 @@ function MobileProposalCard({
         <button
           onClick={handleMention}
           title="Mention this suggestion in the chat"
+          aria-label="Mention this suggestion in the chat"
           className={css((t) => ({
             padding: `${t.spacing(3)} ${t.spacing(2)}`,
             border: `1px solid ${t.colors.borderLight}`,

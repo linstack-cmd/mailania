@@ -23,6 +23,7 @@ export interface MailaniaMobileDebugState {
   unhandledRejection?: string | null;
   errorBoundaryError?: string | null;
   lastUpdatedAt: string;
+  localDev?: boolean;
 }
 
 declare global {
@@ -97,6 +98,7 @@ export function getDefaultMobileDebugState(): MailaniaMobileDebugState {
     unhandledRejection: null,
     errorBoundaryError: null,
     lastUpdatedAt: nowIso(),
+    localDev: undefined,
   };
 }
 
@@ -255,6 +257,7 @@ export function MobileDebugOverlay() {
 
   return (
     <>
+      {state.localDev && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -277,7 +280,8 @@ export function MobileDebugOverlay() {
       >
         debug {state.authenticated ? "auth" : "anon"} · {state.routePath}
       </button>
-      {open && (
+      )}
+      {state.localDev && open && (
         <div
           className={css({
             position: "fixed",

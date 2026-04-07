@@ -523,7 +523,7 @@ export function ChatPanel({
                         {suggestion.title}
                       </div>
                       <div className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted }))}>
-                        {suggestion.kind}
+                        {KIND_LABELS[suggestion.kind as keyof typeof KIND_LABELS]?.label ?? suggestion.kind}
                       </div>
                     </div>
                   </div>
