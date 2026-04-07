@@ -15,6 +15,7 @@ import {
   searchMessages,
   archiveMessages,
   unarchiveMessages,
+  markMessagesRead,
   labelMessages,
   createGmailFilter,
   type FilterRule,
@@ -266,7 +267,7 @@ export function createToolsRouter(): Router {
       const userId = requireUserId(req, res);
       if (!userId) return;
 
-      const validScopes: ApprovalScope[] = ["archive_bulk", "create_filter", "label_messages", "unarchive"];
+      const validScopes: ApprovalScope[] = ["archive_bulk", "mark_read_bulk", "create_filter", "label_messages", "unarchive"];
       if (!scope || !validScopes.includes(scope)) {
         res.status(400).json({ error: `scope must be one of: ${validScopes.join(", ")}` });
         return;
@@ -343,6 +344,54 @@ export function createToolsRouter(): Router {
     }
   });
 
+  router.post("/mark_read_bulk", async (req, res) => {
+    const userId = requireUserId(req, res);
+    if (!userId) return;
+
+    try {
+      const { messageIds, approvalToken } = req.body ?? {};
+
+      if (!approvalToken) {
+        res.status(403).json({ error: "Approval token required for mutations", code: "TOKEN_MISSING" });
+        return;
+      }
+      if (!Array.isArray(messageIds) || messageIds.length === 0) {
+        res.status(400).json({ error: "messageIds must be a non-empty array" });
+        return;
+      }
+
+      const payload = { action: "mark_read", messageIds };
+      const validation = await validateAndConsumeToken(approvalToken, "mark_read_bulk", payload);
+
+      if (!validation.valid) {
+        await logAction({ userId, action: "mark_read_bulk", status: "denied", targetSummary: { messageIds }, tokenId: approvalToken, error: validation.message });
+        res.status(403).json({ error: validation.message, code: validation.code });
+        return;
+      }
+
+      await logAction({ userId, action: "mark_read_bulk", status: "approved", targetSummary: { messageIds }, tokenId: validation.token.id });
+
+      if (config.localDevNoAuth) {
+        await logAction({ userId, action: "mark_read_bulk", status: "success", targetSummary: { messageIds }, tokenId: validation.token.id });
+        res.json({ marked: messageIds, errors: [], mock: true });
+        return;
+      }
+
+      const auth = await loadGmailClient(req);
+      if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
+
+      const result = await markMessagesRead(auth, messageIds);
+      const status = result.errors.length === 0 ? "success" : "failure";
+      await logAction({ userId, action: "mark_read_bulk", status, targetSummary: result, tokenId: validation.token.id, error: result.errors.length > 0 ? JSON.stringify(result.errors) : undefined });
+
+      res.json(result);
+    } catch (err: any) {
+      await logAction({ userId: userId!, action: "mark_read_bulk", status: "failure", error: err.message }).catch(() => {});
+      console.error("[tools/mark_read_bulk]", err);
+      res.status(500).json({ error: "Failed to mark messages as read", detail: err.message });
+    }
+  });
+
   router.post("/create_filter", async (req, res) => {
     const userId = requireUserId(req, res);
     if (!userId) return;
@@ -371,7 +420,7 @@ export function createToolsRouter(): Router {
 
       if (config.localDevNoAuth) {
         await logAction({ userId, action: "create_filter", status: "success", targetSummary: rule, tokenId: validation.token.id });
-        res.json({ filterId: "mock-filter-id", mock: true });
+        res.json({ filterId: "mock-filter-id", backfillResult: null, mock: true });
         return;
       }
 
@@ -379,9 +428,52 @@ export function createToolsRouter(): Router {
       if (!auth) { res.status(401).json({ error: "No Gmail account connected" }); return; }
 
       const result = await createGmailFilter(auth, rule);
-      await logAction({ userId, action: "create_filter", status: "success", targetSummary: { ...rule, filterId: result.filterId }, tokenId: validation.token.id });
+      
+      // Backfill: search for existing messages matching the filter criteria and apply the same actions
+      let backfillResult: any = null;
+      try {
+        // Build a Gmail query from the filter criteria
+        const queryParts: string[] = [];
+        if (rule.from) queryParts.push(`from:(${rule.from})`);
+        if (rule.subject) queryParts.push(`subject:"${rule.subject}"`);
+        if (rule.hasTheWord) queryParts.push(rule.hasTheWord);
+        
+        if (queryParts.length > 0) {
+          const query = queryParts.join(" ");
+          const searchResult = await searchMessages(auth, query, 500); // Cap at 500 messages
+          
+          if (searchResult.messages.length > 0) {
+            const existingIds = searchResult.messages.map((m) => m.id);
+            const backfillActions: any = { archived: [], marked: [], errors: [] };
+            
+            if (rule.archive && existingIds.length > 0) {
+              const archiveRes = await archiveMessages(auth, existingIds);
+              backfillActions.archived = archiveRes.archived;
+              backfillActions.errors.push(...archiveRes.errors);
+            }
+            
+            if (rule.markRead && existingIds.length > 0) {
+              const markReadRes = await markMessagesRead(auth, existingIds);
+              backfillActions.marked = markReadRes.marked;
+              backfillActions.errors.push(...markReadRes.errors);
+            }
+            
+            backfillResult = {
+              matched: searchResult.messages.length,
+              resultSizeEstimate: searchResult.resultSizeEstimate,
+              ...backfillActions,
+            };
+          }
+        }
+      } catch (backfillErr: any) {
+        // Backfill is best-effort; don't fail the whole request
+        console.warn("[tools/create_filter] backfill failed:", backfillErr.message);
+        backfillResult = { error: backfillErr.message };
+      }
 
-      res.json(result);
+      await logAction({ userId, action: "create_filter", status: "success", targetSummary: { ...rule, filterId: result.filterId, backfillResult }, tokenId: validation.token.id });
+
+      res.json({ filterId: result.filterId, backfillResult });
     } catch (err: any) {
       await logAction({ userId: userId!, action: "create_filter", status: "failure", error: err.message }).catch(() => {});
       console.error("[tools/create_filter]", err);

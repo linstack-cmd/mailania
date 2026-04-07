@@ -30,10 +30,10 @@ import { MOCK_INBOX_MESSAGES } from "./mock-data.js";
 
 // ===== Type Definitions =====
 
-export type SuggestionKind = "archive_bulk" | "create_filter" | "needs_user_input";
+export type SuggestionKind = "archive_bulk" | "mark_read_bulk" | "create_filter" | "needs_user_input";
 
 export interface ActionPlanStep {
-  type: "archive_bulk" | "create_filter" | "needs_user_input" | "label_messages";
+  type: "archive_bulk" | "mark_read_bulk" | "create_filter" | "needs_user_input" | "label_messages";
   params: Record<string, unknown>;
   rationale?: string;
 }
@@ -58,6 +58,7 @@ export interface TriageSuggestion {
 const MAX_SEARCH_RESULTS = 25;
 const ALLOWED_SUGGESTION_KINDS: SuggestionKind[] = [
   "archive_bulk",
+  "mark_read_bulk",
   "create_filter",
   "needs_user_input",
 ];
@@ -330,6 +331,7 @@ function normalizeActionPlan(value: unknown): ActionPlanStep[] | undefined {
     }
     if (
       rawType !== "archive_bulk" &&
+      rawType !== "mark_read_bulk" &&
       rawType !== "create_filter" &&
       rawType !== "needs_user_input" &&
       rawType !== "label_messages"

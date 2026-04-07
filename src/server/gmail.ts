@@ -255,6 +255,35 @@ export async function unarchiveMessages(
 }
 
 /**
+ * Mark messages as read by removing the UNREAD label using batchModify.
+ * This is more efficient than per-message modify calls.
+ * Note: batchModify is all-or-nothing; if it throws, all messages failed.
+ */
+export async function markMessagesRead(
+  auth: OAuth2Client,
+  messageIds: string[],
+): Promise<{ marked: string[]; errors: Array<{ id: string; error: string }> }> {
+  const gmail = google.gmail({ version: "v1", auth });
+
+  try {
+    await gmail.users.messages.batchModify({
+      userId: "me",
+      requestBody: {
+        ids: messageIds,
+        removeLabelIds: ["UNREAD"],
+      },
+    });
+    // If no exception, all succeeded
+    return { marked: messageIds, errors: [] };
+  } catch (err: any) {
+    // batchModify threw, so all failed with the same error
+    const errorMsg = err.message ?? String(err);
+    const errors = messageIds.map((id) => ({ id, error: errorMsg }));
+    return { marked: [], errors };
+  }
+}
+
+/**
  * Apply a label to messages. Creates the label if it doesn't exist.
  */
 export async function labelMessages(

@@ -14,6 +14,7 @@ const TOKEN_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export type ApprovalScope =
   | "archive_bulk"
+  | "mark_read_bulk"
   | "create_filter"
   | "label_messages"
   | "unarchive";

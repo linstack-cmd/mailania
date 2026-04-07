@@ -88,7 +88,7 @@ function MobileProposalCard({
   const kindInfo = KIND_LABELS[suggestion.kind];
   const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
   const msgCount = suggestion.messageIds?.length ?? 0;
-  const canApply = suggestion.kind === "archive_bulk" || suggestion.kind === "create_filter";
+  const canApply = suggestion.kind === "archive_bulk" || suggestion.kind === "mark_read_bulk" || suggestion.kind === "create_filter";
   const [dismissing, setDismissing] = useState(false);
 
   const handleDismiss = async () => {

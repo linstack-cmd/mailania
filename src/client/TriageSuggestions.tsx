@@ -20,13 +20,13 @@ export interface FilterDraft {
 }
 
 export interface ActionPlanStep {
-  type: "archive_bulk" | "create_filter" | "needs_user_input" | "label_messages";
+  type: "archive_bulk" | "mark_read_bulk" | "create_filter" | "needs_user_input" | "label_messages";
   params: Record<string, unknown>;
   rationale?: string;
 }
 
 export interface TriageSuggestion {
-  kind: "archive_bulk" | "create_filter" | "needs_user_input";
+  kind: "archive_bulk" | "mark_read_bulk" | "create_filter" | "needs_user_input";
   title: string;
   rationale: string;
   confidence: "low" | "medium" | "high";
@@ -38,6 +38,7 @@ export interface TriageSuggestion {
 
 export const KIND_LABELS: Record<TriageSuggestion["kind"], { icon: string; label: string; desc: string }> = {
   archive_bulk: { icon: "📦", label: "Archive", desc: "Bulk archive safe-to-dismiss messages" },
+  mark_read_bulk: { icon: "✓", label: "Mark Read", desc: "Bulk mark messages as read" },
   create_filter: { icon: "🔀", label: "Filter", desc: "Create a Gmail filter for recurring patterns" },
   needs_user_input: { icon: "❓", label: "Needs Input", desc: "Requires your decision before proceeding" },
 };
@@ -672,6 +673,14 @@ export function ApprovalConfirmModal({
         bodyFn: (tokenId: string) => ({ messageIds: suggestion.messageIds, approvalToken: tokenId }),
       };
     }
+    if (suggestion.kind === "mark_read_bulk" && suggestion.messageIds) {
+      return {
+        scope: "mark_read_bulk" as const,
+        endpoint: "/api/tools/mark_read_bulk",
+        payload: { action: "mark_read", messageIds: suggestion.messageIds },
+        bodyFn: (tokenId: string) => ({ messageIds: suggestion.messageIds, approvalToken: tokenId }),
+      };
+    }
     if (suggestion.kind === "create_filter" && suggestion.filterDraft) {
       const rule = {
         from: suggestion.filterDraft.from || undefined,
@@ -807,6 +816,8 @@ export function ApprovalConfirmModal({
             This will modify your Gmail.
             {suggestion.kind === "archive_bulk"
               ? " Messages will be removed from your inbox. This action cannot be undone from Mailania."
+              : suggestion.kind === "mark_read_bulk"
+              ? " Messages will be marked as read."
               : " A filter will be created that applies to future emails."}
           </span>
         </div>
