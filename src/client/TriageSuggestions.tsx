@@ -609,6 +609,7 @@ function SuggestionCard({
           "-webkit-line-clamp": 2,
           "-webkit-box-orient": "vertical",
           overflow: "hidden",
+          overflowWrap: "anywhere",
         }))}
       >
         {s.rationale}

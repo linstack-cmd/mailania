@@ -1038,7 +1038,10 @@ export default function App() {
         {/* Right column: Proposal Sidebar (hidden on mobile — shown via bottom sheet instead) */}
         <div
           className={css({
-            flex: "0 0 auto",
+            width: "340px",
+            maxWidth: "340px",
+            flexShrink: 0,
+            "@media (max-width: 960px)": { width: "100%", maxWidth: "100%" },
             "@media (max-width: 640px)": { display: "none" },
           })}
         >
