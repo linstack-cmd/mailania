@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from "react";
+import { useState, useEffect, useRef, Component } from "react";
 import type { ReactNode } from "react";
 import { css } from "@flow-css/core/css";
 
@@ -166,6 +166,7 @@ export default function App() {
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
   const [suggestionsRefreshKey, setSuggestionsRefreshKey] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<Array<{id: string, title: string, kind: string}>>([]);
+  const chatPanelTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
@@ -424,6 +425,23 @@ export default function App() {
     } finally {
       setPasskeyLoading(false);
     }
+  }
+
+  // Handle mention suggestion from proposal cards
+  function handleMentionSuggestion({ id, title }: { id: string; title: string }) {
+    const mentionText = `@[${title}](${id})`;
+    const trimmedCurrent = generalChatInput.trimStart();
+    const newInput = trimmedCurrent ? `${trimmedCurrent} ${mentionText} ` : `${mentionText} `;
+    setGeneralChatInput(newInput);
+    // Focus the textarea
+    setTimeout(() => {
+      chatPanelTextareaRef.current?.focus();
+      // Position cursor at end
+      if (chatPanelTextareaRef.current) {
+        chatPanelTextareaRef.current.selectionStart = newInput.length;
+        chatPanelTextareaRef.current.selectionEnd = newInput.length;
+      }
+    }, 0);
   }
 
   const authenticated = status?.authenticated ?? false;
@@ -889,6 +907,7 @@ export default function App() {
               ]}
               onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
               mentionSuggestions={mentionSuggestions}
+              textareaRef={chatPanelTextareaRef}
             />
           </section>
 
@@ -1027,6 +1046,7 @@ export default function App() {
               setGeneralChatMessages([]);
             }}
             refreshKey={suggestionsRefreshKey}
+            onMentionSuggestion={handleMentionSuggestion}
           />
         </div>
       </div>
@@ -1041,6 +1061,7 @@ export default function App() {
         }}
         refreshKey={suggestionsRefreshKey}
         onMountChange={(mounted) => updateMobileDebug({ mobileProposalSheetMounted: mounted })}
+        onMentionSuggestion={handleMentionSuggestion}
       />
     </div>
       </Route>

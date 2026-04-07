@@ -39,6 +39,7 @@ export function ChatPanel({
   starterPrompts,
   onMountChange,
   mentionSuggestions = [],
+  textareaRef,
 }: {
   title: string;
   subtitle?: string;
@@ -55,6 +56,7 @@ export function ChatPanel({
   starterPrompts?: string[];
   onMountChange?: (mounted: boolean) => void;
   mentionSuggestions?: Array<{id: string, title: string, kind: string}>;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -62,6 +64,9 @@ export function ChatPanel({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
   const prevLoadingRef = useRef(loading);
+  
+  // Use provided textareaRef or default to internal ref
+  const activeTextareaRef = textareaRef || chatInputRef;
   
   // Mention dropdown state
   const [mentionActive, setMentionActive] = useState(false);
@@ -155,8 +160,8 @@ export function ChatPanel({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
-        chatInputRef.current &&
-        !chatInputRef.current.contains(event.target as Node)
+        activeTextareaRef.current &&
+        !activeTextareaRef.current.contains(event.target as Node)
       ) {
         setMentionActive(false);
       }
@@ -167,7 +172,7 @@ export function ChatPanel({
   }, [mentionActive]);
 
   useEffect(() => {
-    const textarea = chatInputRef.current;
+    const textarea = activeTextareaRef.current;
     if (!textarea) return;
 
     textarea.style.height = "auto";
@@ -199,7 +204,7 @@ export function ChatPanel({
     prevLoadingRef.current = loading;
 
     if (finishedLoading && canSafelyAutoFocus()) {
-      chatInputRef.current?.focus();
+      activeTextareaRef.current?.focus();
     }
   }, [loading]);
 
@@ -425,7 +430,7 @@ export function ChatPanel({
           }))}
         >
           <textarea
-            ref={chatInputRef}
+            ref={activeTextareaRef || chatInputRef}
             value={input}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}

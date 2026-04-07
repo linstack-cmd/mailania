@@ -63,6 +63,7 @@ interface ProposalCardProps {
   messageMap: Map<string, InboxMessage>;
   onAccept: () => void;
   onDismiss: () => Promise<void>;
+  onMentionSuggestion?: (s: { id: string; title: string }) => void;
 }
 
 function ProposalCard({
@@ -71,6 +72,7 @@ function ProposalCard({
   messageMap,
   onAccept,
   onDismiss,
+  onMentionSuggestion,
 }: ProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
   const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
@@ -85,6 +87,10 @@ function ProposalCard({
     } finally {
       setDismissing(false);
     }
+  };
+
+  const handleMention = () => {
+    onMentionSuggestion?.({ id, title: suggestion.title });
   };
 
   return (
@@ -155,7 +161,7 @@ function ProposalCard({
       )}
 
       {/* Action buttons */}
-      <div className={css((t) => ({ display: "flex", gap: t.spacing(2), paddingTop: t.spacing(1), borderTop: `1px solid ${t.colors.borderLight}` }))}>
+      <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), paddingTop: t.spacing(1), borderTop: `1px solid ${t.colors.borderLight}` }))}>
         {canApply ? (
           <button
             onClick={onAccept}
@@ -196,6 +202,24 @@ function ProposalCard({
           </button>
         )}
         <button
+          onClick={handleMention}
+          title="Mention this suggestion in the chat"
+          className={css((t) => ({
+            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
+            border: `1px solid ${t.colors.borderLight}`,
+            borderRadius: t.radiusSm,
+            background: "transparent",
+            color: t.colors.textMuted,
+            fontSize: t.fontSize.xs,
+            cursor: "pointer",
+            transition: "background 0.15s, color 0.15s",
+            "&:hover": { background: "#f0f3ff", color: "#4f46e5", borderColor: "#4f46e5" },
+            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+          }))}
+        >
+          @ Mention
+        </button>
+        <button
           onClick={handleDismiss}
           disabled={dismissing}
           title="Dismiss this suggestion"
@@ -228,6 +252,7 @@ export interface ProposalSidebarProps {
   onAuthLost: () => void;
   /** Trigger refetch when this changes */
   refreshKey: number;
+  onMentionSuggestion?: (s: { id: string; title: string }) => void;
 }
 
 interface SuggestionWithId {
@@ -240,6 +265,7 @@ export default function ProposalSidebar({
   messages,
   onAuthLost,
   refreshKey,
+  onMentionSuggestion,
 }: ProposalSidebarProps) {
   const [suggestionsWithIds, setSuggestionsWithIds] = useState<SuggestionWithId[]>([]);
   const [loading, setLoading] = useState(true);
@@ -474,6 +500,7 @@ export default function ProposalSidebar({
                   messageMap={messageMap}
                   onAccept={() => setAcceptingId(item.id)}
                   onDismiss={() => dismissSuggestion(item.id)}
+                  onMentionSuggestion={onMentionSuggestion}
                 />
               ))}
             </div>

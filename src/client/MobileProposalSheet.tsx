@@ -72,6 +72,8 @@ interface MobileProposalCardProps {
   messageMap: Map<string, InboxMessage>;
   onAccept: () => void;
   onDismiss: () => Promise<void>;
+  onMentionSuggestion?: (s: { id: string; title: string }) => void;
+  onClose?: () => void;
 }
 
 function MobileProposalCard({
@@ -80,6 +82,8 @@ function MobileProposalCard({
   messageMap,
   onAccept,
   onDismiss,
+  onMentionSuggestion,
+  onClose,
 }: MobileProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
   const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
@@ -94,6 +98,11 @@ function MobileProposalCard({
     } finally {
       setDismissing(false);
     }
+  };
+
+  const handleMention = () => {
+    onMentionSuggestion?.({ id, title: suggestion.title });
+    onClose?.();
   };
 
   return (
@@ -215,6 +224,25 @@ function MobileProposalCard({
           </button>
         )}
         <button
+          onClick={handleMention}
+          title="Mention this suggestion in the chat"
+          className={css((t) => ({
+            padding: `${t.spacing(3)} ${t.spacing(2)}`,
+            border: `1px solid ${t.colors.borderLight}`,
+            borderRadius: t.radiusSm,
+            background: "transparent",
+            color: t.colors.textMuted,
+            fontSize: t.fontSize.sm,
+            cursor: "pointer",
+            minHeight: "44px",
+            transition: "background 0.15s, color 0.15s",
+            "&:hover": { background: "#f0f3ff", color: "#4f46e5", borderColor: "#4f46e5" },
+            "&:active": { background: "#e8ecff", color: "#4f46e5" },
+          }))}
+        >
+          @
+        </button>
+        <button
           onClick={handleDismiss}
           disabled={dismissing}
           title="Dismiss this suggestion"
@@ -249,6 +277,7 @@ export interface MobileProposalSheetProps {
   onAuthLost: () => void;
   refreshKey: number;
   onMountChange?: (mounted: boolean) => void;
+  onMentionSuggestion?: (s: { id: string; title: string }) => void;
 }
 
 export default function MobileProposalSheet({
@@ -256,6 +285,7 @@ export default function MobileProposalSheet({
   onAuthLost,
   refreshKey,
   onMountChange,
+  onMentionSuggestion,
 }: MobileProposalSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -655,6 +685,8 @@ export default function MobileProposalSheet({
                     messageMap={messageMap}
                     onAccept={() => setAcceptingId(item.id)}
                     onDismiss={() => dismissSuggestion(item.id)}
+                    onMentionSuggestion={onMentionSuggestion}
+                    onClose={closeSheet}
                   />
                 ))}
 
