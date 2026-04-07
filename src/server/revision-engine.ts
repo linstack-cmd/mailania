@@ -95,7 +95,14 @@ TOOL USAGE:
 - Use get_triage_preferences / set_triage_preferences only for durable inbox preferences the user wants remembered
 - Use get_suggestion / set_suggestion when inspecting or modifying a specific suggestion (pass the suggestion ID)
 - Use create_suggestion when the user asks for a new recommendation to be added
-- Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer`;
+- Do NOT use tools for every message — only when saved state or mailbox data would genuinely help the answer
+
+SUGGESTION KINDS:
+Use these suggestion types appropriately:
+- archive_bulk: specific message IDs you want removed from the inbox (one-time bulk action)
+- mark_read_bulk: specific message IDs to declutter without archiving (one-time bulk action)
+- create_filter: a pattern worth automating for both future AND existing matching emails (applies to historical matches too — set expectations accordingly)
+- needs_user_input: when you need clarification from the user before proposing an action`;
 }
 
 /**

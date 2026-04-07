@@ -17,6 +17,7 @@ export interface FilterDraft {
   hasWords?: string;
   label?: string;
   archive?: boolean;
+  markRead?: boolean;
 }
 
 export interface ActionPlanStep {
@@ -688,7 +689,7 @@ export function ApprovalConfirmModal({
         hasTheWord: suggestion.filterDraft.hasWords || undefined,
         label: suggestion.filterDraft.label || undefined,
         archive: suggestion.filterDraft.archive ?? false,
-        markRead: false,
+        markRead: suggestion.filterDraft.markRead ?? false,
       };
       // Remove undefined keys for consistent hashing
       const cleanRule = JSON.parse(JSON.stringify(rule));
@@ -857,6 +858,7 @@ export function ApprovalConfirmModal({
             {suggestion.filterDraft.from && <div>from: {suggestion.filterDraft.from}</div>}
             {suggestion.filterDraft.label && <div>label: {suggestion.filterDraft.label}</div>}
             {suggestion.filterDraft.archive && <div>archive: yes</div>}
+            {suggestion.filterDraft.markRead && <div>markRead: yes</div>}
           </div>
         )}
 

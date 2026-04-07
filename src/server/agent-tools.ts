@@ -50,6 +50,7 @@ export interface TriageSuggestion {
     hasWords?: string;
     label?: string;
     archive?: boolean;
+    markRead?: boolean;
   };
   questions?: string[];
   actionPlan?: ActionPlanStep[];
@@ -167,6 +168,7 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
             hasWords: { type: "string" },
             label: { type: "string" },
             archive: { type: "boolean" },
+            markRead: { type: "boolean" },
           },
           required: [],
         },
@@ -265,6 +267,7 @@ export const MAILANIA_AGENT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
             hasWords: { type: "string" },
             label: { type: "string" },
             archive: { type: "boolean" },
+            markRead: { type: "boolean" },
           },
           required: [],
         },
@@ -380,6 +383,7 @@ function normalizeSuggestionArgs(args: Record<string, unknown>): TriageSuggestio
       hasWords: typeof draft.hasWords === "string" ? draft.hasWords.trim() || undefined : undefined,
       label: typeof draft.label === "string" ? draft.label.trim() || undefined : undefined,
       archive: typeof draft.archive === "boolean" ? draft.archive : undefined,
+      markRead: typeof draft.markRead === "boolean" ? draft.markRead : undefined,
     };
   }
 
