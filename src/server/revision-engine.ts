@@ -18,6 +18,22 @@ import {
   type ToolTrace,
 } from "./agent-tools.js";
 
+/**
+ * Cached version of tool definitions for prompt caching.
+ * Adds cache_control ephemeral marker to the last tool.
+ */
+const CACHED_TOOL_DEFINITIONS: Anthropic.Tool[] = (() => {
+  const tools = [...MAILANIA_AGENT_TOOL_DEFINITIONS];
+  if (tools.length > 0) {
+    const lastTool = tools[tools.length - 1];
+    tools[tools.length - 1] = {
+      ...lastTool,
+      cache_control: { type: "ephemeral" },
+    };
+  }
+  return tools;
+})();
+
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -255,9 +271,16 @@ async function runChatWithTools(
   let response = await client.messages.create({
     model,
     max_tokens: 4096,
-    system: systemPrompt,
+    system: [
+      {
+        type: "text",
+        text: systemPrompt,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: compacted,
-    tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+    tools: CACHED_TOOL_DEFINITIONS,
+    cache_control: { type: "ephemeral" },
   });
 
   let rounds = 0;
@@ -320,9 +343,16 @@ async function runChatWithTools(
     response = await client.messages.create({
       model,
       max_tokens: 4096,
-      system: systemPrompt,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
       messages: compacted,
-      tools: MAILANIA_AGENT_TOOL_DEFINITIONS,
+      tools: CACHED_TOOL_DEFINITIONS,
+      cache_control: { type: "ephemeral" },
     });
   }
 
@@ -410,7 +440,13 @@ export async function generateRevision(
   const response = await client.messages.create({
     model,
     max_tokens: 4096,
-    system: REVISION_SYSTEM_PROMPT,
+    system: [
+      {
+        type: "text",
+        text: REVISION_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
     messages: [{ role: "user", content: userPrompt }],
   });
 
