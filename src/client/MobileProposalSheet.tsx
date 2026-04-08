@@ -243,7 +243,7 @@ function MobileProposalCard({
               "&:active": { background: t.colors.primaryHover },
             }))}
           >
-            ⚡ Accept / Apply
+            <span aria-hidden="true">⚡</span> Accept / Apply
           </button>
         ) : (
           <button
@@ -310,7 +310,7 @@ function MobileProposalCard({
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
           }))}
         >
-          {dismissing ? "…" : "✕"}
+          {dismissing ? "…" : <span aria-hidden="true">✕</span>}
         </button>
       </div>
     </div>
@@ -667,7 +667,7 @@ export default function MobileProposalSheet({
                 "&:active": { background: t.colors.bgAlt },
               }))}
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           </div>
 

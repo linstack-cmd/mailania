@@ -222,7 +222,7 @@ function ProposalCard({
               "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
           >
-            ⚡ Accept / Apply
+            <span aria-hidden="true">⚡</span> Accept / Apply
           </button>
         ) : (
           <button
@@ -284,7 +284,7 @@ function ProposalCard({
             "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
           }))}
         >
-          ✕ {dismissing ? "Dismissing…" : "Dismiss"}
+          <span aria-hidden="true">✕</span> {dismissing ? "Dismissing…" : "Dismiss"}
         </button>
       </div>
     </div>

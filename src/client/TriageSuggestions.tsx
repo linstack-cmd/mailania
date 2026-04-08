@@ -912,7 +912,7 @@ export function ApprovalConfirmModal({
                 "&:hover": { background: "#b91c1c" },
               }))}
             >
-              {status === "error" ? "Retry" : "⚡ Confirm & Execute"}
+              {status === "error" ? "Retry" : <><span aria-hidden="true">⚡</span> Confirm & Execute</>}
             </button>
           )}
           {status === "executing" && (

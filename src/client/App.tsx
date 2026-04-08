@@ -911,7 +911,10 @@ export default function App() {
           <section className={css((t) => ({ display: "flex", flexDirection: "column", flex: "1", minHeight: 0 }))}>
             <div className={css((t) => ({ marginBottom: t.spacing(3), display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: t.spacing(3) }))}>
               <div>
-                <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0" }))}>🗣️ Inbox Chat</h2>
+                <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0", display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}} aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  Inbox Chat
+                </h2>
                 <p className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: t.lineHeight.normal }))}>
                   Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
                 </p>
