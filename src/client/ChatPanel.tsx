@@ -15,12 +15,247 @@ export interface ChatMessageData {
   role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
+  streaming?: boolean; // true if this message is still receiving tokens
+  toolStatus?: string; // Tool execution status (e.g., "⚙️ Executing: search_emails...")
 }
 
 interface MentionSuggestion {
   id: string;
   title: string;
   kind: string;
+}
+
+/**
+ * Lightweight markdown renderer for chat messages.
+ * Handles: bold (**), italic (*), inline code (`), code blocks (```),
+ * bullet lists, numbered lists, and links.
+ */
+function MarkdownRenderer({ text }: { text: string }) {
+  // Split by code blocks first
+  const parts: React.ReactNode[] = [];
+  const codeBlockRegex = /```([^\n]*)\n([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let codeBlockCount = 0;
+
+  text.replace(codeBlockRegex, (match, lang, content, offset) => {
+    // Add text before code block
+    if (offset > lastIndex) {
+      parts.push(parseInlineMarkdown(text.slice(lastIndex, offset)));
+    }
+    // Add code block
+    parts.push(
+      <pre
+        key={`code-${codeBlockCount}`}
+        className={css((t) => ({
+          background: "#1e1e1e",
+          color: "#e0e0e0",
+          padding: t.spacing(3),
+          borderRadius: t.radiusSm,
+          overflow: "auto",
+          fontSize: "0.85em",
+          lineHeight: t.lineHeight.normal,
+          margin: `${t.spacing(1.5)} 0`,
+        }))}
+      >
+        <code>{content.trim()}</code>
+      </pre>
+    );
+    lastIndex = offset + match.length;
+    codeBlockCount++;
+    return match;
+  });
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(parseInlineMarkdown(text.slice(lastIndex)));
+  }
+
+  return <>{parts}</>;
+}
+
+/**
+ * Parse inline markdown: bold, italic, code, lists, links.
+ */
+function parseInlineMarkdown(text: string): React.ReactNode {
+  if (!text) return null;
+
+  const nodes: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  // Split into lines to handle lists
+  const lines = remaining.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Numbered list
+    if (/^\d+\.\s/.test(line)) {
+      const listItems: string[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        listItems.push(lines[i].replace(/^\d+\.\s/, ""));
+        i++;
+      }
+      nodes.push(
+        <ol
+          key={`ol-${key++}`}
+          className={css((t) => ({
+            marginLeft: t.spacing(4),
+            marginTop: t.spacing(1),
+            marginBottom: t.spacing(1),
+          }))}
+        >
+          {listItems.map((item, idx) => (
+            <li key={idx} className={css((t) => ({ marginBottom: t.spacing(0.5) }))}>
+              {parseInlineFormats(item)}
+            </li>
+          ))}
+        </ol>
+      );
+    }
+    // Bullet list
+    else if (/^[-*]\s/.test(line)) {
+      const listItems: string[] = [];
+      while (i < lines.length && /^[-*]\s/.test(lines[i])) {
+        listItems.push(lines[i].replace(/^[-*]\s/, ""));
+        i++;
+      }
+      nodes.push(
+        <ul
+          key={`ul-${key++}`}
+          className={css((t) => ({
+            marginLeft: t.spacing(4),
+            marginTop: t.spacing(1),
+            marginBottom: t.spacing(1),
+          }))}
+        >
+          {listItems.map((item, idx) => (
+            <li key={idx} className={css((t) => ({ marginBottom: t.spacing(0.5) }))}>
+              {parseInlineFormats(item)}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    // Regular paragraph
+    else {
+      if (line.trim()) {
+        nodes.push(
+          <p key={`p-${key++}`} className={css((t) => ({ margin: `${t.spacing(1)} 0` }))}>
+            {parseInlineFormats(line)}
+          </p>
+        );
+      }
+      i++;
+    }
+  }
+
+  return nodes.length === 0 ? null : nodes;
+}
+
+/**
+ * Parse inline formats: bold (**), italic (*), code (`), links.
+ */
+function parseInlineFormats(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let key = 0;
+
+  // Link pattern: [text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  // Bold pattern: **text**
+  const boldRegex = /\*\*([^\*]+)\*\*/g;
+  // Italic pattern: *text* (but not ** which is bold)
+  const italicRegex = /(?<!\*)\*([^\*]+)\*(?!\*)/g;
+  // Inline code: `text`
+  const codeRegex = /`([^`]+)`/g;
+
+  let remaining = text;
+  let lastIndex = 0;
+
+  // Create a combined regex that matches all patterns
+  const combinedRegex = /(\*\*[^\*]+\*\*|(?<!\*)\*[^\*]+\*(?!\*)|`[^`]+`|\[([^\]]+)\]\(([^)]+)\))/g;
+
+  let match;
+  while ((match = combinedRegex.exec(remaining)) !== null) {
+    // Add text before match
+    if (match.index > lastIndex) {
+      parts.push(remaining.slice(lastIndex, match.index));
+    }
+
+    const matched = match[0];
+
+    // Bold
+    if (matched.startsWith("**") && matched.endsWith("**")) {
+      const content = matched.slice(2, -2);
+      parts.push(
+        <strong key={`b-${key++}`} className={css({ fontWeight: "700" })}>
+          {content}
+        </strong>
+      );
+    }
+    // Italic (single asterisk)
+    else if (matched.startsWith("*") && matched.endsWith("*") && !matched.startsWith("**")) {
+      const content = matched.slice(1, -1);
+      parts.push(
+        <em key={`i-${key++}`} className={css({ fontStyle: "italic" })}>
+          {content}
+        </em>
+      );
+    }
+    // Inline code
+    else if (matched.startsWith("`") && matched.endsWith("`")) {
+      const content = matched.slice(1, -1);
+      parts.push(
+        <code
+          key={`ic-${key++}`}
+          className={css((t) => ({
+            background: t.colors.bgAlt,
+            padding: `0 ${t.spacing(0.75)}`,
+            borderRadius: t.radiusSm,
+            fontSize: "0.9em",
+            fontFamily: "monospace",
+          }))}
+        >
+          {content}
+        </code>
+      );
+    }
+    // Link
+    else if (matched.startsWith("[") && matched.includes("](")) {
+      const linkMatch = matched.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (linkMatch) {
+        const [, linkText, linkUrl] = linkMatch;
+        parts.push(
+          <a
+            key={`l-${key++}`}
+            href={linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={css((t) => ({
+              color: t.colors.primary,
+              textDecoration: "underline",
+              transition: "opacity 0.15s",
+              "&:hover": { opacity: 0.7 },
+            }))}
+          >
+            {linkText}
+          </a>
+        );
+      }
+    } else {
+      parts.push(matched);
+    }
+
+    lastIndex = combinedRegex.lastIndex;
+  }
+
+  // Add remaining text
+  if (lastIndex < remaining.length) {
+    parts.push(remaining.slice(lastIndex));
+  }
+
+  return parts.length === 0 ? null : parts;
 }
 
 export function ChatPanel({
@@ -56,7 +291,7 @@ export function ChatPanel({
   starterPrompts?: string[];
   onMountChange?: (mounted: boolean) => void;
   mentionSuggestions?: Array<{id: string, title: string, kind: string}>;
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -223,6 +458,7 @@ export function ChatPanel({
         minHeight: "200px",
         boxSizing: "border-box",
         "@media (max-width: 640px)": {
+          flex: "1",
           minHeight: "180px",
         },
       }))}
@@ -292,10 +528,10 @@ export function ChatPanel({
           WebkitOverflowScrolling: "touch",
           flex: "1 1 auto",
           "@media (max-width: 640px)": {
-            maxHeight: "min(50dvh, 380px)",
-            minHeight: "80px",
+            flex: "1",
+            minHeight: "200px",
+            maxHeight: "none",
             padding: t.spacing(2.5),
-            height: "auto",
           },
           "@media (max-width: 360px)": {
             paddingBottom: "65px",
@@ -659,9 +895,32 @@ function ChatBubble({ msg, assistantName }: { msg: ChatMessageData; assistantNam
   const isUser = msg.role === "user";
   return (
     <div className={isUser ? chatRowUserClass : chatRowAssistantClass}>
-      <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>{msg.content}</div>
+      {msg.toolStatus && (
+        <div
+          className={css((t) => ({
+            maxWidth: "85%",
+            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
+            borderRadius: "12px",
+            borderBottomLeftRadius: "4px",
+            fontSize: t.fontSize.xs,
+            color: t.colors.textMuted,
+            background: t.colors.bgAlt,
+            border: `1px solid ${t.colors.borderLight}`,
+            fontStyle: "italic",
+            "@media (max-width: 640px)": {
+              maxWidth: "92%",
+            },
+          }))}
+        >
+          {msg.toolStatus}
+        </div>
+      )}
+      <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>
+        {isUser ? msg.content : <MarkdownRenderer text={msg.content} />}
+      </div>
       <span className={chatMetaClass}>
         {isUser ? "You" : assistantName} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+        {msg.streaming && <span> · streaming…</span>}
       </span>
     </div>
   );

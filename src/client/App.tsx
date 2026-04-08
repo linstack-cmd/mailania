@@ -45,15 +45,6 @@ import {
   TEST_STATUS,
 } from "./testUIMode";
 
-interface InboxMessage {
-  id: string;
-  subject: string;
-  from: string;
-  date: string;
-  snippet: string;
-  isRead?: boolean;
-}
-
 interface GmailAccountInfo {
   id: string;
   email: string;
@@ -77,42 +68,6 @@ interface StatusData {
   activeGmailAccountId?: string;
 }
 
-
-
-function normalizeInboxMessages(payload: unknown): InboxMessage[] {
-  if (!Array.isArray(payload)) return [];
-  return payload.map((message, index) => {
-    const record = (message && typeof message === "object") ? message as Record<string, unknown> : {};
-    return {
-      id: typeof record.id === "string" && record.id.length > 0 ? record.id : `message-${index}`,
-      subject: typeof record.subject === "string" && record.subject.length > 0 ? record.subject : "(no subject)",
-      from: typeof record.from === "string" ? record.from : "",
-      date: typeof record.date === "string" ? record.date : "",
-      snippet: typeof record.snippet === "string" ? record.snippet : "",
-      isRead: typeof record.isRead === "boolean" ? record.isRead : undefined,
-    };
-  });
-}
-
-function formatFrom(raw: string): string {
-  const match = raw.match(/^"?([^"<]+)"?\s*</);
-  return match ? match[1].trim() : raw;
-}
-
-function formatDate(raw: string): string {
-  try {
-    const d = new Date(raw);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    if (isToday) {
-      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    }
-    return d.toLocaleDateString([], { month: "short", day: "numeric" });
-  } catch {
-    return raw;
-  }
-}
-
 // --- Skeleton shimmer ---
 const skeletonLineClass = css({
   borderRadius: "4px",
@@ -125,35 +80,11 @@ function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; hei
   return <div className={skeletonLineClass} style={{ width, height }} />;
 }
 
-function InboxSkeletonRow() {
-  return (
-    <div
-      className={css((t) => ({
-        padding: `${t.spacing(3)} ${t.spacing(4)}`,
-        borderBottom: `1px solid ${t.colors.borderLight}`,
-        display: "flex",
-        flexDirection: "column",
-        gap: t.spacing(2),
-        minHeight: "60px",
-      }))}
-    >
-      <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "center" })}>
-        <SkeletonLine width="35%" height="13px" />
-        <SkeletonLine width="50px" height="11px" />
-      </div>
-      <SkeletonLine width="70%" height="12px" />
-      <SkeletonLine width="90%" height="10px" />
-    </div>
-  );
-}
-
 export default function App() {
   const testMode = isTestUIMode();
   const [status, setStatus] = useState<StatusData | null>(testMode ? TEST_STATUS as StatusData : null);
-  const [messages, setMessages] = useState<InboxMessage[]>(testMode ? TEST_INBOX_MESSAGES : []);
   const [loading, setLoading] = useState(testMode ? false : true);
   const [error, setError] = useState<string | null>(null);
-  const [inboxCollapsed, setInboxCollapsed] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -166,7 +97,7 @@ export default function App() {
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
   const [suggestionsRefreshKey, setSuggestionsRefreshKey] = useState(0);
   const [mentionSuggestions, setMentionSuggestions] = useState<Array<{id: string, title: string, kind: string}>>([]);
-  const chatPanelTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatPanelTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
@@ -182,12 +113,11 @@ export default function App() {
       authenticated: status?.authenticated ?? null,
       gmailConnected: status?.gmailConnected ?? null,
       statusUserExists: status?.user ? true : false,
-      messagesCount: messages.length,
       generalChatMessagesCount: generalChatMessages.length,
       appError: error ?? generalChatError ?? passkeyError ?? null,
       localDev: status?.localDev,
     });
-  }, [status, messages.length, generalChatMessages.length, error, generalChatError, passkeyError]);
+  }, [status, generalChatMessages.length, error, generalChatError, passkeyError]);
 
   useEffect(() => {
     if (testMode) return; // Skip all API calls in test UI mode
@@ -208,7 +138,6 @@ export default function App() {
       .then((data: StatusData) => {
         setStatus(data);
         if (data.authenticated && (data.gmailConnected || data.localDev)) {
-          fetchInbox();
           fetchGeneralChat();
         } else {
           setLoading(false);
@@ -222,34 +151,6 @@ export default function App() {
         setLoading(false);
       });
   }, []);
-
-  async function fetchInbox() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/inbox");
-      const errData = res.ok ? null : await res.json().catch(() => ({}));
-      if (res.status === 401) {
-        const errorCode = typeof errData?.code === "string" ? errData.code : null;
-        if (errorCode === "GMAIL_RECONNECT_REQUIRED" || errorCode === "NO_GMAIL_ACCOUNT") {
-          setStatus((s) => (s ? { ...s, gmailConnected: false } : s));
-          throw new Error(errData?.error || "Please reconnect Gmail");
-        }
-        setStatus((s) => s ? { ...s, authenticated: false } : null);
-        setLoading(false);
-        return;
-      }
-      if (!res.ok) {
-        throw new Error(errData?.error || `Failed to load inbox (${res.status})`);
-      }
-      const data = await res.json();
-      setMessages(normalizeInboxMessages(data.messages));
-    } catch (err: any) {
-      setMessages([]);
-      setError(err?.message || "Failed to load inbox");
-    }
-    setLoading(false);
-  }
 
   async function fetchGeneralChat() {
     setGeneralChatInitLoading(true);
@@ -321,7 +222,6 @@ export default function App() {
       });
       setStatus(data);
       if (data.authenticated && (data.gmailConnected || data.localDev)) {
-        fetchInbox();
         fetchGeneralChat();
       }
     } catch (err: any) {
@@ -361,7 +261,8 @@ export default function App() {
       return;
     }
 
-    const tempId = `temp-${Date.now()}`;
+    const userMsgId = `user-${Date.now()}`;
+    const assistantMsgId = `assistant-${Date.now()}`;
 
     // Only clear input on user-initiated sends
     if (!explicitMessage) {
@@ -371,7 +272,8 @@ export default function App() {
     setGeneralChatError(null);
     setGeneralChatMessages((prev) => [
       ...prev,
-      { id: tempId, role: "user", content: msg, createdAt: new Date().toISOString() },
+      { id: userMsgId, role: "user", content: msg, createdAt: new Date().toISOString() },
+      { id: assistantMsgId, role: "assistant", content: "", createdAt: new Date().toISOString(), streaming: true },
     ]);
 
     try {
@@ -383,23 +285,121 @@ export default function App() {
 
       if (res.status === 401) {
         setStatus((s) => s ? { ...s, authenticated: false } : null);
+        setGeneralChatMessages((prev) => prev.filter((m) => m.id !== assistantMsgId && m.id !== userMsgId));
         return;
       }
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || errData.error || "Failed to send message");
+        throw new Error("Failed to send message");
       }
 
-      const data = await res.json();
-      setGeneralChatMessages(Array.isArray(data.messages) ? data.messages : []);
-      // If suggestions were created/modified, trigger a refetch
-      if (data.suggestionsChanged) {
+      // Parse SSE stream
+      if (!res.body) {
+        throw new Error("No response body");
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let byteBuffer = ""; // Buffer for incomplete lines (across chunks)
+      let suggestionsChanged = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        // Decode chunk and add to buffer
+        byteBuffer += decoder.decode(value, { stream: true });
+        
+        // Process complete events only (SSE events end with double newline)
+        const parts = byteBuffer.split("\n\n");
+        byteBuffer = parts[parts.length - 1]; // Keep incomplete event in buffer
+
+        // Parse each complete event
+        for (let partIdx = 0; partIdx < parts.length - 1; partIdx++) {
+          const eventText = parts[partIdx].trim();
+          if (!eventText) continue;
+
+          const lines = eventText.split("\n");
+          let eventType: string | null = null;
+          let dataLine: string | null = null;
+
+          // Parse event and data lines
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              eventType = line.slice(7).trim();
+            } else if (line.startsWith("data: ")) {
+              dataLine = line.slice(6).trim();
+            }
+          }
+
+          if (!eventType || !dataLine) {
+            console.warn("Incomplete SSE event:", { eventType, dataLine });
+            continue;
+          }
+
+          // Parse JSON with error handling
+          let data: any;
+          try {
+            data = JSON.parse(dataLine);
+          } catch (parseErr: any) {
+            console.error("Failed to parse SSE data:", parseErr, "raw data:", dataLine);
+            continue; // Skip this event on parse error
+          }
+
+          // Handle event based on type
+          if (eventType === "token" && data.text) {
+            // Append token to streaming message
+            setGeneralChatMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId
+                  ? { ...m, content: m.content + data.text }
+                  : m
+              )
+            );
+          } else if (eventType === "tool_start") {
+            // Clear content on tool start (client ignores pre-tool text)
+            // and clear tool status
+            setGeneralChatMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId
+                  ? { ...m, content: "", toolStatus: undefined }
+                  : m
+              )
+            );
+          } else if (eventType === "status") {
+            // Display tool status separately (not in content)
+            if (data.tool) {
+              setGeneralChatMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMsgId
+                    ? { ...m, toolStatus: `⚙️ Executing: ${data.tool}...` }
+                    : m
+                )
+              );
+            }
+          } else if (eventType === "done") {
+            // Finalize message with complete text and clear tool status
+            suggestionsChanged = data.suggestionsChanged || false;
+            setGeneralChatMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantMsgId
+                  ? { ...m, content: data.assistantText, streaming: false, toolStatus: undefined }
+                  : m
+              )
+            );
+          } else if (eventType === "error") {
+            throw new Error(data.message || "Stream error");
+          }
+        }
+      }
+
+      // If suggestions changed, refresh them
+      if (suggestionsChanged) {
         setSuggestionsRefreshKey((k) => k + 1);
       }
     } catch (err: any) {
       setGeneralChatError(err.message || "Failed to send message");
-      setGeneralChatMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setGeneralChatMessages((prev) => prev.filter((m) => m.id !== assistantMsgId && m.id !== userMsgId));
     } finally {
       setGeneralChatLoading(false);
     }
@@ -416,7 +416,6 @@ export default function App() {
     if (testMode) return;
     await fetch("/auth/logout");
     setStatus({ authenticated: false });
-    setMessages([]);
     setGeneralChatMessages([]);
   }
 
@@ -468,18 +467,12 @@ export default function App() {
   }
 
   const gmailConnected = status?.gmailConnected ?? false;
-  const unreadCount = messages.filter((m) => m.isRead === false).length;
 
   // --- Loading state ---
   if (status === null || (loading && authenticated)) {
     return (
-      <div className={css((t) => ({ maxWidth: "1400px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(4)}` }))}>
-        <div className={css((t) => ({ paddingBottom: t.spacing(4), marginBottom: t.spacing(4), borderBottom: `2px solid ${t.colors.border}` }))}>
-          <SkeletonLine width="180px" height="24px" />
-        </div>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <InboxSkeletonRow key={i} />
-        ))}
+      <div className={css((t) => ({ maxWidth: "1400px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(4)}`, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }))}>
+        <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm }))}>Loading…</p>
       </div>
     );
   }
@@ -763,28 +756,7 @@ export default function App() {
           )}
         </div>
         <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexWrap: "wrap", flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto", "@media (max-width: 640px)": { width: "100%" }, "@media (max-width: 480px)": { gap: t.spacing(0.75) } }))}>
-          <button
-            onClick={fetchInbox}
-            title="Refresh inbox"
-            className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radiusSm,
-              background: t.colors.bg,
-              cursor: "pointer",
-              fontSize: t.fontSize.xs,
-              minHeight: "44px",
-              minWidth: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.15s",
-              "&:hover": { background: t.colors.borderLight },
-              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
-            }))}
-          >
-            {isNarrowHeader ? "↻" : "↻ Refresh"}
-          </button>
+
           <a
             href="/settings"
             title="Account settings"
@@ -863,7 +835,7 @@ export default function App() {
         <div className={css((t) => ({ padding: t.spacing(4), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, marginBottom: t.spacing(4), display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3) }))}>
           <span>{error}</span>
           <button
-            onClick={fetchInbox}
+            onClick={fetchGeneralChat}
             className={css((t) => ({
               padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
               border: `1px solid ${t.colors.error}`,
@@ -898,10 +870,10 @@ export default function App() {
           },
         }))}
       >
-        {/* Left column: Chat + Inbox */}
+        {/* Left column: Chat (now full width on all devices, inbox removed per Fix 1) */}
         <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, width: "100%", maxWidth: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: t.spacing(5), borderRight: `1px solid ${t.colors.border}`, "@media (max-width: 960px)": { borderRight: "none" } }))}>
           {/* General Chat — primary surface */}
-          <section>
+          <section className={css((t) => ({ display: "flex", flexDirection: "column", flex: "1", minHeight: 0 }))}>
             <div className={css((t) => ({ marginBottom: t.spacing(3), display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: t.spacing(3) }))}>
               <div>
                 <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0" }))}>🗣️ Inbox Chat</h2>
@@ -962,125 +934,6 @@ export default function App() {
               textareaRef={chatPanelTextareaRef}
             />
           </section>
-
-          {/* Inbox panel — secondary, collapsible */}
-          <div>
-            <button
-              onClick={() => setInboxCollapsed((v) => !v)}
-              aria-expanded={!inboxCollapsed}
-              aria-controls="inbox-panel"
-              className={css((t) => ({
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                width: "100%",
-                padding: `${t.spacing(3)} ${t.spacing(4)}`,
-                border: `1px solid ${t.colors.border}`,
-                borderRadius: t.radius,
-                cursor: "pointer",
-                fontSize: t.fontSize.base,
-                fontWeight: t.fontWeight.bold,
-                color: t.colors.text,
-                transition: "background 0.15s, border-radius 0.15s, border-color 0.15s",
-                minWidth: 0,
-                gap: t.spacing(2),
-                "&:hover": { background: t.colors.borderLight },
-                "&:focus-visible": {
-                  outline: `2px solid ${t.colors.primary}`,
-                  outlineOffset: "-2px",
-                },
-              }))}
-              style={inboxCollapsed
-                ? { backgroundColor: "#fafaf8" }
-                : {
-                    backgroundColor: "#eef2ff",
-                    borderColor: "#4f46e5",
-                    borderBottomColor: "transparent",
-                    borderRadius: "0.5rem 0.5rem 0 0",
-                    color: "#4f46e5",
-                    fontWeight: "700",
-                  }}
-            >
-              <span>
-                📥 Inbox
-                {messages.length > 0 && (
-                  <span
-                    className={css((t) => ({
-                      marginLeft: t.spacing(2),
-                      background: t.colors.primary,
-                      color: "#fff",
-                      padding: `${t.spacing(0.5)} ${t.spacing(2)}`,
-                      borderRadius: "999px",
-                      fontSize: "0.75rem",
-                      verticalAlign: "middle",
-                      fontWeight: "600",
-                    }))}
-                    title={`${messages.length} messages${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
-                  >
-                    {messages.length}
-                  </span>
-                )}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.8rem",
-                  transition: "transform 0.2s",
-                  transform: inboxCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
-                  display: "inline-block",
-                }}
-                aria-hidden="true"
-              >
-                ▾
-              </span>
-            </button>
-
-            {!inboxCollapsed && (
-              <div
-                id="inbox-panel"
-                className={css((t) => ({
-                  border: `1px solid ${t.colors.border}`,
-                  borderTop: "none",
-                  borderRadius: `0 0 ${t.radius} ${t.radius}`,
-                  background: t.colors.bg,
-                  maxHeight: "400px",
-                  overflowY: "auto",
-                  overflowX: "hidden",
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "#d1d5db transparent",
-                  overscrollBehavior: "contain",
-                  "@media (max-width: 640px)": {
-                    maxHeight: "320px",
-                  },
-                }))}
-              >
-                {loading && (
-                  <div>
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <InboxSkeletonRow key={i} />
-                    ))}
-                  </div>
-                )}
-
-                {!loading && messages.length === 0 && !error && (
-                  <div className={css((t) => ({ textAlign: "center", padding: `${t.spacing(8)} ${t.spacing(4)}` }))}>
-                    <div className={css((t) => ({ fontSize: "2rem", marginBottom: t.spacing(2) }))}>🎉</div>
-                    <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base }))}>Inbox zero!</p>
-                    <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, marginTop: t.spacing(1) }))}>
-                      Check back later or ask the chat to create suggestions.
-                    </p>
-                  </div>
-                )}
-
-                {!loading && messages.length > 0 && (
-                  <div role="list" aria-label="Inbox messages">
-                    {messages.map((msg) => (
-                      <MessageRow key={msg.id} msg={msg} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right column: Proposal Sidebar (hidden on mobile — shown via bottom sheet instead) */}
@@ -1094,10 +947,9 @@ export default function App() {
           })}
         >
           <ProposalSidebar
-            messages={messages}
+            messages={[]}
             onAuthLost={() => {
               setStatus((s) => s ? { ...s, authenticated: false } : null);
-              setMessages([]);
               setGeneralChatMessages([]);
             }}
             refreshKey={suggestionsRefreshKey}
@@ -1109,10 +961,9 @@ export default function App() {
 
       {/* Mobile: fixed bottom-sheet proposals (visible only on mobile) */}
       <MobileProposalSheet
-        messages={messages}
+        messages={[]}
         onAuthLost={() => {
           setStatus((s) => s ? { ...s, authenticated: false } : null);
-          setMessages([]);
           setGeneralChatMessages([]);
         }}
         refreshKey={suggestionsRefreshKey}
@@ -1128,154 +979,4 @@ export default function App() {
   );
 }
 
-// --- Message row styles ---
-const msgRowClass = css((t) => ({
-  padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderBottom: `1px solid ${t.colors.borderLight}`,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "flex-start",
-  gap: t.spacing(2),
-  minHeight: "56px",
-  transition: "background 0.15s, border-left-color 0.15s",
-  borderLeft: "3px solid transparent",
-  overflow: "hidden",
-  maxWidth: "100%",
-  minWidth: 0,
-  boxSizing: "border-box",
-  "&:hover": {
-    background: t.colors.primaryLight,
-    borderLeftColor: t.colors.primary,
-  },
-  "&:last-child": { borderBottom: "none" },
-  "@media (max-width: 480px)": {
-    padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
-  },
-}));
 
-const unreadDotClass = css((t) => ({
-  width: "7px",
-  height: "7px",
-  borderRadius: "50%",
-  background: t.colors.primary,
-}));
-
-const msgFromUnreadClass = css((t) => ({
-  fontWeight: t.fontWeight.bold,
-  fontSize: t.fontSize.sm,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  minWidth: 0,
-}));
-
-const msgFromReadClass = css((t) => ({
-  fontWeight: t.fontWeight.medium,
-  fontSize: t.fontSize.sm,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  minWidth: 0,
-}));
-
-const msgSubjectUnreadClass = css((t) => ({
-  fontSize: t.fontSize.sm,
-  fontWeight: t.fontWeight.semibold,
-  marginTop: t.spacing(0.5),
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  "@media (max-width: 640px)": {
-    whiteSpace: "normal",
-    display: "-webkit-box",
-    "-webkit-line-clamp": 2,
-    "-webkit-box-orient": "vertical",
-    overflowWrap: "anywhere",
-  },
-}));
-
-const msgSubjectReadClass = css((t) => ({
-  fontSize: t.fontSize.sm,
-  fontWeight: t.fontWeight.normal,
-  marginTop: t.spacing(0.5),
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  "@media (max-width: 640px)": {
-    whiteSpace: "normal",
-    display: "-webkit-box",
-    "-webkit-line-clamp": 2,
-    "-webkit-box-orient": "vertical",
-    overflowWrap: "anywhere",
-  },
-}));
-
-const msgSnippetUnreadClass = css((t) => ({
-  color: t.colors.textMuted,
-  fontSize: t.fontSize.xs,
-  marginTop: t.spacing(0.5),
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  "@media (max-width: 640px)": {
-    whiteSpace: "normal",
-    display: "-webkit-box",
-    "-webkit-line-clamp": 2,
-    "-webkit-box-orient": "vertical",
-    overflowWrap: "anywhere",
-  },
-}));
-
-const msgSnippetReadClass = css((t) => ({
-  color: t.colors.textMuted,
-  fontSize: t.fontSize.xs,
-  marginTop: t.spacing(0.5),
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-  "@media (max-width: 640px)": {
-    whiteSpace: "normal",
-    display: "-webkit-box",
-    "-webkit-line-clamp": 2,
-    "-webkit-box-orient": "vertical",
-    overflowWrap: "anywhere",
-  },
-}));
-
-const msgDateClass = css((t) => ({
-  color: t.colors.textMuted,
-  fontSize: t.fontSize.xs,
-  flexShrink: 0,
-  whiteSpace: "nowrap",
-  "@media (max-width: 480px)": {
-    fontSize: t.fontSize.xs,
-  },
-}));
-
-function MessageRow({ msg }: { msg: InboxMessage }) {
-  const isUnread = msg.isRead === false;
-
-  return (
-    <div role="listitem" tabIndex={0} className={msgRowClass}>
-      <div className={css({ width: "7px", flexShrink: 0, paddingTop: "5px" })}>
-        {isUnread && <div className={unreadDotClass} />}
-      </div>
-      <div className={css({ flex: "1 1 0%", minWidth: 0 })}>
-        <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: t.spacing(2), minWidth: 0, "@media (max-width: 480px)": { alignItems: "flex-start", flexDirection: "column", gap: t.spacing(0.5) } }))}>
-          <span className={isUnread ? msgFromUnreadClass : msgFromReadClass}>
-            {formatFrom(msg.from)}
-          </span>
-          <span className={msgDateClass}>
-            {formatDate(msg.date)}
-          </span>
-        </div>
-        <div className={isUnread ? msgSubjectUnreadClass : msgSubjectReadClass}>
-          {msg.subject}
-        </div>
-        <div className={isUnread ? msgSnippetUnreadClass : msgSnippetReadClass}>
-          {msg.snippet}
-        </div>
-      </div>
-    </div>
-  );
-}

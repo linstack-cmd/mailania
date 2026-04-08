@@ -17,6 +17,18 @@ import {
 } from "./agent-tools.js";
 
 /**
+ * SSE event types for streaming responses.
+ */
+export type SSEEvent =
+  | { type: "token"; text: string }
+  | { type: "tool_start"; tool: string }
+  | { type: "status"; phase: string; tool?: string }
+  | { type: "done"; assistantText: string; suggestionsChanged: boolean; toolsUsed: Array<{ tool: string; summary: string; durationMs: number }> }
+  | { type: "error"; message: string };
+
+export type OnEventCallback = (event: SSEEvent) => void;
+
+/**
  * Cached version of tool definitions for prompt caching.
  * Adds cache_control ephemeral marker to the last tool.
  */
@@ -214,6 +226,8 @@ async function runChatWithTools(
   apiKey: string,
   model: string,
   toolContext: AgentToolContext,
+  onEvent?: OnEventCallback,
+  abortSignal?: AbortSignal,
 ): Promise<ChatResponseWithTools> {
   const client = new Anthropic({ apiKey });
   const messages: Anthropic.MessageParam[] = [];
@@ -231,23 +245,72 @@ async function runChatWithTools(
 
   const MAX_TOOL_ROUNDS = 5;
   const toolTraces: ToolTrace[] = [];
-
-  let response = await client.messages.create({
-    model,
-    max_tokens: 4096,
-    system: [
-      {
-        type: "text",
-        text: systemPrompt,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: compacted,
-    tools: CACHED_TOOL_DEFINITIONS,
-    cache_control: { type: "ephemeral" },
-  });
+  let accumulatedText = "";
 
   let rounds = 0;
+  let response: Anthropic.Message;
+
+  // Make the first API call with streaming
+  {
+    const stream = await client.messages.stream({
+      model,
+      max_tokens: 4096,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: compacted,
+      tools: CACHED_TOOL_DEFINITIONS,
+      cache_control: { type: "ephemeral" },
+    }, { signal: abortSignal });
+
+    let textBuffer = "";
+    let hasToolUse = false;
+    
+    // Consume stream: emit text tokens as they arrive, detect tool_use
+    for await (const evt of stream) {
+      if (evt.type === "content_block_start") {
+        const block = evt.content_block as any;
+        if (block.type === "tool_use") {
+          hasToolUse = true;
+        }
+      }
+      if (evt.type === "content_block_delta") {
+        const delta = evt.delta as any;
+        if (delta.type === "text_delta" && delta.text) {
+          textBuffer += delta.text;
+          // Emit token immediately (may be cleared by tool_start event if this is a tool round)
+          onEvent?.({ type: "token", text: delta.text });
+        }
+      }
+    }
+
+    response = await stream.finalMessage();
+
+    // If this first call is end_turn (no tools), we're done
+    if (response.stop_reason === "end_turn") {
+      accumulatedText = textBuffer;
+      return {
+        assistantText: accumulatedText.trim(),
+        toolTraces,
+        suggestionUpdatedByTool: false,
+      };
+    }
+
+    // Otherwise, it's a tool round. Emit tool_start for each tool — client will clear accumulated text.
+    if (hasToolUse) {
+      for (const block of response.content) {
+        if (block.type === "tool_use") {
+          onEvent?.({ type: "tool_start", tool: block.name });
+        }
+      }
+    }
+  }
+
+  // Tool loop: handle tool_use rounds
   while (response.stop_reason === "tool_use" && rounds < MAX_TOOL_ROUNDS) {
     rounds++;
 
@@ -281,6 +344,7 @@ async function runChatWithTools(
       try {
         const execResult = await executeAgentTool(toolContext, tb.name, tb.input);
         toolTraces.push(execResult.trace);
+        onEvent?.({ type: "status", phase: "tool_done", tool: tb.name });
         toolResults.push({
           type: "tool_result",
           tool_use_id: tb.id,
@@ -304,7 +368,8 @@ async function runChatWithTools(
 
     compacted.push({ role: "user", content: toolResults });
 
-    response = await client.messages.create({
+    // Stream the next response
+    const stream = await client.messages.stream({
       model,
       max_tokens: 4096,
       system: [
@@ -317,16 +382,34 @@ async function runChatWithTools(
       messages: compacted,
       tools: CACHED_TOOL_DEFINITIONS,
       cache_control: { type: "ephemeral" },
-    });
-  }
+    }, { signal: abortSignal });
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from LLM");
+    // Reset accumulated text for this round
+    accumulatedText = "";
+    let textBuffer = "";
+
+    // Consume stream and emit tokens as they arrive
+    for await (const evt of stream) {
+      if (evt.type === "content_block_delta") {
+        const delta = evt.delta as any;
+        if (delta.type === "text_delta" && delta.text) {
+          textBuffer += delta.text;
+          // Emit token immediately for real-time streaming
+          onEvent?.({ type: "token", text: delta.text });
+        }
+      }
+    }
+
+    response = await stream.finalMessage();
+    accumulatedText = textBuffer;
+
+    if (response.stop_reason === "end_turn") {
+      break;
+    }
   }
 
   return {
-    assistantText: textBlock.text.trim(),
+    assistantText: accumulatedText.trim(),
     toolTraces,
     suggestionUpdatedByTool: toolTraces.some(
       (trace) => (trace.toolName === "set_suggestion" || trace.toolName === "create_suggestion") && !trace.resultSummary.startsWith("error:"),
@@ -346,6 +429,8 @@ export async function generateGeneralChatResponse(
   model: string,
   toolContext: AgentToolContext,
   suggestionsContext: SuggestionsContext | null,
+  onEvent?: OnEventCallback,
+  abortSignal?: AbortSignal,
 ): Promise<ChatResponseWithTools> {
   return runChatWithTools(
     buildGeneralChatSystemPrompt(suggestionsContext),
@@ -354,6 +439,8 @@ export async function generateGeneralChatResponse(
     apiKey,
     model,
     toolContext,
+    onEvent,
+    abortSignal,
   );
 }
 

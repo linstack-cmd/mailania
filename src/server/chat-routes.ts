@@ -15,6 +15,7 @@ import {
   generateGeneralChatResponse,
   type ChatMessage,
   type SuggestionsContext,
+  type SSEEvent,
 } from "./revision-engine.js";
 
 function getRequestUserId(req: any, config: ReturnType<typeof getConfig>): string | null {
@@ -216,7 +217,7 @@ export function createChatRouter(): Router {
   });
 
   // -----------------------------------------------------------------------
-  // POST /api/chat/general
+  // POST /api/chat/general — SSE streaming endpoint
   // -----------------------------------------------------------------------
   router.post("/chat/general", async (req, res) => {
     try {
@@ -237,6 +238,12 @@ export function createChatRouter(): Router {
         res.status(503).json({ error: "LLM not configured" });
         return;
       }
+
+      // Set SSE headers
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
 
       const pool = getPool();
       const suggestionsContext = await loadSuggestionsContext(userId);
@@ -269,55 +276,84 @@ export function createChatRouter(): Router {
         [conversationId, message.trim()],
       );
 
-      const auth = config.localDevNoAuth ? null : await loadGmailClient(req);
-      const chatResult = await generateGeneralChatResponse(
-        chatHistory,
-        message.trim(),
-        config.anthropicApiKey,
-        config.anthropicModel,
-        {
-          userId,
-          auth,
-          localDev: config.localDevNoAuth,
-        },
-        suggestionsContext,
-      );
+      // Create AbortController for streaming
+      const abortController = new AbortController();
 
-      await pool.query(
-        `INSERT INTO "suggestion_message" ("conversation_id", "role", "content")
-         VALUES ($1, 'assistant', $2)`,
-        [conversationId, chatResult.assistantText],
-      );
+      // Emit event utility
+      const emitEvent = (event: SSEEvent) => {
+        if (res.destroyed) return;
+        const data = JSON.stringify(event);
+        res.write(`event: ${event.type}\ndata: ${data}\n\n`);
+      };
 
-      await persistToolTraces(conversationId, chatResult.toolTraces);
+      // Handle client disconnect — abort ongoing LLM stream
+      const onDisconnect = () => {
+        console.log("Client disconnected during chat streaming — aborting LLM call");
+        abortController.abort();
+      };
+      
+      req.on("close", onDisconnect);
+      res.on("close", onDisconnect);
 
-      const messages = await loadConversationMessageRows(conversationId);
+      try {
+        const auth = config.localDevNoAuth ? null : await loadGmailClient(req);
+        const chatResult = await generateGeneralChatResponse(
+          chatHistory,
+          message.trim(),
+          config.anthropicApiKey,
+          config.anthropicModel,
+          {
+            userId,
+            auth,
+            localDev: config.localDevNoAuth,
+          },
+          suggestionsContext,
+          emitEvent,
+          abortController.signal,
+        );
 
-      res.json({
-        assistantMessage: chatResult.assistantText,
-        messages,
-        suggestionsContext,
-        suggestionsChanged: chatResult.suggestionUpdatedByTool,
-        toolsUsed: chatResult.toolTraces.map((trace) => ({
-          tool: trace.toolName,
-          summary: trace.resultSummary,
-          durationMs: trace.durationMs,
-        })),
-      });
+        // Persist message and traces
+        await pool.query(
+          `INSERT INTO "suggestion_message" ("conversation_id", "role", "content")
+           VALUES ($1, 'assistant', $2)`,
+          [conversationId, chatResult.assistantText],
+        );
+
+        await persistToolTraces(conversationId, chatResult.toolTraces);
+
+        // Emit final done event
+        emitEvent({
+          type: "done",
+          assistantText: chatResult.assistantText,
+          suggestionsChanged: chatResult.suggestionUpdatedByTool,
+          toolsUsed: chatResult.toolTraces.map((trace) => ({
+            tool: trace.toolName,
+            summary: trace.resultSummary,
+            durationMs: trace.durationMs,
+          })),
+        });
+
+        res.end();
+      } catch (err: any) {
+        if (!res.destroyed) {
+          emitEvent({
+            type: "error",
+            message: err?.message || "Failed to process message",
+          });
+          res.end();
+        }
+        console.error("Chat stream processing error:", err);
+      }
     } catch (err: any) {
-      console.error("General chat POST error:", err);
+      console.error("Chat POST error:", err);
 
-      if (err?.status) {
-        res.status(502).json({ error: "LLM request failed", detail: err.message });
-        return;
-      }
+      if (res.destroyed) return;
 
-      if (err instanceof SyntaxError) {
-        res.status(502).json({ error: "LLM returned invalid response" });
-        return;
-      }
-
-      res.status(500).json({ error: "Failed to process inbox chat message" });
+      // Send error response
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.write(`event: error\ndata: ${JSON.stringify({ message: err?.message || "Internal server error" })}\n\n`);
+      res.end();
     }
   });
 
