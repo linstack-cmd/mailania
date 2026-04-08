@@ -52,9 +52,32 @@ export interface SuggestionsContext {
     status: string;
     createdAt: Date;
   }>;
+  recentlyResolved?: Array<{
+    kind: string;
+    title: string;
+    status: "accepted" | "dismissed";
+    updatedAt: Date;
+  }>;
 }
 
 
+
+/**
+ * Format a date as relative time (e.g., "3 minutes ago", "2 hours ago").
+ */
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) return "just now";
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? "s" : ""} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+  return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+}
 
 function buildGeneralChatSystemPrompt(suggestionsContext: SuggestionsContext | null): string {
   const suggestionsBlock =
@@ -67,10 +90,18 @@ function buildGeneralChatSystemPrompt(suggestionsContext: SuggestionsContext | n
           .join("\n")
       : "No suggestions yet. Create them with the create_suggestion tool.";
 
+  const resolvedBlock =
+    suggestionsContext && suggestionsContext.recentlyResolved && suggestionsContext.recentlyResolved.length > 0
+      ? suggestionsContext.recentlyResolved
+          .map((s) => `- [${s.status}] ${s.kind}: "${s.title}" (${formatRelativeTime(s.updatedAt)})`)
+          .join("\n")
+      : null;
+
   return `You are Mailania's inbox assistant having a general conversation about the user's inbox. You help with broad inbox questions, email search, reading/summarizing specific emails, saved triage preferences, and discussion of pending suggestions.
 
 CURRENT SUGGESTIONS:
 ${suggestionsBlock}
+${resolvedBlock ? `\nRECENTLY RESOLVED SUGGESTIONS:\n${resolvedBlock}` : ""}
 
 RULES:
 - Be concise and helpful
@@ -78,7 +109,8 @@ RULES:
 - Never claim to archive, delete, send, label, or otherwise mutate the mailbox
 - If the user asks for a mailbox-changing action, explain that you can only recommend or revise suggestions here
 - Keep responses under 220 words unless the user asks for more detail
-- When referring to existing suggestions, use their IDs (from the context above) when calling get_suggestion or set_suggestion
+- When referring to existing suggestions, use their IDs (from the CURRENT SUGGESTIONS context) when calling get_suggestion or set_suggestion
+- You can reference recently resolved suggestions to acknowledge user decisions or follow up, but you cannot modify them
 
 TOOL USAGE:
 - You have access to exactly these Mailania tools and nothing else:

@@ -32,22 +32,52 @@ async function loadSuggestionsContext(userId: string): Promise<SuggestionsContex
     [userId],
   );
 
-  if (result.rows.length === 0) {
+  // Load recently resolved suggestions (accepted/dismissed from last 24 hours)
+  const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  const resolvedResult = await pool.query(
+    `SELECT "suggestion_json", "status", "updated_at"
+     FROM "suggestion"
+     WHERE "user_id" = $1 AND "status" IN ('accepted', 'dismissed') AND "updated_at" >= $2
+     ORDER BY "updated_at" DESC
+     LIMIT 10`,
+    [userId, oneDayAgo],
+  );
+
+  const suggestions = result.rows.length > 0
+    ? result.rows.map((row) => {
+        const suggestion = row.suggestion_json as TriageSuggestion;
+        return {
+          id: row.id,
+          kind: suggestion.kind,
+          title: suggestion.title,
+          confidence: suggestion.confidence,
+          status: row.status,
+          createdAt: row.created_at,
+        };
+      })
+    : [];
+
+  const recentlyResolved = resolvedResult.rows.length > 0
+    ? resolvedResult.rows.map((row) => {
+        const suggestion = row.suggestion_json as TriageSuggestion;
+        return {
+          kind: suggestion.kind,
+          title: suggestion.title,
+          status: row.status as "accepted" | "dismissed",
+          updatedAt: row.updated_at,
+        };
+      })
+    : [];
+
+  if (suggestions.length === 0 && recentlyResolved.length === 0) {
     return null;
   }
 
   return {
-    suggestions: result.rows.map((row) => {
-      const suggestion = row.suggestion_json as TriageSuggestion;
-      return {
-        id: row.id,
-        kind: suggestion.kind,
-        title: suggestion.title,
-        confidence: suggestion.confidence,
-        status: row.status,
-        createdAt: row.created_at,
-      };
-    }),
+    suggestions,
+    ...(recentlyResolved.length > 0 && { recentlyResolved }),
   };
 }
 
