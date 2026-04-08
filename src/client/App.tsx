@@ -300,7 +300,7 @@ export default function App() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let byteBuffer = ""; // Buffer for incomplete lines (across chunks)
+      let textBuffer = ""; // Buffer for incomplete lines (across chunks)
       let suggestionsChanged = false;
 
       while (true) {
@@ -308,89 +308,95 @@ export default function App() {
         if (done) break;
 
         // Decode chunk and add to buffer
-        byteBuffer += decoder.decode(value, { stream: true });
+        textBuffer += decoder.decode(value, { stream: true });
         
-        // Process complete events only (SSE events end with double newline)
-        const parts = byteBuffer.split("\n\n");
-        byteBuffer = parts[parts.length - 1]; // Keep incomplete event in buffer
+        // Process complete events only (SSE events are delimited by double newlines)
+        let eventStart = 0;
+        let inEvent = false;
+        let currentEvent: { type?: string; data?: string } = {};
 
-        // Parse each complete event
-        for (let partIdx = 0; partIdx < parts.length - 1; partIdx++) {
-          const eventText = parts[partIdx].trim();
-          if (!eventText) continue;
+        for (let i = 0; i < textBuffer.length; i++) {
+          const char = textBuffer[i];
+          const nextChar = i + 1 < textBuffer.length ? textBuffer[i + 1] : "";
 
-          const lines = eventText.split("\n");
-          let eventType: string | null = null;
-          let dataLine: string | null = null;
+          // Double newline marks end of event
+          if (char === "\n" && nextChar === "\n") {
+            const eventText = textBuffer.substring(eventStart, i);
+            eventStart = i + 2; // Skip both newlines
 
-          // Parse event and data lines
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              dataLine = line.slice(6).trim();
+            // Parse event
+            const lines = eventText.split("\n");
+            currentEvent = {};
+
+            for (const line of lines) {
+              if (line.startsWith("event: ")) {
+                currentEvent.type = line.slice(7).trim();
+              } else if (line.startsWith("data: ")) {
+                currentEvent.data = line.slice(6).trim();
+              }
             }
-          }
 
-          if (!eventType || !dataLine) {
-            console.warn("Incomplete SSE event:", { eventType, dataLine });
-            continue;
-          }
+            // Process complete event
+            if (currentEvent.type && currentEvent.data !== undefined) {
+              let data: any;
+              try {
+                data = JSON.parse(currentEvent.data);
+              } catch (parseErr: any) {
+                console.error("Failed to parse SSE data:", parseErr, "raw data:", currentEvent.data);
+                currentEvent = {};
+                continue;
+              }
 
-          // Parse JSON with error handling
-          let data: any;
-          try {
-            data = JSON.parse(dataLine);
-          } catch (parseErr: any) {
-            console.error("Failed to parse SSE data:", parseErr, "raw data:", dataLine);
-            continue; // Skip this event on parse error
-          }
-
-          // Handle event based on type
-          if (eventType === "token" && data.text) {
-            // Append token to streaming message
-            setGeneralChatMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantMsgId
-                  ? { ...m, content: m.content + data.text }
-                  : m
-              )
-            );
-          } else if (eventType === "tool_start") {
-            // Clear content on tool start (client ignores pre-tool text)
-            // and clear tool status
-            setGeneralChatMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantMsgId
-                  ? { ...m, content: "", toolStatus: undefined }
-                  : m
-              )
-            );
-          } else if (eventType === "status") {
-            // Display tool status separately (not in content)
-            if (data.tool) {
-              setGeneralChatMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMsgId
-                    ? { ...m, toolStatus: `⚙️ Executing: ${data.tool}...` }
-                    : m
-                )
-              );
+              // Handle event based on type
+              if (currentEvent.type === "token" && data.text) {
+                // Append token to streaming message
+                setGeneralChatMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsgId
+                      ? { ...m, content: m.content + data.text }
+                      : m
+                  )
+                );
+              } else if (currentEvent.type === "tool_start") {
+                // Clear content on tool start (client ignores pre-tool text)
+                setGeneralChatMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsgId
+                      ? { ...m, content: "" }
+                      : m
+                  )
+                );
+              } else if (currentEvent.type === "status") {
+                // Display tool status separately
+                if (data.tool) {
+                  setGeneralChatMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMsgId
+                        ? { ...m, toolStatus: `⚙️ ${data.tool}` }
+                        : m
+                    )
+                  );
+                }
+              } else if (currentEvent.type === "done") {
+                // Finalize message with complete text and clear tool status
+                suggestionsChanged = data.suggestionsChanged || false;
+                setGeneralChatMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantMsgId
+                      ? { ...m, content: data.assistantText, streaming: false, toolStatus: undefined }
+                      : m
+                  )
+                );
+              } else if (currentEvent.type === "error") {
+                throw new Error(data.message || "Stream error");
+              }
             }
-          } else if (eventType === "done") {
-            // Finalize message with complete text and clear tool status
-            suggestionsChanged = data.suggestionsChanged || false;
-            setGeneralChatMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantMsgId
-                  ? { ...m, content: data.assistantText, streaming: false, toolStatus: undefined }
-                  : m
-              )
-            );
-          } else if (eventType === "error") {
-            throw new Error(data.message || "Stream error");
+            currentEvent = {};
           }
         }
+
+        // Keep remaining incomplete data for next iteration
+        textBuffer = textBuffer.substring(eventStart);
       }
 
       // If suggestions changed, refresh them
@@ -489,6 +495,7 @@ export default function App() {
       fontWeight: "500",
       fontSize: t.fontSize.sm,
       cursor: "pointer",
+      minHeight: "44px",
       transition: "color 0.15s, border-color 0.15s",
       "&:hover": { color: t.colors.primary },
       "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
@@ -510,7 +517,11 @@ export default function App() {
         ) : (
           <div className={css((t) => ({ width: "min(100%, 420px)", display: "flex", flexDirection: "column", gap: t.spacing(3), padding: `${t.spacing(4)} ${t.spacing(4.5)}`, border: `1px solid ${t.colors.borderLight}`, borderRadius: t.radius, background: t.colors.bg, boxShadow: t.shadow, boxSizing: "border-box", "@media (max-width: 480px)": { padding: `${t.spacing(3.5)} ${t.spacing(3)}` } }))}>
             {/* Branding inside card */}
-            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", margin: "0 0 0.5rem", lineHeight: "1.2" }))}>📬 Mailania</h1>
+            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", margin: "0 0 0.5rem", lineHeight: "1.2" }))}>Mailania</h1>
+
+            <p style={{color: "#6b7280", fontSize: "15px", textAlign: "center", marginBottom: "24px", lineHeight: 1.5, marginTop: 4}}>
+              AI-powered email management — triage your inbox, accept suggestions, and let your assistant handle the rest.
+            </p>
 
             {/* Tab switcher */}
             <div className={css((t) => ({ display: "flex", borderBottom: `1px solid ${t.colors.borderLight}` }))}>
@@ -556,7 +567,13 @@ export default function App() {
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
-                  🔑 {passkeyLoading ? "Authenticating..." : "Sign in with Passkey"}
+                  {passkeyLoading && <span className="spinner" />}
+                  {passkeyLoading ? "Authenticating..." : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: 0, verticalAlign: "middle"}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
+                      Sign in with Passkey
+                    </>
+                  )}
                 </button>
               </>
             ) : (
@@ -605,7 +622,13 @@ export default function App() {
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
-                  🔑 {passkeyLoading ? "Creating account..." : "Create Account with Passkey"}
+                  {passkeyLoading && <span className="spinner" />}
+                  {passkeyLoading ? "Creating account..." : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: 0, verticalAlign: "middle"}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
+                      Create Account with Passkey
+                    </>
+                  )}
                 </button>
               </>
             )}
@@ -626,7 +649,7 @@ export default function App() {
   if (!gmailConnected && !status?.localDev) {
     return (
       <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box" }))}>
-        <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: "700", textAlign: "center", lineHeight: "1.2" }))}>📬 Mailania</h1>
+        <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: "700", textAlign: "center", lineHeight: "1.2" }))}>Mailania</h1>
         <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
           Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
         </p>
@@ -654,7 +677,7 @@ export default function App() {
             "&:hover": { background: t.colors.primaryHover },
           }))}
         >
-          📧 Connect Gmail Account
+          Connect Gmail Account
         </a>
 
         <button
@@ -726,7 +749,7 @@ export default function App() {
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
           <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
             <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0 }))}>
-              📬 Mailania
+              Mailania
             </h1>
             {testMode && (
               <span className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "700", textTransform: "uppercase", padding: `${t.spacing(0.5)} ${t.spacing(1.5)}`, borderRadius: "999px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", letterSpacing: "0.05em" }))}>
@@ -835,7 +858,10 @@ export default function App() {
         <div className={css((t) => ({ padding: t.spacing(4), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, marginBottom: t.spacing(4), display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3) }))}>
           <span>{error}</span>
           <button
-            onClick={fetchGeneralChat}
+            onClick={async () => {
+              await refreshStatus();
+              setError(null);
+            }}
             className={css((t) => ({
               padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
               border: `1px solid ${t.colors.error}`,
@@ -947,7 +973,6 @@ export default function App() {
           })}
         >
           <ProposalSidebar
-            messages={[]}
             onAuthLost={() => {
               setStatus((s) => s ? { ...s, authenticated: false } : null);
               setGeneralChatMessages([]);
@@ -961,7 +986,6 @@ export default function App() {
 
       {/* Mobile: fixed bottom-sheet proposals (visible only on mobile) */}
       <MobileProposalSheet
-        messages={[]}
         onAuthLost={() => {
           setStatus((s) => s ? { ...s, authenticated: false } : null);
           setGeneralChatMessages([]);

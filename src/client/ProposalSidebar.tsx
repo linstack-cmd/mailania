@@ -289,7 +289,7 @@ function ProposalCard({
 // Main ProposalSidebar component
 // ---------------------------------------------------------------------------
 export interface ProposalSidebarProps {
-  messages: InboxMessage[];
+  messages?: InboxMessage[];
   onAuthLost: () => void;
   /** Trigger refetch when this changes */
   refreshKey: number;
@@ -304,7 +304,7 @@ interface SuggestionWithId {
 }
 
 export default function ProposalSidebar({
-  messages,
+  messages = [],
   onAuthLost,
   refreshKey,
   onMentionSuggestion,

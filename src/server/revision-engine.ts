@@ -245,7 +245,7 @@ async function runChatWithTools(
 
   const MAX_TOOL_ROUNDS = 5;
   const toolTraces: ToolTrace[] = [];
-  let accumulatedText = "";
+  let accumulatedText = ""; // Accumulates text from the final turn only (not tool round text)
 
   let rounds = 0;
   let response: Anthropic.Message;
@@ -268,21 +268,14 @@ async function runChatWithTools(
     }, { signal: abortSignal });
 
     let textBuffer = "";
-    let hasToolUse = false;
     
-    // Consume stream: emit text tokens as they arrive, detect tool_use
+    // Consume stream and emit tokens as they arrive (real-time streaming)
     for await (const evt of stream) {
-      if (evt.type === "content_block_start") {
-        const block = evt.content_block as any;
-        if (block.type === "tool_use") {
-          hasToolUse = true;
-        }
-      }
       if (evt.type === "content_block_delta") {
         const delta = evt.delta as any;
         if (delta.type === "text_delta" && delta.text) {
           textBuffer += delta.text;
-          // Emit token immediately (may be cleared by tool_start event if this is a tool round)
+          // Emit token immediately for real-time streaming (we'll clear on tool_start if needed)
           onEvent?.({ type: "token", text: delta.text });
         }
       }
@@ -290,7 +283,7 @@ async function runChatWithTools(
 
     response = await stream.finalMessage();
 
-    // If this first call is end_turn (no tools), we're done
+    // If this first call is end_turn (no tools), we're done streaming the final response
     if (response.stop_reason === "end_turn") {
       accumulatedText = textBuffer;
       return {
@@ -300,12 +293,11 @@ async function runChatWithTools(
       };
     }
 
-    // Otherwise, it's a tool round. Emit tool_start for each tool — client will clear accumulated text.
-    if (hasToolUse) {
-      for (const block of response.content) {
-        if (block.type === "tool_use") {
-          onEvent?.({ type: "tool_start", tool: block.name });
-        }
+    // Otherwise, it's a tool round. Emit tool_start for each tool to signal client to clear buffer.
+    // (The textBuffer we emitted were pre-tool text — client will clear them)
+    for (const block of response.content) {
+      if (block.type === "tool_use") {
+        onEvent?.({ type: "tool_start", tool: block.name });
       }
     }
   }
@@ -368,7 +360,7 @@ async function runChatWithTools(
 
     compacted.push({ role: "user", content: toolResults });
 
-    // Stream the next response
+    // Stream the next response (this will be the final turn after tools)
     const stream = await client.messages.stream({
       model,
       max_tokens: 4096,
@@ -384,11 +376,9 @@ async function runChatWithTools(
       cache_control: { type: "ephemeral" },
     }, { signal: abortSignal });
 
-    // Reset accumulated text for this round
-    accumulatedText = "";
     let textBuffer = "";
 
-    // Consume stream and emit tokens as they arrive
+    // Consume stream and emit tokens as they arrive (real-time streaming for final response)
     for await (const evt of stream) {
       if (evt.type === "content_block_delta") {
         const delta = evt.delta as any;
@@ -401,10 +391,18 @@ async function runChatWithTools(
     }
 
     response = await stream.finalMessage();
+    // Reset accumulatedText for this turn (since previous turns might have had pre-tool text)
     accumulatedText = textBuffer;
 
     if (response.stop_reason === "end_turn") {
       break;
+    }
+
+    // If this turn also has tool_use, emit tool_start again and loop
+    for (const block of response.content) {
+      if (block.type === "tool_use") {
+        onEvent?.({ type: "tool_start", tool: block.name });
+      }
     }
   }
 

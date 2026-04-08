@@ -315,7 +315,7 @@ function MobileProposalCard({
 // MobileProposalSheet
 // ---------------------------------------------------------------------------
 export interface MobileProposalSheetProps {
-  messages: InboxMessage[];
+  messages?: InboxMessage[];
   onAuthLost: () => void;
   refreshKey: number;
   onMountChange?: (mounted: boolean) => void;
@@ -324,7 +324,7 @@ export interface MobileProposalSheetProps {
 }
 
 export default function MobileProposalSheet({
-  messages,
+  messages = [],
   onAuthLost,
   refreshKey,
   onMountChange,
