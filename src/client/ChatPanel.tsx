@@ -799,7 +799,7 @@ export function ChatPanel({
         </div>
         
         <button
-          onClick={onSend}
+          onClick={() => onSend()}
           disabled={loading || !input.trim() || mentionActive}
           className={css((t) => ({
             padding: `${t.spacing(2)} ${t.spacing(3.5)}`,
