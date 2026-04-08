@@ -216,8 +216,9 @@ function MobileProposalCard({
 
       {/* Meta */}
       {msgCount > 0 && (
-        <span className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted }))}>
-          📧 {msgCount} message{msgCount !== 1 ? "s" : ""}
+        <span className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, display: "flex", alignItems: "center", gap: t.spacing(1) }))}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          {msgCount} message{msgCount !== 1 ? "s" : ""}
         </span>
       )}
 
@@ -258,10 +259,15 @@ function MobileProposalCard({
               fontSize: t.fontSize.sm,
               cursor: "not-allowed",
               minHeight: "44px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
             }))}
             title="Discuss in chat to refine this suggestion"
           >
-            💬 Needs Input
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Needs Input
           </button>
         )}
         <button
@@ -523,7 +529,9 @@ export default function MobileProposalSheet({
             },
           }))}
         >
-          {isNarrowTab ? "📋" : "📋 Proposals"}
+          {isNarrowTab ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+          ) : "Proposals"}
           {hasProposals && (
             <span
               className={css((t) => ({
@@ -620,8 +628,9 @@ export default function MobileProposalSheet({
             }))}
           >
             <div className={css({ display: "flex", alignItems: "center", gap: "8px", minWidth: 0, overflow: "hidden" })}>
-              <h2 className={css((thm) => ({ fontSize: thm.fontSize.base, fontWeight: "700", margin: 0, flexShrink: 0 }))}>
-                📋 Proposals
+              <h2 className={css((thm) => ({ fontSize: thm.fontSize.base, fontWeight: "700", margin: 0, flexShrink: 0, display: "flex", alignItems: "center", gap: "8px" }))}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+                Proposals
               </h2>
               {suggestionsWithIds.length > 0 && (
                 <span
@@ -743,9 +752,13 @@ export default function MobileProposalSheet({
                     fontSize: thm.fontSize.sm,
                     color: "#1e40af",
                     lineHeight: "1.5",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: thm.spacing(2),
                   }))}
                 >
-                  💬 Close this sheet and chat to refine proposals. The agent will update suggestions based on your instructions.
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0, marginTop: "2px", flexShrink: 0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span>Close this sheet and chat to refine proposals. The agent will update suggestions based on your instructions.</span>
                 </div>
               </>
             )}

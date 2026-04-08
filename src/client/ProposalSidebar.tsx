@@ -196,8 +196,9 @@ function ProposalCard({
 
       {/* Meta: message count */}
       {msgCount > 0 && (
-        <span className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted }))}>
-          📧 {msgCount} message{msgCount !== 1 ? "s" : ""}
+        <span className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, display: "flex", alignItems: "center", gap: t.spacing(1) }))}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          {msgCount} message{msgCount !== 1 ? "s" : ""}
         </span>
       )}
 
@@ -236,10 +237,15 @@ function ProposalCard({
               fontWeight: t.fontWeight.medium,
               fontSize: t.fontSize.xs,
               cursor: "not-allowed",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "4px",
             }))}
             title="Discuss in chat to refine this suggestion"
           >
-            💬 Needs Input
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Needs Input
           </button>
         )}
         <button
@@ -445,15 +451,16 @@ export default function ProposalSidebar({
             }}
       >
         <span className={css({ display: "flex", alignItems: "center", gap: "8px" })}>
-          📋 Proposals
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+          Proposals
           {suggestionsWithIds.length > 0 && (
             <span
-              className={css((t) => ({
+              className={`${css((t) => ({
                 padding: "1px 8px",
                 borderRadius: "999px",
                 fontSize: t.fontSize.xs,
                 fontWeight: t.fontWeight.semibold,
-              }))}
+              }))} ${suggestionsWithIds.length > 0 ? "proposals-badge-pulse" : ""}`}
               style={suggestionsWithIds.length > 0 ? { background: theme.colors.primary, color: "#fff" } : { background: theme.colors.border, color: theme.colors.textMuted }}
             >
               {suggestionsWithIds.length}
@@ -560,9 +567,13 @@ export default function ProposalSidebar({
                 fontSize: t.fontSize.xs,
                 color: "#1e40af",
                 lineHeight: t.lineHeight.normal,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: t.spacing(1.5),
               }))}
             >
-              💬 Refine any proposal by discussing it in the chat. The agent will update suggestions based on your instructions.
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0, marginTop: "1px", flexShrink: 0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span>Refine any proposal by discussing it in the chat. The agent will update suggestions based on your instructions.</span>
             </div>
           )}
         </div>

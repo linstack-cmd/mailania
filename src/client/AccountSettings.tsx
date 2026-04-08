@@ -242,29 +242,15 @@ export default function AccountSettings({
     <div className={css((t) => ({ maxWidth: "600px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
       <button
         onClick={onBack}
-        className={css((t) => ({
-          display: "inline-flex",
-          alignItems: "center",
-          gap: t.spacing(1),
-          padding: `${t.spacing(2)} ${t.spacing(3)}`,
-          border: `1px solid ${t.colors.border}`,
-          borderRadius: t.radiusSm,
-          background: t.colors.bg,
-          cursor: "pointer",
-          fontSize: t.fontSize.sm,
-          color: t.colors.text,
-          marginBottom: t.spacing(5),
-          transition: "background 0.15s, border-color 0.15s",
-          minHeight: "44px",
-          "&:hover": { background: t.colors.bgAlt, borderColor: t.colors.primary },
-          "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
-        }))}
+        style={{display:"flex",alignItems:"center",gap:4,color:"#6b7280",background:"none",border:"none",cursor:"pointer",marginBottom:16,padding:"4px 0",fontSize:"0.875rem"}}
       >
-        ← Back
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Back
       </button>
 
-      <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, marginBottom: t.spacing(6) }))}>
-        ⚙️ Account Settings
+      <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, marginBottom: t.spacing(6), display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2" style={{marginRight:0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Account Settings
       </h1>
 
       {/* User info */}
@@ -452,7 +438,8 @@ export default function AccountSettings({
             "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
           }))}
         >
-          📧 Connect Gmail Account
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Connect Gmail Account
         </a>
       </Section>
 
@@ -490,7 +477,7 @@ export default function AccountSettings({
                         onSubmit={(e) => { e.preventDefault(); handleRenamePasskey(pk.id); }}
                         className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1) }))}
                       >
-                        <span>🔑</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:6,verticalAlign:"middle",flexShrink:0}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
                         <input
                           type="text"
                           value={editingName}
@@ -517,11 +504,12 @@ export default function AccountSettings({
                     ) : (
                       <>
                         <span
-                          style={{ fontWeight: 600, cursor: "pointer" }}
+                          style={{ fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
                           onClick={() => startEditing(pk)}
                           title="Click to rename"
                         >
-                          🔑 {pk.name || formatPasskeyLabel(pk)}
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
+                          {pk.name || formatPasskeyLabel(pk)}
                         </span>
                         <button
                           onClick={() => startEditing(pk)}
@@ -608,6 +596,10 @@ export default function AccountSettings({
             onClick={handleRegisterPasskey}
             disabled={passkeyRegistering}
             className={css((t) => ({
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: t.spacing(1.5),
               padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
               border: "none",
               borderRadius: t.radiusSm,
@@ -623,7 +615,9 @@ export default function AccountSettings({
               "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
             }))}
           >
-            🔑 {passkeyRegistering ? "Registering…" : "Add Passkey"}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
+            {passkeyRegistering && <span className="spinner" />}
+            {passkeyRegistering ? "Registering…" : "Add Passkey"}
           </button>
         ) : (
           <p className={css((t) => ({ color: t.colors.error, fontSize: t.fontSize.sm }))}>

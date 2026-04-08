@@ -516,10 +516,17 @@ export default function App() {
           </div>
         ) : (
           <div className={css((t) => ({ width: "min(100%, 420px)", display: "flex", flexDirection: "column", gap: t.spacing(3), padding: `${t.spacing(4)} ${t.spacing(4.5)}`, border: `1px solid ${t.colors.borderLight}`, borderRadius: t.radius, background: t.colors.bg, boxShadow: t.shadow, boxSizing: "border-box", "@media (max-width: 480px)": { padding: `${t.spacing(3.5)} ${t.spacing(3)}` } }))}>
+            {/* Logomark above branding */}
+            <div style={{display: "flex", justifyContent: "center", marginBottom: "16px"}}>
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <rect width="48" height="48" rx="12" fill="#4f46e5"/>
+                <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="white" fontFamily="system-ui, sans-serif" fontWeight="700" fontSize="26">M</text>
+              </svg>
+            </div>
             {/* Branding inside card */}
-            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", margin: "0 0 0.5rem", lineHeight: "1.2" }))}>Mailania</h1>
+            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, textAlign: "center", margin: "0 0 0.5rem", lineHeight: "1.2", letterSpacing: "-0.02em" }))}>Mailania</h1>
 
-            <p style={{color: "#6b7280", fontSize: "15px", textAlign: "center", marginBottom: "24px", lineHeight: 1.5, marginTop: 4}}>
+            <p className="login-subtitle">
               AI-powered email management — triage your inbox, accept suggestions, and let your assistant handle the rest.
             </p>
 
@@ -563,12 +570,12 @@ export default function App() {
                     minHeight: "44px",
                     transition: "background 0.15s",
                     "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-                    "&:focus-visible": { outline: `2px solid #fff`, outlineOffset: "2px" },
+                    "&:focus-visible": { outline: `2px solid #4f46e5`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
                   {passkeyLoading && <span className="spinner" />}
-                  {passkeyLoading ? "Authenticating..." : (
+                  {passkeyLoading ? "Authenticating…" : (
                     <>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: 0, verticalAlign: "middle"}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
                       Sign in with Passkey
@@ -618,12 +625,12 @@ export default function App() {
                     minHeight: "44px",
                     transition: "background 0.15s",
                     "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-                    "&:focus-visible": { outline: `2px solid #fff`, outlineOffset: "2px" },
+                    "&:focus-visible": { outline: `2px solid #4f46e5`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
                   {passkeyLoading && <span className="spinner" />}
-                  {passkeyLoading ? "Creating account..." : (
+                  {passkeyLoading ? "Creating account…" : (
                     <>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight: 0, verticalAlign: "middle"}}><circle cx="8" cy="8" r="4"/><path d="M12 8h8m-4-4v8"/></svg>
                       Create Account with Passkey
@@ -795,6 +802,7 @@ export default function App() {
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              gap: t.spacing(1),
               minHeight: "44px",
               minWidth: "44px",
               transition: "background 0.15s",
@@ -802,7 +810,8 @@ export default function App() {
               "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
           >
-            {isNarrowHeader ? "⚙️" : "⚙️ Account"}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            {!isNarrowHeader && "Account"}
           </a>
           <button
             onClick={handleLogout}

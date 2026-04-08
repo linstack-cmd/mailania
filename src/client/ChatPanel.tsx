@@ -480,7 +480,7 @@ export function ChatPanel({
             fontSize: t.fontSize.sm,
           }))}
         >
-          <span>💬</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           <span>{title}</span>
           {messages.length > 0 && (
             <span
@@ -752,7 +752,7 @@ export function ChatPanel({
                     style={idx === highlightedIndex ? { background: "#eef2ff" } : undefined}
                   >
                     <span className={css({ fontSize: "0.85rem", flexShrink: 0 })}>
-                      {KIND_LABELS[suggestion.kind as keyof typeof KIND_LABELS]?.icon ?? "📋"}
+                      {KIND_LABELS[suggestion.kind as keyof typeof KIND_LABELS]?.icon ?? "📝"}
                     </span>
                     <div className={css({ flex: 1, minWidth: 0, overflow: "hidden" })}>
                       <div className={css((t) => ({ fontWeight: t.fontWeight.medium, fontSize: t.fontSize.sm, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }))}>

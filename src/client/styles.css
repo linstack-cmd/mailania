@@ -72,9 +72,33 @@ body {
   to { opacity: 1; }
 }
 
+@keyframes pulse-badge {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.proposals-badge-pulse {
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
 /* Fix 5: Button font inheritance */
 button {
   font-family: inherit;
+}
+
+/* Passkey CTA button focus ring — indigo instead of white */
+.passkey-cta:focus-visible {
+  outline: 2px solid #4f46e5 !important;
+}
+
+/* Login subtitle styling */
+.login-subtitle {
+  color: #6b7280;
+  font-size: 0.9375rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+  margin-top: 0.25rem;
 }
 
 @keyframes spin {
@@ -89,6 +113,6 @@ button {
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
-  margin-right: 6px;
+  margin-right: .375rem;
   vertical-align: middle;
 }
