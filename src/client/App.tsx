@@ -173,6 +173,7 @@ export default function App() {
       setGeneralChatError("Failed to load inbox chat");
     } finally {
       setGeneralChatInitLoading(false);
+      setLoading(false);
     }
   }
 
@@ -755,7 +756,7 @@ export default function App() {
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
           <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
-            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0 }))}>
+            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0, letterSpacing: "-0.02em" }))}>
               Mailania
             </h1>
             {testMode && (

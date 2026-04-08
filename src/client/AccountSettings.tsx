@@ -573,6 +573,7 @@ export default function AccountSettings({
                         color: t.colors.error,
                         cursor: "pointer",
                         fontSize: t.fontSize.xs,
+                        minHeight: "44px",
                         "&:hover": { background: "#fef2f2" },
                         "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
                         "&:focus-visible": { outline: `2px solid ${t.colors.error}`, outlineOffset: "2px" },

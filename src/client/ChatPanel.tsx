@@ -587,7 +587,7 @@ export function ChatPanel({
                   padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
                   fontSize: t.fontSize.xs,
                   cursor: "pointer",
-                  transition: "all 0.15s",
+                  transition: "border-color 0.15s, color 0.15s, background 0.15s",
                   maxWidth: "100%",
                   wordBreak: "break-word",
                   textAlign: "center",
