@@ -64,6 +64,7 @@ interface ProposalCardProps {
   onAccept: () => void;
   onDismiss: () => Promise<void>;
   onMentionSuggestion?: (s: { id: string; title: string }) => void;
+  onNotifyAgent?: (title: string, status: "accepted" | "dismissed") => void;
 }
 
 function ProposalCard({
@@ -73,6 +74,7 @@ function ProposalCard({
   onAccept,
   onDismiss,
   onMentionSuggestion,
+  onNotifyAgent,
 }: ProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
   const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
@@ -84,6 +86,8 @@ function ProposalCard({
     setDismissing(true);
     try {
       await onDismiss();
+      // Notify agent after PATCH succeeds
+      onNotifyAgent?.(suggestion.title, "dismissed");
     } finally {
       setDismissing(false);
     }
@@ -91,6 +95,10 @@ function ProposalCard({
 
   const handleMention = () => {
     onMentionSuggestion?.({ id, title: suggestion.title });
+  };
+
+  const handleAccept = () => {
+    onAccept();
   };
 
   return (
@@ -197,7 +205,7 @@ function ProposalCard({
       <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), paddingTop: t.spacing(1), borderTop: `1px solid ${t.colors.borderLight}` }))}>
         {canApply ? (
           <button
-            onClick={onAccept}
+            onClick={handleAccept}
             className={css((t) => ({
               flex: 1,
               padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
@@ -286,6 +294,7 @@ export interface ProposalSidebarProps {
   /** Trigger refetch when this changes */
   refreshKey: number;
   onMentionSuggestion?: (s: { id: string; title: string }) => void;
+  onSuggestionNotification?: (title: string, status: "accepted" | "dismissed") => void;
 }
 
 interface SuggestionWithId {
@@ -299,6 +308,7 @@ export default function ProposalSidebar({
   onAuthLost,
   refreshKey,
   onMentionSuggestion,
+  onSuggestionNotification,
 }: ProposalSidebarProps) {
   const [suggestionsWithIds, setSuggestionsWithIds] = useState<SuggestionWithId[]>([]);
   const [loading, setLoading] = useState(true);
@@ -534,6 +544,7 @@ export default function ProposalSidebar({
                   onAccept={() => setAcceptingId(item.id)}
                   onDismiss={() => dismissSuggestion(item.id)}
                   onMentionSuggestion={onMentionSuggestion}
+                  onNotifyAgent={onSuggestionNotification}
                 />
               ))}
             </div>
@@ -564,8 +575,11 @@ export default function ProposalSidebar({
           messageMap={messageMap}
           onClose={() => setAcceptingId(null)}
           onSuccess={(msg) => {
+            const suggestion = suggestionsWithIds.find((s) => s.id === acceptingId)!;
             setAcceptingId(null);
             setToastMsg(msg);
+            // Notify agent after successful execution
+            onSuggestionNotification?.(suggestion.suggestion.title, "accepted");
             // Mark as accepted and remove from list
             acceptSuggestion(acceptingId);
           }}

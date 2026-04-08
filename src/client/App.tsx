@@ -329,12 +329,18 @@ export default function App() {
     }
   }
 
-  async function sendGeneralChatMessage() {
-    if (!generalChatInput.trim() || generalChatLoading) return;
+  async function sendGeneralChatMessage(explicitMessage?: string) {
+    // Determine the message to send
+    const msg = explicitMessage?.trim() || generalChatInput.trim();
+    
+    // For user-initiated sends, require input. For programmatic sends, allow empty.
+    if (!explicitMessage && !msg) return;
+    
+    // Guard against concurrent requests
+    if (generalChatLoading) return;
 
     // Test UI mode: return canned response, never hit the API
     if (testMode) {
-      const msg = generalChatInput.trim();
       const userMsg: ChatMessageData = {
         id: `test-user-${Date.now()}`,
         role: "user",
@@ -347,15 +353,20 @@ export default function App() {
         content: "🧪 **Test Mode** — This is a canned response. In production, Mailania would analyze your inbox and respond with real insights. No LLM calls are being made.",
         createdAt: new Date().toISOString(),
       };
-      setGeneralChatInput("");
+      // Only clear input on user-initiated sends
+      if (!explicitMessage) {
+        setGeneralChatInput("");
+      }
       setGeneralChatMessages((prev) => [...prev, userMsg, botMsg]);
       return;
     }
 
-    const msg = generalChatInput.trim();
     const tempId = `temp-${Date.now()}`;
 
-    setGeneralChatInput("");
+    // Only clear input on user-initiated sends
+    if (!explicitMessage) {
+      setGeneralChatInput("");
+    }
     setGeneralChatLoading(true);
     setGeneralChatError(null);
     setGeneralChatMessages((prev) => [
@@ -392,6 +403,13 @@ export default function App() {
     } finally {
       setGeneralChatLoading(false);
     }
+  }
+
+  function handleSuggestionNotification(title: string, status: "accepted" | "dismissed") {
+    const message = status === "accepted"
+      ? `I accepted the suggestion: "${title}"`
+      : `I dismissed the suggestion: "${title}"`;
+    sendGeneralChatMessage(message);
   }
 
   async function handleLogout() {
@@ -1084,6 +1102,7 @@ export default function App() {
             }}
             refreshKey={suggestionsRefreshKey}
             onMentionSuggestion={handleMentionSuggestion}
+            onSuggestionNotification={handleSuggestionNotification}
           />
         </div>
       </div>
@@ -1099,6 +1118,7 @@ export default function App() {
         refreshKey={suggestionsRefreshKey}
         onMountChange={(mounted) => updateMobileDebug({ mobileProposalSheetMounted: mounted })}
         onMentionSuggestion={handleMentionSuggestion}
+        onSuggestionNotification={handleSuggestionNotification}
       />
     </div>
       </Route>

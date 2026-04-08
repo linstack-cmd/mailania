@@ -73,6 +73,7 @@ interface MobileProposalCardProps {
   onAccept: () => void;
   onDismiss: () => Promise<void>;
   onMentionSuggestion?: (s: { id: string; title: string }) => void;
+  onNotifyAgent?: (title: string, status: "accepted" | "dismissed") => void;
   onClose?: () => void;
 }
 
@@ -83,6 +84,7 @@ function MobileProposalCard({
   onAccept,
   onDismiss,
   onMentionSuggestion,
+  onNotifyAgent,
   onClose,
 }: MobileProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
@@ -95,6 +97,8 @@ function MobileProposalCard({
     setDismissing(true);
     try {
       await onDismiss();
+      // Notify agent after PATCH succeeds
+      onNotifyAgent?.(suggestion.title, "dismissed");
     } finally {
       setDismissing(false);
     }
@@ -103,6 +107,10 @@ function MobileProposalCard({
   const handleMention = () => {
     onMentionSuggestion?.({ id, title: suggestion.title });
     onClose?.();
+  };
+
+  const handleAccept = () => {
+    onAccept();
   };
 
   return (
@@ -217,7 +225,7 @@ function MobileProposalCard({
       <div className={css((t) => ({ display: "flex", gap: t.spacing(2), paddingTop: t.spacing(1.5), borderTop: `1px solid ${t.colors.borderLight}`, minWidth: 0, "@media (max-width: 380px)": { flexDirection: "column" } }))}>
         {canApply ? (
           <button
-            onClick={onAccept}
+            onClick={handleAccept}
             className={css((t) => ({
               flex: 1,
               padding: `${t.spacing(3)} ${t.spacing(2)}`,
@@ -312,6 +320,7 @@ export interface MobileProposalSheetProps {
   refreshKey: number;
   onMountChange?: (mounted: boolean) => void;
   onMentionSuggestion?: (s: { id: string; title: string }) => void;
+  onSuggestionNotification?: (title: string, status: "accepted" | "dismissed") => void;
 }
 
 export default function MobileProposalSheet({
@@ -320,6 +329,7 @@ export default function MobileProposalSheet({
   refreshKey,
   onMountChange,
   onMentionSuggestion,
+  onSuggestionNotification,
 }: MobileProposalSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -720,6 +730,7 @@ export default function MobileProposalSheet({
                     onAccept={() => setAcceptingId(item.id)}
                     onDismiss={() => dismissSuggestion(item.id)}
                     onMentionSuggestion={onMentionSuggestion}
+                    onNotifyAgent={onSuggestionNotification}
                     onClose={closeSheet}
                   />
                 ))}
@@ -749,8 +760,11 @@ export default function MobileProposalSheet({
           messageMap={messageMap}
           onClose={() => setAcceptingId(null)}
           onSuccess={(msg) => {
+            const suggestion = suggestionsWithIds.find((s) => s.id === acceptingId)!;
             setAcceptingId(null);
             setToastMsg(msg);
+            // Notify agent after successful execution
+            onSuggestionNotification?.(suggestion.suggestion.title, "accepted");
             // Mark as accepted and remove from list
             acceptSuggestion(acceptingId);
           }}
