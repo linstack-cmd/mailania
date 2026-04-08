@@ -941,6 +941,7 @@ export default function App() {
                   borderRadius: t.radiusSm,
                   whiteSpace: "nowrap",
                   transition: "background 0.15s, color 0.15s",
+                  minHeight: "44px",
                   "&:hover": { background: t.colors.bgAlt, color: t.colors.text },
                   "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
                 }))}

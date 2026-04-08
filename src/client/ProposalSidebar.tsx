@@ -218,6 +218,7 @@ function ProposalCard({
               fontSize: t.fontSize.xs,
               cursor: "pointer",
               transition: "background 0.15s",
+              minHeight: "44px",
               "&:hover": { background: t.colors.primaryHover },
               "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
             }))}
@@ -241,6 +242,7 @@ function ProposalCard({
               alignItems: "center",
               justifyContent: "center",
               gap: "4px",
+              minHeight: "44px",
             }))}
             title="Discuss in chat to refine this suggestion"
           >
@@ -260,6 +262,7 @@ function ProposalCard({
             fontSize: t.fontSize.xs,
             cursor: "pointer",
             transition: "background 0.15s, color 0.15s",
+            minHeight: "44px",
             "&:hover": { background: "#f0f3ff", color: "#4f46e5", borderColor: "#4f46e5" },
             "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
           }))}
@@ -279,6 +282,7 @@ function ProposalCard({
             fontSize: t.fontSize.xs,
             cursor: "pointer",
             transition: "background 0.15s, color 0.15s",
+            minHeight: "44px",
             "&:hover:not(:disabled)": { background: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
             "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },

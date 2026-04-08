@@ -242,7 +242,7 @@ export default function AccountSettings({
     <div className={css((t) => ({ maxWidth: "600px", margin: "0 auto", padding: `${t.spacing(6)} ${t.spacing(5)}` }))}>
       <button
         onClick={onBack}
-        style={{display:"flex",alignItems:"center",gap:4,color:"#6b7280",background:"none",border:"none",cursor:"pointer",marginBottom:16,padding:"4px 0",fontSize:"0.875rem"}}
+        className="settings-back-btn"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
         Back
