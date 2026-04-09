@@ -91,29 +91,12 @@ function formatRelativeTime(date: Date): string {
   return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
 }
 
-function buildGeneralChatSystemPrompt(suggestionsContext: SuggestionsContext | null): string {
-  const suggestionsBlock =
-    suggestionsContext && suggestionsContext.suggestions.length > 0
-      ? suggestionsContext.suggestions
-          .map(
-            (s) =>
-              `- ID: ${s.id}, Kind: ${s.kind}, Title: "${s.title}", Confidence: ${s.confidence}, Status: ${s.status}`,
-          )
-          .join("\n")
-      : "No suggestions yet. Create them with the create_suggestion tool.";
-
-  const resolvedBlock =
-    suggestionsContext && suggestionsContext.recentlyResolved && suggestionsContext.recentlyResolved.length > 0
-      ? suggestionsContext.recentlyResolved
-          .map((s) => `- [${s.status}] ${s.kind}: "${s.title}" (${formatRelativeTime(s.updatedAt)})`)
-          .join("\n")
-      : null;
-
+/**
+ * Static system prompt content (cache-friendly).
+ * Returns the unchanging portion of the system prompt.
+ */
+function buildStaticSystemPrompt(): string {
   return `You are Mailania's inbox assistant having a general conversation about the user's inbox. You help with broad inbox questions, email search, reading/summarizing specific emails, saved triage preferences, and discussion of pending suggestions.
-
-CURRENT SUGGESTIONS:
-${suggestionsBlock}
-${resolvedBlock ? `\nRECENTLY RESOLVED SUGGESTIONS:\n${resolvedBlock}` : ""}
 
 RULES:
 - Be concise and helpful
@@ -123,6 +106,34 @@ RULES:
 - Keep responses under 220 words unless the user asks for more detail
 - When referring to existing suggestions, use their IDs (from the CURRENT SUGGESTIONS context) when calling get_suggestion or set_suggestion
 - You can reference recently resolved suggestions to acknowledge user decisions or follow up, but you cannot modify them
+
+GMAIL DOMAIN KNOWLEDGE:
+
+Gmail uses a label-based model, not folders. Every message can have multiple labels simultaneously. Key concepts:
+
+- **Threads & Conversations**: Gmail groups messages into threads (conversations). Operations can target individual messages or entire threads. When you archive a thread and then a new reply arrives, the thread returns to the INBOX.
+
+- **Labels**: Labels are not folders. A message can have many labels. "Moving" a message means adding one label and removing another. System labels include:
+  - INBOX, SENT, DRAFT, SPAM, TRASH, STARRED, IMPORTANT, UNREAD
+  - Category labels: CATEGORY_SOCIAL, CATEGORY_PROMOTIONS, CATEGORY_UPDATES, CATEGORY_FORUMS
+  - User can manually control most labels, but cannot manually add SENT or DRAFT labels.
+
+- **Archive**: Removes the INBOX label. The message is NOT deleted; it exists in "All Mail" and remains searchable.
+
+- **Delete**: Moves to TRASH (adds TRASH label). Auto-purged after 30 days.
+
+- **Read/Unread**: Controlled by the UNREAD label. "Mark as read" removes UNREAD; "mark as unread" adds it back.
+
+- **Filters**: 
+  - Match criteria: from, to, subject, has words, doesn't have words, size, has attachment
+  - Actions: skip inbox (remove INBOX label), mark read (remove UNREAD), star (add STARRED), apply label, forward, delete, never send to spam (add category label or allowlist), mark important (add IMPORTANT), categorize
+  - By default, filters apply only to future incoming mail
+  - There is a separate "also apply to existing matching conversations" option that affects historical mail
+  - When suggesting a filter via create_filter, understand that it may need explicit user configuration to apply retroactively
+
+- **Gmail Search Syntax**: The search_emails tool uses Gmail query syntax. Key operators:
+  - from:, to:, subject:, label:, in:, is:, has:attachment, filename:, after:, before:, newer_than:, older_than:, category:
+  - Note: No regex support. OR must be in ALL CAPS. Implicit AND between criteria. Limited boolean expressions.
 
 TOOL USAGE:
 - You have access to exactly these Mailania tools and nothing else:
@@ -143,10 +154,53 @@ TOOL USAGE:
 
 SUGGESTION KINDS:
 Use these suggestion types appropriately:
-- archive_bulk: specific message IDs you want removed from the inbox (one-time bulk action)
-- mark_read_bulk: specific message IDs to declutter without archiving (one-time bulk action)
-- create_filter: a pattern worth automating for both future AND existing matching emails (applies to historical matches too — set expectations accordingly)
+- archive_bulk: specific message IDs you want removed from the inbox (one-time bulk action). Archives messages by removing the INBOX label.
+- mark_read_bulk: specific message IDs to declutter without archiving (one-time bulk action). Removes the UNREAD label.
+- create_filter: a pattern worth automating. Filters apply to future incoming mail by default. Users can optionally configure retroactive application to existing matching conversations in Gmail's filter settings.
 - needs_user_input: when you need clarification from the user before proposing an action`;
+}
+
+/**
+ * Dynamic system prompt content (changes per request).
+ * Returns the current suggestions and recently resolved suggestions blocks.
+ */
+function buildDynamicSystemPrompt(suggestionsContext: SuggestionsContext | null): string {
+  const suggestionsBlock =
+    suggestionsContext && suggestionsContext.suggestions.length > 0
+      ? suggestionsContext.suggestions
+          .map(
+            (s) =>
+              `- ID: ${s.id}, Kind: ${s.kind}, Title: "${s.title}", Confidence: ${s.confidence}, Status: ${s.status}`,
+          )
+          .join("\n")
+      : "No suggestions yet. Create them with the create_suggestion tool.";
+
+  const resolvedBlock =
+    suggestionsContext && suggestionsContext.recentlyResolved && suggestionsContext.recentlyResolved.length > 0
+      ? suggestionsContext.recentlyResolved
+          .map((s) => `- [${s.status}] ${s.kind}: "${s.title}" (${formatRelativeTime(s.updatedAt)})`)
+          .join("\n")
+      : null;
+
+  return `CURRENT SUGGESTIONS:
+${suggestionsBlock}
+${resolvedBlock ? `\nRECENTLY RESOLVED SUGGESTIONS:\n${resolvedBlock}` : ""}`;
+}
+
+/**
+ * Structured system prompt with static and dynamic components.
+ * Separates cache-friendly static content from per-request dynamic content.
+ */
+interface StructuredSystemPrompt {
+  static: string;
+  dynamic: string;
+}
+
+function buildGeneralChatSystemPrompt(suggestionsContext: SuggestionsContext | null): StructuredSystemPrompt {
+  return {
+    static: buildStaticSystemPrompt(),
+    dynamic: buildDynamicSystemPrompt(suggestionsContext),
+  };
 }
 
 /**
@@ -220,7 +274,7 @@ function compactMessagesToBudget(
 }
 
 async function runChatWithTools(
-  systemPrompt: string,
+  structuredPrompt: StructuredSystemPrompt,
   chatHistory: ChatMessage[],
   userMessage: string,
   apiKey: string,
@@ -250,18 +304,31 @@ async function runChatWithTools(
   let rounds = 0;
   let response: Anthropic.Message;
 
+  /**
+   * Construct the system array with static (cached) and dynamic blocks.
+   * Static block gets cache_control, dynamic does not (it changes every request).
+   */
+  const buildSystemArray = (): Anthropic.TextBlockParam[] => {
+    return [
+      {
+        type: "text",
+        text: structuredPrompt.static,
+        cache_control: { type: "ephemeral" },
+      },
+      {
+        type: "text",
+        text: structuredPrompt.dynamic,
+        // No cache_control on dynamic block — it changes per request
+      },
+    ];
+  };
+
   // Make the first API call with streaming
   {
     const stream = await client.messages.stream({
       model,
       max_tokens: 4096,
-      system: [
-        {
-          type: "text",
-          text: systemPrompt,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
+      system: buildSystemArray(),
       messages: compacted,
       tools: CACHED_TOOL_DEFINITIONS,
       cache_control: { type: "ephemeral" },
@@ -364,13 +431,7 @@ async function runChatWithTools(
     const stream = await client.messages.stream({
       model,
       max_tokens: 4096,
-      system: [
-        {
-          type: "text",
-          text: systemPrompt,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
+      system: buildSystemArray(),
       messages: compacted,
       tools: CACHED_TOOL_DEFINITIONS,
       cache_control: { type: "ephemeral" },
@@ -430,8 +491,9 @@ export async function generateGeneralChatResponse(
   onEvent?: OnEventCallback,
   abortSignal?: AbortSignal,
 ): Promise<ChatResponseWithTools> {
+  const structuredPrompt = buildGeneralChatSystemPrompt(suggestionsContext);
   return runChatWithTools(
-    buildGeneralChatSystemPrompt(suggestionsContext),
+    structuredPrompt,
     chatHistory,
     userMessage,
     apiKey,
