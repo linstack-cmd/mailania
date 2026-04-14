@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { css } from "@flow-css/core/css";
 import { KIND_LABELS } from "./TriageSuggestions";
 import { ChatInputBar } from "./ChatInputBar";
@@ -274,6 +274,9 @@ export function ChatPanel({
   mentionSuggestions = [],
   textareaRef,
   suppressInput = false,
+  hasMore = true,
+  paginationLoading = false,
+  onLoadMore,
 }: {
   title: string;
   subtitle?: string;
@@ -292,12 +295,19 @@ export function ChatPanel({
   mentionSuggestions?: Array<{id: string, title: string, kind: string}>;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   suppressInput?: boolean;
+  hasMore?: boolean;
+  paginationLoading?: boolean;
+  onLoadMore?: (beforeId: string) => void;
 }) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
   const prevLoadingRef = useRef(loading);
+  const scrollHeightBeforePrependRef = useRef(0);
+  const scrollTopBeforePrependRef = useRef(0);
+  const oldestMessageIdRef = useRef<string | null>(null);
   
   // Use provided textareaRef or default to internal ref
   const activeTextareaRef = textareaRef || chatInputRef;
@@ -307,12 +317,58 @@ export function ChatPanel({
     return () => onMountChange?.(false);
   }, [onMountChange]);
 
-  useEffect(() => {
+  // Scroll position preservation when prepending messages
+  useLayoutEffect(() => {
     const scroller = chatScrollRef.current;
     if (!scroller) return;
 
-    scroller.scrollTop = scroller.scrollHeight;
+    // If we're at the bottom (initial load or new message), scroll to bottom
+    const isAtBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 10;
+    
+    if (isAtBottom || loading) {
+      // New message incoming or initial state — scroll to bottom
+      scroller.scrollTop = scroller.scrollHeight;
+    } else if (scrollHeightBeforePrependRef.current > 0) {
+      // We prepended messages — preserve scroll position relative to content
+      const heightDiff = scroller.scrollHeight - scrollHeightBeforePrependRef.current;
+      scroller.scrollTop = scrollTopBeforePrependRef.current + heightDiff;
+      scrollHeightBeforePrependRef.current = 0;
+      scrollTopBeforePrependRef.current = 0;
+    }
   }, [messages, loading]);
+
+  // Update oldestMessageIdRef when messages change (but don't rebuild observer)
+  useEffect(() => {
+    oldestMessageIdRef.current = messages.length > 0 ? messages[0].id : null;
+  }, [messages]);
+
+  // IntersectionObserver for pagination sentinel
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !onLoadMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !paginationLoading) {
+          const oldestMessageId = oldestMessageIdRef.current;
+          if (oldestMessageId) {
+            // Record scroll state before load
+            const scroller = chatScrollRef.current;
+            if (scroller) {
+              scrollHeightBeforePrependRef.current = scroller.scrollHeight;
+              scrollTopBeforePrependRef.current = scroller.scrollTop;
+            }
+            // Load older messages using the id of the first (oldest) message
+            onLoadMore(oldestMessageId);
+          }
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, paginationLoading, onLoadMore]);
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -490,6 +546,22 @@ export function ChatPanel({
                 {prompt}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Pagination sentinel and loading indicator */}
+        <div ref={sentinelRef} />
+        {paginationLoading && (
+          <div
+            className={css((t) => ({
+              textAlign: "center",
+              color: t.colors.textMuted,
+              fontSize: t.fontSize.xs,
+              padding: t.spacing(2),
+              marginBottom: t.spacing(2),
+            }))}
+          >
+            Loading older messages…
           </div>
         )}
 

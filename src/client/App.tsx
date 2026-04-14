@@ -95,12 +95,15 @@ export default function App() {
   const [generalChatLoading, setGeneralChatLoading] = useState(false);
   const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
+  const [generalChatHasMore, setGeneralChatHasMore] = useState(true);
+  const [generalChatPaginationLoading, setGeneralChatPaginationLoading] = useState(false);
   const [suggestionsRefreshKey, setSuggestionsRefreshKey] = useState(0);
   const [suggestionsWithIds, setSuggestionsWithIds] = useState<Array<{id: string, suggestion: any, status: string}>>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(true);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const mentionSuggestions = suggestionsWithIds.map((s) => ({ id: s.id, title: s.suggestion.title, kind: s.suggestion.kind }));
   const chatPanelTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const loadingRef = useRef(false);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
@@ -180,12 +183,42 @@ export default function App() {
       }
       const data = await res.json();
       setGeneralChatMessages(Array.isArray(data.messages) ? data.messages : []);
+      setGeneralChatHasMore(data.hasMore !== false); // Default to true if not specified
     } catch {
       setGeneralChatMessages([]);
       setGeneralChatError("Failed to load inbox chat");
     } finally {
       setGeneralChatInitLoading(false);
       setLoading(false);
+    }
+  }
+
+  async function fetchMoreGeneralChat(beforeId: string) {
+    // Guard against concurrent fetches
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    
+    setGeneralChatPaginationLoading(true);
+    try {
+      const res = await fetch(`/api/chat/general?before=${encodeURIComponent(beforeId)}`);
+
+      if (res.status === 401) {
+        setStatus((s) => s ? { ...s, authenticated: false } : null);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error("Failed to load more messages");
+      }
+      const data = await res.json();
+      const newMessages = Array.isArray(data.messages) ? data.messages : [];
+      // Prepend new messages at the start
+      setGeneralChatMessages((prev) => [...newMessages, ...prev]);
+      setGeneralChatHasMore(data.hasMore !== false); // Default to true if not specified
+    } catch (err: any) {
+      setGeneralChatError(err.message || "Failed to load more messages");
+    } finally {
+      setGeneralChatPaginationLoading(false);
+      loadingRef.current = false;
     }
   }
 
@@ -813,6 +846,9 @@ export default function App() {
             inboxMessages={[]}
             status={status}
             testMode={testMode}
+            hasMore={generalChatHasMore}
+            paginationLoading={generalChatPaginationLoading}
+            onLoadMore={fetchMoreGeneralChat}
           />
         </Route>
       </Switch>
@@ -1037,6 +1073,9 @@ export default function App() {
           onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
           mentionSuggestions={mentionSuggestions}
           textareaRef={chatPanelTextareaRef}
+          hasMore={generalChatHasMore}
+          paginationLoading={generalChatPaginationLoading}
+          onLoadMore={fetchMoreGeneralChat}
         />
 
         {/* Right column: Proposal Sidebar */}

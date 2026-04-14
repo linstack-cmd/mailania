@@ -42,6 +42,9 @@ interface MobileSwipePaneProps {
   inboxMessages?: InboxMessage[];
   status?: any;
   testMode?: boolean;
+  hasMore?: boolean;
+  paginationLoading?: boolean;
+  onLoadMore?: (beforeId: string) => void;
 }
 
 interface MobileProposalCardProps {
@@ -295,6 +298,9 @@ export function MobileSwipePane({
   inboxMessages = [],
   status,
   testMode = false,
+  hasMore = true,
+  paginationLoading = false,
+  onLoadMore,
 }: MobileSwipePaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activePaneIndex, setActivePaneIndex] = useState(0);
@@ -489,6 +495,9 @@ export function MobileSwipePane({
             mentionSuggestions={mentionSuggestions}
             textareaRef={textareaRef}
             suppressInput={true}
+            hasMore={hasMore}
+            paginationLoading={paginationLoading}
+            onLoadMore={onLoadMore}
           />
         </div>
 

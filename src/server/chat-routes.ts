@@ -98,23 +98,39 @@ async function loadConversationMessages(conversationId: string): Promise<ChatMes
   }));
 }
 
-async function loadConversationMessageRows(conversationId: string) {
+async function loadConversationMessageRows(conversationId: string, beforeId?: string, limit: number = 50) {
   const pool = getPool();
-  const result = await pool.query(
-    `SELECT "id", "role", "content", "created_at"
-     FROM "suggestion_message"
-     WHERE "conversation_id" = $1
-     ORDER BY "created_at" ASC`,
-    [conversationId],
-  );
+  
+  let query = `SELECT "id", "role", "content", "created_at"
+               FROM "suggestion_message"
+               WHERE "conversation_id" = $1`;
+  const params: any[] = [conversationId];
+  let pidx = 1;
 
-  return result.rows.map((row) => ({
+  if (beforeId) {
+    pidx++;
+    query += ` AND ("created_at", "id") < (SELECT "created_at", "id" FROM "suggestion_message" WHERE "id" = $` + pidx + `)`;
+    params.push(beforeId);
+  }
+
+  pidx++;
+  query += ` ORDER BY "created_at" DESC LIMIT $` + pidx;
+  params.push(limit + 1);
+
+  const result = await pool.query(query, params);
+  const rows = result.rows.map((row) => ({
     id: row.id,
     role: row.role,
     content: row.content,
     createdAt: row.created_at,
   }));
+
+  const hasMore = rows.length > limit;
+  const messages = rows.slice(0, limit).reverse();
+
+  return { messages, hasMore };
 }
+
 
 async function persistToolTraces(conversationId: string, traces: Array<{
   toolName: string;
@@ -165,12 +181,14 @@ export function createChatRouter(): Router {
           conversation: null,
           messages: [],
           suggestionsContext,
+          hasMore: false,
         });
         return;
       }
 
       const conv = convResult.rows[0];
-      const messages = await loadConversationMessageRows(conv.id as string);
+      const beforeId = typeof req.query.before === 'string' ? req.query.before : undefined;
+      const { messages, hasMore } = await loadConversationMessageRows(conv.id as string, beforeId, 50);
 
       res.json({
         conversation: {
@@ -180,6 +198,7 @@ export function createChatRouter(): Router {
         },
         messages,
         suggestionsContext,
+        hasMore,
       });
     } catch (err) {
       console.error("General chat GET error:", err);
