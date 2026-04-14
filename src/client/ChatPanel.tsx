@@ -308,6 +308,7 @@ export function ChatPanel({
   const scrollHeightBeforePrependRef = useRef(0);
   const scrollTopBeforePrependRef = useRef(0);
   const oldestMessageIdRef = useRef<string | null>(null);
+  const hasInitialScrolledRef = useRef(false);
   
   // Use provided textareaRef or default to internal ref
   const activeTextareaRef = textareaRef || chatInputRef;
@@ -321,6 +322,13 @@ export function ChatPanel({
   useLayoutEffect(() => {
     const scroller = chatScrollRef.current;
     if (!scroller) return;
+
+    // Initial load: scroll to bottom unconditionally on first batch of messages
+    if (messages.length > 0 && hasInitialScrolledRef.current === false) {
+      scroller.scrollTop = scroller.scrollHeight;
+      hasInitialScrolledRef.current = true;
+      return;
+    }
 
     // If we're at the bottom (initial load or new message), scroll to bottom
     const isAtBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 10;
