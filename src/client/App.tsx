@@ -35,7 +35,7 @@ import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passk
 import AccountSettings from "./AccountSettings";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
-import MobileProposalSheet from "./MobileProposalSheet";
+import { MobileSwipePane } from "./MobileSwipePane";
 import { updateMobileDebug } from "./mobileDebug";
 import {
   isTestUIMode,
@@ -96,14 +96,26 @@ export default function App() {
   const [generalChatInitLoading, setGeneralChatInitLoading] = useState(false);
   const [generalChatError, setGeneralChatError] = useState<string | null>(null);
   const [suggestionsRefreshKey, setSuggestionsRefreshKey] = useState(0);
-  const [mentionSuggestions, setMentionSuggestions] = useState<Array<{id: string, title: string, kind: string}>>([]);
+  const [suggestionsWithIds, setSuggestionsWithIds] = useState<Array<{id: string, suggestion: any, status: string}>>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const mentionSuggestions = suggestionsWithIds.map((s) => ({ id: s.id, title: s.suggestion.title, kind: s.suggestion.kind }));
   const chatPanelTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => window.matchMedia("(max-width: 640px)").matches
+  );
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 480px)");
     const handler = (e: MediaQueryListEvent) => setIsNarrowHeader(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
@@ -180,31 +192,43 @@ export default function App() {
   // Derived auth state — declared before any useEffect that references it to avoid TDZ in bundle
   const authenticated = status?.authenticated ?? false;
 
-  // Fetch mention suggestions keyed on suggestionsRefreshKey
+  // Fetch full suggestions list keyed on suggestionsRefreshKey
   useEffect(() => {
     if (testMode) {
-      setMentionSuggestions(TEST_SUGGESTIONS.map((s) => ({ id: s.id, title: s.suggestion.title, kind: s.suggestion.kind })));
+      setSuggestionsWithIds(TEST_SUGGESTIONS);
+      setSuggestionsLoading(false);
+      setSuggestionsError(null);
       return;
     }
-    if (!authenticated) return;
-    async function fetchMentionSuggestions() {
+    if (!authenticated) {
+      setSuggestionsWithIds([]);
+      setSuggestionsLoading(false);
+      return;
+    }
+    
+    async function fetchSuggestions() {
+      setSuggestionsLoading(true);
+      setSuggestionsError(null);
       try {
         const res = await fetch("/api/suggestions");
-        if (!res.ok) return;
+        if (res.status === 401) {
+          setStatus((s) => s ? { ...s, authenticated: false } : null);
+          setSuggestionsWithIds([]);
+          return;
+        }
+        if (!res.ok) {
+          throw new Error(`Failed to load suggestions (${res.status})`);
+        }
         const data = await res.json();
-        const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
-        setMentionSuggestions(
-          suggestions.map((s: any) => ({
-            id: s.id,
-            title: s.suggestion?.title || "",
-            kind: s.suggestion?.kind || "",
-          }))
-        );
-      } catch {
-        setMentionSuggestions([]);
+        setSuggestionsWithIds(Array.isArray(data.suggestions) ? data.suggestions : []);
+      } catch (err: any) {
+        setSuggestionsError(err.message || "Failed to load suggestions");
+        setSuggestionsWithIds([]);
+      } finally {
+        setSuggestionsLoading(false);
       }
     }
-    fetchMentionSuggestions();
+    fetchSuggestions();
   }, [suggestionsRefreshKey, testMode, authenticated]);
 
   async function refreshStatus() {
@@ -409,6 +433,48 @@ export default function App() {
       setGeneralChatMessages((prev) => prev.filter((m) => m.id !== assistantMsgId && m.id !== userMsgId));
     } finally {
       setGeneralChatLoading(false);
+    }
+  }
+
+  async function dismissSuggestion(id: string) {
+    try {
+      const res = await fetch(`/api/suggestions/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "dismissed" }),
+      });
+      if (res.status === 401) {
+        setStatus((s) => s ? { ...s, authenticated: false } : null);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`Failed to dismiss suggestion (${res.status})`);
+      }
+      // Remove from local list
+      setSuggestionsWithIds((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      setSuggestionsError(err.message || "Failed to dismiss suggestion");
+    }
+  }
+
+  async function acceptSuggestion(id: string) {
+    try {
+      const res = await fetch(`/api/suggestions/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "accepted" }),
+      });
+      if (res.status === 401) {
+        setStatus((s) => s ? { ...s, authenticated: false } : null);
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(`Failed to accept suggestion (${res.status})`);
+      }
+      // Remove from local list
+      setSuggestionsWithIds((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      setSuggestionsError(err.message || "Failed to accept suggestion");
     }
   }
 
@@ -713,6 +779,49 @@ export default function App() {
   }
 
   // --- Main authenticated view ---
+  if (isMobileViewport) {
+    // Mobile layout with swipe panes
+    return (
+      <ErrorBoundary>
+      <Router>
+      <Switch>
+        <Route path="/settings">
+          <AccountSettings
+            status={status}
+            onBack={() => window.history.back()}
+            onStatusChange={refreshStatus}
+          />
+        </Route>
+        <Route>
+          <MobileSwipePane
+            messages={generalChatMessages}
+            loading={generalChatLoading}
+            initLoading={generalChatInitLoading}
+            error={generalChatError}
+            input={generalChatInput}
+            onInputChange={setGeneralChatInput}
+            onSend={sendGeneralChatMessage}
+            mentionSuggestions={mentionSuggestions}
+            textareaRef={chatPanelTextareaRef}
+            suggestionsWithIds={suggestionsWithIds}
+            suggestionsLoading={suggestionsLoading}
+            suggestionsError={suggestionsError}
+            onDismissSuggestion={dismissSuggestion}
+            onAcceptSuggestion={acceptSuggestion}
+            onMentionSuggestion={handleMentionSuggestion}
+            onSuggestionNotification={handleSuggestionNotification}
+            inboxMessages={[]}
+            status={status}
+            testMode={testMode}
+          />
+        </Route>
+      </Switch>
+      </Router>
+      </ErrorBoundary>
+    );
+  }
+
+  // Desktop layout
   return (
     <ErrorBoundary>
     <Router>
@@ -737,14 +846,6 @@ export default function App() {
       flexDirection: "column",
       gap: t.spacing(6),
       minHeight: "100vh",
-      "@media (max-width: 640px)": {
-        padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
-        maxWidth: "100vw",
-        gap: t.spacing(4),
-      },
-      "@media (max-width: 360px)": {
-        padding: `${t.spacing(2)} ${t.spacing(2)} calc(${t.spacing(10)} + env(safe-area-inset-bottom, 0px))`,
-      },
     }))}>
       {/* Header */}
       <header
@@ -756,11 +857,6 @@ export default function App() {
           paddingRight: t.spacing(4),
           gap: t.spacing(4),
           minWidth: 0,
-          "@media (max-width: 640px)": {
-            paddingLeft: 0,
-            paddingRight: 0,
-            gap: t.spacing(2),
-          },
         }))}
       >
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(3.5), minWidth: 0, overflow: "visible" }))}>
@@ -800,7 +896,7 @@ export default function App() {
             )}
           </div>
         </div>
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(3), flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto", "@media (max-width: 640px)": { gap: t.spacing(2) } }))}>
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(3), flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto" }))}>
           <a
             href="/settings"
             title="Account settings"
@@ -846,10 +942,6 @@ export default function App() {
               transition: "all 0.3s ease",
               "&:hover": { background: "rgba(217, 70, 166, 0.15)" },
               "&:focus-visible": { outline: "none" },
-              "@media (max-width: 480px)": {
-                padding: `${t.spacing(2)} ${t.spacing(2)}`,
-                fontSize: t.fontSize.xs,
-              },
             }))}
           >
             Sign out
@@ -921,9 +1013,6 @@ export default function App() {
             gridTemplateColumns: "1fr",
             gap: t.spacing(4),
           },
-          "@media (max-width: 640px)": {
-            gap: t.spacing(3),
-          },
         }))}
       >
         {/* Left column: Chat area */}
@@ -950,35 +1039,17 @@ export default function App() {
           textareaRef={chatPanelTextareaRef}
         />
 
-        {/* Right column: Proposal Sidebar (hidden on mobile via CSS) */}
-        <div
-          className={css((t) => ({
-            "@media (max-width: 640px)": { display: "none" },
-          }))}
-        >
-          <ProposalSidebar
-            onAuthLost={() => {
-              setStatus((s) => s ? { ...s, authenticated: false } : null);
-              setGeneralChatMessages([]);
-            }}
-            refreshKey={suggestionsRefreshKey}
-            onMentionSuggestion={handleMentionSuggestion}
-            onSuggestionNotification={handleSuggestionNotification}
-          />
-        </div>
+        {/* Right column: Proposal Sidebar */}
+        <ProposalSidebar
+          suggestionsWithIds={suggestionsWithIds}
+          suggestionsLoading={suggestionsLoading}
+          suggestionsError={suggestionsError}
+          onDismissSuggestion={dismissSuggestion}
+          onAcceptSuggestion={acceptSuggestion}
+          onMentionSuggestion={handleMentionSuggestion}
+          onSuggestionNotification={handleSuggestionNotification}
+        />
       </div>
-
-      {/* Mobile: fixed bottom-sheet proposals (visible only on mobile) */}
-      <MobileProposalSheet
-        onAuthLost={() => {
-          setStatus((s) => s ? { ...s, authenticated: false } : null);
-          setGeneralChatMessages([]);
-        }}
-        refreshKey={suggestionsRefreshKey}
-        onMountChange={(mounted) => updateMobileDebug({ mobileProposalSheetMounted: mounted })}
-        onMentionSuggestion={handleMentionSuggestion}
-        onSuggestionNotification={handleSuggestionNotification}
-      />
     </div>
       </Route>
     </Switch>

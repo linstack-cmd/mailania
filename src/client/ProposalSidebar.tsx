@@ -304,9 +304,11 @@ function ProposalCard({
 // ---------------------------------------------------------------------------
 export interface ProposalSidebarProps {
   messages?: InboxMessage[];
-  onAuthLost: () => void;
-  /** Trigger refetch when this changes */
-  refreshKey: number;
+  suggestionsWithIds: SuggestionWithId[];
+  suggestionsLoading: boolean;
+  suggestionsError: string | null;
+  onDismissSuggestion: (id: string) => Promise<void>;
+  onAcceptSuggestion: (id: string) => void;
   onMentionSuggestion?: (s: { id: string; title: string }) => void;
   onSuggestionNotification?: (title: string, status: "accepted" | "dismissed") => void;
 }
@@ -319,14 +321,14 @@ interface SuggestionWithId {
 
 export default function ProposalSidebar({
   messages = [],
-  onAuthLost,
-  refreshKey,
+  suggestionsWithIds,
+  suggestionsLoading,
+  suggestionsError,
+  onDismissSuggestion,
+  onAcceptSuggestion,
   onMentionSuggestion,
   onSuggestionNotification,
 }: ProposalSidebarProps) {
-  const [suggestionsWithIds, setSuggestionsWithIds] = useState<SuggestionWithId[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -334,76 +336,6 @@ export default function ProposalSidebar({
   const messageMap = new Map<string, InboxMessage>();
   for (const m of messages) {
     messageMap.set(m.id, m);
-  }
-
-  // Load suggestions on mount and when refreshKey changes
-  useEffect(() => {
-    async function loadSuggestions() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/suggestions");
-        if (res.status === 401) {
-          onAuthLost();
-          return;
-        }
-        if (!res.ok) {
-          throw new Error(`Failed to load suggestions (${res.status})`);
-        }
-        const data = await res.json();
-        setSuggestionsWithIds(Array.isArray(data.suggestions) ? data.suggestions : []);
-      } catch (err: any) {
-        setError(err.message || "Failed to load suggestions");
-        setSuggestionsWithIds([]);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadSuggestions();
-  }, [refreshKey]);
-
-
-
-  async function dismissSuggestion(id: string) {
-    try {
-      const res = await fetch(`/api/suggestions/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "dismissed" }),
-      });
-      if (res.status === 401) {
-        onAuthLost();
-        return;
-      }
-      if (!res.ok) {
-        throw new Error(`Failed to dismiss suggestion (${res.status})`);
-      }
-      // Remove from local list
-      setSuggestionsWithIds((prev) => prev.filter((s) => s.id !== id));
-    } catch (err: any) {
-      setError(err.message || "Failed to dismiss suggestion");
-    }
-  }
-
-  async function acceptSuggestion(id: string) {
-    try {
-      const res = await fetch(`/api/suggestions/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "accepted" }),
-      });
-      if (res.status === 401) {
-        onAuthLost();
-        return;
-      }
-      if (!res.ok) {
-        throw new Error(`Failed to accept suggestion (${res.status})`);
-      }
-      // Remove from local list
-      setSuggestionsWithIds((prev) => prev.filter((s) => s.id !== id));
-    } catch (err: any) {
-      setError(err.message || "Failed to accept suggestion");
-    }
   }
 
   // -------------------------------------------------------------------------
@@ -452,7 +384,7 @@ export default function ProposalSidebar({
           Suggested Actions
         </div>
         {/* Error */}
-        {error && (
+        {suggestionsError && (
           <div
             className={css((t) => ({
               padding: t.spacing(2.5),
@@ -462,12 +394,12 @@ export default function ProposalSidebar({
               fontSize: t.fontSize.sm,
             }))}
           >
-            <span>{error}</span>
+            <span>{suggestionsError}</span>
           </div>
         )}
 
         {/* Loading skeleton */}
-        {loading && (
+        {suggestionsLoading && (
           <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2) }))}>
             <ProposalSkeletonCard />
             <ProposalSkeletonCard />
@@ -475,7 +407,7 @@ export default function ProposalSidebar({
         )}
 
         {/* Empty state */}
-        {!loading && suggestionsWithIds.length === 0 && (
+        {!suggestionsLoading && suggestionsWithIds.length === 0 && (
           <div
             className={css((t) => ({
               textAlign: "center",
@@ -492,7 +424,7 @@ export default function ProposalSidebar({
         )}
 
         {/* Proposal cards */}
-        {!loading && suggestionsWithIds.length > 0 && (
+        {!suggestionsLoading && suggestionsWithIds.length > 0 && (
           <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3.5) }))}>
             {suggestionsWithIds.map((item) => (
               <ProposalCard
@@ -501,7 +433,7 @@ export default function ProposalSidebar({
                 suggestion={item.suggestion}
                 messageMap={messageMap}
                 onAccept={() => setAcceptingId(item.id)}
-                onDismiss={() => dismissSuggestion(item.id)}
+                onDismiss={() => onDismissSuggestion(item.id)}
                 onMentionSuggestion={onMentionSuggestion}
                 onNotifyAgent={onSuggestionNotification}
               />
@@ -523,7 +455,7 @@ export default function ProposalSidebar({
             // Notify agent after successful execution
             onSuggestionNotification?.(suggestion.suggestion.title, "accepted");
             // Mark as accepted and remove from list
-            acceptSuggestion(acceptingId);
+            onAcceptSuggestion(acceptingId);
           }}
         />
       )}
