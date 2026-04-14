@@ -15,7 +15,6 @@ import {
   type TriageSuggestion,
   type InboxMessage,
   KIND_LABELS,
-  CONFIDENCE_STYLES,
   ApprovalConfirmModal,
   Toast,
 } from "./TriageSuggestions";
@@ -88,7 +87,6 @@ function MobileProposalCard({
   onClose,
 }: MobileProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
-  const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
   const msgCount = suggestion.messageIds?.length ?? 0;
   const canApply = suggestion.kind === "archive_bulk" || suggestion.kind === "mark_read_bulk" || suggestion.kind === "create_filter";
   const [dismissing, setDismissing] = useState(false);
@@ -116,67 +114,52 @@ function MobileProposalCard({
   return (
     <div
       className={css((t) => ({
-        padding: `${t.spacing(3.5)} ${t.spacing(3.5)}`,
-        border: `1px solid ${t.colors.border}`,
-        borderRadius: t.radius,
-        background: t.colors.bg,
-        boxShadow: t.shadow,
+        padding: t.spacing(4),
+        background: "linear-gradient(135deg, rgba(217, 70, 166, 0.06), rgba(167, 139, 250, 0.06))",
+        borderRadius: t.radiusCard,
+        border: "1.5px solid rgba(217, 70, 166, 0.12)",
         display: "flex",
         flexDirection: "column",
         gap: t.spacing(2.5),
-        transition: "border-color 0.15s",
+        transition: "all 0.3s ease",
       }))}
     >
-      {/* Kind + confidence row */}
-      <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(1) }))}>
+      {/* Header: label + emoji + confidence */}
+      <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", gap: t.spacing(2) }))}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), flex: 1, minWidth: 0 }))}>
+          <span className={css({ fontSize: "18px", flexShrink: 0 })}>
+            {kindInfo.icon}
+          </span>
+          <div className={css({ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 })}>
+            <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#333", lineHeight: "1.35" }))}>
+              {suggestion.title}
+            </div>
+          </div>
+        </div>
         <span
-          className={css((t) => ({
-            display: "inline-flex",
-            alignItems: "center",
-            gap: t.spacing(1),
-            fontSize: t.fontSize.xs,
-            fontWeight: "600",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            color: t.colors.textMuted,
+          className={css((t) => ({ 
+            fontSize: t.fontSize.xs, 
+            fontWeight: "600", 
+            textTransform: "uppercase", 
+            letterSpacing: "0.5px",
+            background: t.gradients.confidenceText,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            flexShrink: 0,
           }))}
-        >
-          {kindInfo.icon} {kindInfo.label}
-        </span>
-        <span
-          className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "700", textTransform: "uppercase", padding: "2px 10px", borderRadius: "999px", letterSpacing: "0.02em" }))}
-          style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
         >
           {suggestion.confidence}
         </span>
       </div>
 
-      {/* Title */}
-      <h4
-        className={css((t) => ({
-          fontSize: t.fontSize.base,
-          fontWeight: "600",
-          margin: 0,
-          lineHeight: "1.35",
-          overflowWrap: "break-word",
-          wordBreak: "break-word",
-        }))}
-      >
-        {suggestion.title}
-      </h4>
-
-      {/* Rationale */}
+      {/* Description */}
       <p
         className={css((t) => ({
-          fontSize: t.fontSize.sm,
-          color: t.colors.textMuted,
+          fontSize: t.fontSize.xs,
+          color: "#666",
           margin: 0,
-          lineHeight: "1.5",
-          display: "-webkit-box",
-          "-webkit-line-clamp": 3,
-          "-webkit-box-orient": "vertical",
-          overflow: "hidden",
-          overflowWrap: "anywhere",
+          lineHeight: "1.4",
         }))}
       >
         {suggestion.rationale}
@@ -184,11 +167,11 @@ function MobileProposalCard({
 
       {/* Questions — for needs_user_input cards */}
       {suggestion.kind === "needs_user_input" && suggestion.questions && suggestion.questions.length > 0 && (
-        <div className={css((t) => ({ marginTop: t.spacing(1) }))}>
-          <p className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "600", color: t.colors.text, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.03em" }))}>
+        <div className={css((t) => ({ marginTop: t.spacing(1.5) }))}>
+          <p className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: t.fontWeight.semibold, color: t.colors.text, margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.03em" }))}>
             ❓ Questions for you:
           </p>
-          <ul className={css((t) => ({ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "6px" }))}>
+          <ul className={css((t) => ({ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "4px" }))}>
             {suggestion.questions.map((q, idx) => (
               <li key={idx} className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, lineHeight: "1.4" }))}>
                 • {q}
@@ -200,8 +183,8 @@ function MobileProposalCard({
 
       {/* Filter draft summary — for create_filter cards */}
       {suggestion.kind === "create_filter" && suggestion.filterDraft && (
-        <div className={css((t) => ({ marginTop: t.spacing(1), fontSize: t.fontSize.xs, color: t.colors.text }))}>
-          <p className={css((t) => ({ margin: "0 0 6px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.03em" }))}>
+        <div className={css((t) => ({ marginTop: t.spacing(1.5), fontSize: t.fontSize.xs, color: t.colors.text }))}>
+          <p className={css((t) => ({ margin: "0 0 4px", fontWeight: t.fontWeight.semibold, textTransform: "uppercase", letterSpacing: "0.03em" }))}>
             🔀 Filter:
           </p>
           <div className={css((t) => ({ color: t.colors.textMuted, lineHeight: "1.4" }))}>
@@ -214,103 +197,106 @@ function MobileProposalCard({
         </div>
       )}
 
-      {/* Meta */}
+      {/* Meta: message count */}
       {msgCount > 0 && (
-        <span className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, display: "flex", alignItems: "center", gap: t.spacing(1) }))}>
+        <span className={css((t) => ({ fontSize: t.fontSize.xs, color: t.colors.textMuted, display: "flex", alignItems: "center", gap: t.spacing(1) }))}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           {msgCount} message{msgCount !== 1 ? "s" : ""}
         </span>
       )}
 
-      {/* Action buttons — full-width, large touch targets */}
-      <div className={css((t) => ({ display: "flex", gap: t.spacing(2), paddingTop: t.spacing(1.5), borderTop: `1px solid ${t.colors.borderLight}`, minWidth: 0, "@media (max-width: 380px)": { flexDirection: "column" } }))}>
+      {/* Action buttons */}
+      <div className={css((t) => ({ display: "flex", gap: t.spacing(2), marginTop: t.spacing(1) }))}>
         {canApply ? (
           <button
             onClick={handleAccept}
             className={css((t) => ({
               flex: 1,
-              padding: `${t.spacing(3)} ${t.spacing(2)}`,
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
               border: "none",
-              borderRadius: t.radiusSm,
-              background: t.colors.primary,
-              color: t.colors.bg,
+              borderRadius: "16px",
+              background: t.gradients.button,
+              color: "#fff",
               fontWeight: "600",
-              fontSize: t.fontSize.sm,
+              fontSize: t.fontSize.xs,
               cursor: "pointer",
-              minHeight: "44px",
-              transition: "background 0.15s",
-              "&:hover": { background: t.colors.primaryHover },
-              "&:active": { background: t.colors.primaryHover },
+              transition: "all 0.3s ease",
+              minHeight: "auto",
+              boxShadow: "0 4px 12px rgba(217, 70, 166, 0.2)",
+              "&:hover": { transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(217, 70, 166, 0.28)" },
+              "&:focus-visible": { outline: "none" },
             }))}
           >
-            <span aria-hidden="true">⚡</span> Accept / Apply
+            Accept
           </button>
         ) : (
           <button
             disabled
             className={css((t) => ({
               flex: 1,
-              padding: `${t.spacing(3)} ${t.spacing(2)}`,
-              border: `1px solid ${t.colors.borderLight}`,
-              borderRadius: t.radiusSm,
-              background: t.colors.bgAlt,
-              color: t.colors.textMuted,
-              fontWeight: "500",
-              fontSize: t.fontSize.sm,
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              border: "1px solid rgba(217, 70, 166, 0.15)",
+              borderRadius: "16px",
+              background: "rgba(217, 70, 166, 0.08)",
+              color: "#d946a6",
+              fontWeight: "600",
+              fontSize: t.fontSize.xs,
               cursor: "not-allowed",
-              minHeight: "44px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
+              minHeight: "auto",
             }))}
             title="Discuss in chat to refine this suggestion"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Needs Input
           </button>
         )}
-        <button
-          onClick={handleMention}
-          title="Mention this suggestion in the chat"
-          aria-label="Mention this suggestion in the chat"
-          className={css((t) => ({
-            padding: `${t.spacing(3)} ${t.spacing(2)}`,
-            border: `1px solid ${t.colors.borderLight}`,
-            borderRadius: t.radiusSm,
-            background: "transparent",
-            color: t.colors.textMuted,
-            fontSize: t.fontSize.sm,
-            cursor: "pointer",
-            minHeight: "44px",
-            transition: "background 0.15s, color 0.15s",
-            "&:hover": { background: "#f0f3ff", color: "#4f46e5", borderColor: "#4f46e5" },
-            "&:active": { background: "#e8ecff", color: "#4f46e5" },
-          }))}
-        >
-          @
-        </button>
         <button
           onClick={handleDismiss}
           disabled={dismissing}
           title="Dismiss this suggestion"
           className={css((t) => ({
-            padding: `${t.spacing(3)} ${t.spacing(3)}`,
-            border: `1px solid ${t.colors.borderLight}`,
-            borderRadius: t.radiusSm,
-            background: "transparent",
-            color: t.colors.textMuted,
-            fontSize: t.fontSize.sm,
+            flex: 1,
+            padding: `${t.spacing(2)} ${t.spacing(3)}`,
+            border: "1px solid rgba(217, 70, 166, 0.15)",
+            borderRadius: "16px",
+            background: "rgba(217, 70, 166, 0.08)",
+            color: "#d946a6",
+            fontWeight: "600",
+            fontSize: t.fontSize.xs,
             cursor: "pointer",
-            minHeight: "44px",
-            minWidth: "44px",
-            transition: "background 0.15s, color 0.15s",
-            "&:hover:not(:disabled)": { background: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
-            "&:active:not(:disabled)": { background: "#fef2f2", color: "#dc2626" },
+            transition: "all 0.3s ease",
+            minHeight: "auto",
+            "&:hover:not(:disabled)": { background: "rgba(217, 70, 166, 0.12)", borderColor: "rgba(217, 70, 166, 0.25)" },
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+            "&:focus-visible": { outline: "none" },
           }))}
         >
-          {dismissing ? "…" : <span aria-hidden="true">✕</span>}
+          {dismissing ? "Dismiss…" : "Dismiss"}
+        </button>
+        <button
+          onClick={handleMention}
+          title="Mention this suggestion in the chat"
+          className={css((t) => ({
+            width: "44px",
+            height: "44px",
+            minWidth: "44px",
+            minHeight: "44px",
+            padding: t.spacing(2),
+            border: "1.5px solid rgba(167, 139, 250, 0.4)",
+            borderRadius: "16px",
+            background: "transparent",
+            color: "#a78bfa",
+            fontSize: t.fontSize.sm,
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "600",
+            "&:hover": { background: "rgba(167, 139, 250, 0.08)", borderColor: "rgba(167, 139, 250, 0.6)" },
+            "&:focus-visible": { outline: "none" },
+          }))}
+        >
+          @
         </button>
       </div>
     </div>
@@ -503,7 +489,6 @@ export default function MobileProposalSheet({
       >
         <button
           onClick={openSheet}
-          style={hasProposals ? { background: t.colors.primary, color: t.colors.bg } : { background: t.colors.bgAlt, color: t.colors.textMuted }}
           className={css((t) => ({
             display: "flex",
             alignItems: "center",
@@ -528,6 +513,7 @@ export default function MobileProposalSheet({
               flex: "none",
             },
           }))}
+          style={hasProposals ? { background: t.gradients.button, color: "white" } : { background: t.colors.bgAlt, color: t.colors.textMuted }}
         >
           {isNarrowTab ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
@@ -640,8 +626,9 @@ export default function MobileProposalSheet({
                     fontSize: t.fontSize.xs,
                     fontWeight: "700",
                     flexShrink: 0,
+                    background: t.gradients.button,
+                    color: "white",
                   }))}
-                  style={{ background: t.colors.primary, color: t.colors.bg }}
                 >
                   {suggestionsWithIds.length}
                 </span>
@@ -747,10 +734,10 @@ export default function MobileProposalSheet({
                 <div
                   className={css((thm) => ({
                     padding: thm.spacing(3),
-                    background: thm.colors.primaryLight,
+                    background: "rgba(217,70,166,0.06)",
                     borderRadius: thm.radiusSm,
                     fontSize: thm.fontSize.sm,
-                    color: "#1e40af",
+                    color: "#d946a6",
                     lineHeight: "1.5",
                     display: "flex",
                     alignItems: "flex-start",

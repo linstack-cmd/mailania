@@ -12,7 +12,6 @@ import {
   type TriageSuggestion,
   type InboxMessage,
   KIND_LABELS,
-  CONFIDENCE_STYLES,
   ApprovalConfirmModal,
   Toast,
 } from "./TriageSuggestions";
@@ -77,7 +76,6 @@ function ProposalCard({
   onNotifyAgent,
 }: ProposalCardProps) {
   const kindInfo = KIND_LABELS[suggestion.kind];
-  const confStyle = CONFIDENCE_STYLES[suggestion.confidence] ?? CONFIDENCE_STYLES.low;
   const msgCount = suggestion.messageIds?.length ?? 0;
   const canApply = suggestion.kind === "archive_bulk" || suggestion.kind === "mark_read_bulk" || suggestion.kind === "create_filter";
   const [dismissing, setDismissing] = useState(false);
@@ -104,71 +102,60 @@ function ProposalCard({
   return (
     <div
       className={css((t) => ({
-        padding: t.spacing(3),
-        border: `1px solid ${t.colors.border}`,
-        borderRadius: t.radius,
-        background: t.colors.bg,
-        boxShadow: t.shadow,
+        padding: t.spacing(4),
+        background: "linear-gradient(135deg, rgba(217, 70, 166, 0.06), rgba(167, 139, 250, 0.06))",
+        borderRadius: t.radiusCard,
+        border: "1.5px solid rgba(217, 70, 166, 0.12)",
         display: "flex",
         flexDirection: "column",
-        gap: t.spacing(2),
-        transition: "border-color 0.15s",
-        "&:hover": { borderColor: t.colors.primary },
+        gap: t.spacing(2.5),
+        transition: "all 0.3s ease",
+        cursor: "pointer",
+        "&:hover": { 
+          background: "linear-gradient(135deg, rgba(217, 70, 166, 0.1), rgba(167, 139, 250, 0.1))",
+          transform: "translateY(-6px)",
+          boxShadow: "0 12px 28px rgba(217, 70, 166, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+          borderColor: "rgba(217, 70, 166, 0.2)",
+        },
+        "&:active": { transform: "translateY(-2px)" },
       }))}
     >
-      {/* Kind + confidence row */}
-      <div className={css((t) => ({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(1) }))}>
+      {/* Header: label + emoji + confidence */}
+      <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", gap: t.spacing(2) }))}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), flex: 1, minWidth: 0 }))}>
+          <span className={css({ fontSize: "18px", flexShrink: 0 })}>
+            {kindInfo.icon}
+          </span>
+          <div className={css({ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 })}>
+            <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#333", lineHeight: "1.35" }))}>
+              {suggestion.title}
+            </div>
+          </div>
+        </div>
         <span
-          className={css((t) => ({
-            display: "inline-flex",
-            alignItems: "center",
-            gap: t.spacing(1),
-            fontSize: t.fontSize.xs,
-            fontWeight: t.fontWeight.semibold,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            color: t.colors.textMuted,
+          className={css((t) => ({ 
+            fontSize: t.fontSize.xs, 
+            fontWeight: "600", 
+            textTransform: "uppercase", 
+            letterSpacing: "0.5px",
+            background: t.gradients.confidenceText,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            flexShrink: 0,
           }))}
-        >
-          {suggestion.kind === "archive_bulk" && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{marginRight: "0.375rem", verticalAlign: "middle"}}><path d="M21 8v13H3V8"/><path d="M23 3H1v5h22V3z"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-          )}
-          {suggestion.kind === "create_filter" && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{marginRight: "0.375rem", verticalAlign: "middle"}}><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
-          )}
-          {suggestion.kind === "mark_read_bulk" && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{marginRight: "0.375rem", verticalAlign: "middle"}}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          )}
-          {suggestion.kind === "needs_user_input" && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{marginRight: "0.375rem", verticalAlign: "middle"}}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          )}
-          {kindInfo.label}
-        </span>
-        <span
-          className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: t.fontWeight.bold, textTransform: "uppercase", padding: "1px 8px", borderRadius: "999px", letterSpacing: "0.02em" }))}
-          style={{ background: confStyle.bg, color: confStyle.text, border: `1px solid ${confStyle.border}` }}
         >
           {suggestion.confidence}
         </span>
       </div>
 
-      {/* Title */}
-      <h4 className={css((t) => ({ fontSize: t.fontSize.base, fontWeight: t.fontWeight.semibold, margin: 0, lineHeight: "1.35" }))}>
-        {suggestion.title}
-      </h4>
-
-      {/* Rationale — truncated to 2 lines */}
+      {/* Description */}
       <p
         className={css((t) => ({
           fontSize: t.fontSize.xs,
-          color: t.colors.textMuted,
+          color: "#666",
           margin: 0,
-          lineHeight: "1.45",
-          display: "-webkit-box",
-          "-webkit-line-clamp": 2,
-          "-webkit-box-orient": "vertical",
-          overflow: "hidden",
-          overflowWrap: "anywhere",
+          lineHeight: "1.4",
         }))}
       >
         {suggestion.rationale}
@@ -215,92 +202,97 @@ function ProposalCard({
       )}
 
       {/* Action buttons */}
-      <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), paddingTop: t.spacing(1), borderTop: `1px solid ${t.colors.borderLight}` }))}>
+      <div className={css((t) => ({ display: "flex", gap: t.spacing(2), marginTop: t.spacing(1) }))}>
         {canApply ? (
           <button
             onClick={handleAccept}
             className={css((t) => ({
               flex: 1,
-              padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
               border: "none",
-              borderRadius: t.radiusSm,
-              background: t.colors.primary,
+              borderRadius: "16px",
+              background: t.gradients.button,
               color: "#fff",
-              fontWeight: t.fontWeight.semibold,
+              fontWeight: "600",
               fontSize: t.fontSize.xs,
               cursor: "pointer",
-              transition: "background 0.15s",
-              minHeight: "44px",
-              "&:hover": { background: t.colors.primaryHover },
-              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+              transition: "all 0.3s ease",
+              minHeight: "auto",
+              boxShadow: "0 4px 12px rgba(217, 70, 166, 0.2)",
+              "&:hover": { transform: "translateY(-2px)", boxShadow: "0 6px 16px rgba(217, 70, 166, 0.28)" },
+              "&:focus-visible": { outline: "none" },
             }))}
           >
-            <span aria-hidden="true">⚡</span> Accept / Apply
+            Accept
           </button>
         ) : (
           <button
             disabled
             className={css((t) => ({
               flex: 1,
-              padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-              border: `1px solid ${t.colors.borderLight}`,
-              borderRadius: t.radiusSm,
-              background: t.colors.bgAlt,
-              color: t.colors.textMuted,
-              fontWeight: t.fontWeight.medium,
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              border: "1px solid rgba(217, 70, 166, 0.15)",
+              borderRadius: "16px",
+              background: "rgba(217, 70, 166, 0.08)",
+              color: "#d946a6",
+              fontWeight: "600",
               fontSize: t.fontSize.xs,
               cursor: "not-allowed",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "4px",
-              minHeight: "44px",
+              minHeight: "auto",
             }))}
             title="Discuss in chat to refine this suggestion"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             Needs Input
           </button>
         )}
-        <button
-          onClick={handleMention}
-          title="Mention this suggestion in the chat"
-          className={css((t) => ({
-            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-            border: `1px solid ${t.colors.borderLight}`,
-            borderRadius: t.radiusSm,
-            background: "transparent",
-            color: t.colors.textMuted,
-            fontSize: t.fontSize.xs,
-            cursor: "pointer",
-            transition: "background 0.15s, color 0.15s",
-            minHeight: "44px",
-            "&:hover": { background: "#f0f3ff", color: "#4f46e5", borderColor: "#4f46e5" },
-            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
-          }))}
-        >
-          @ Mention
-        </button>
         <button
           onClick={handleDismiss}
           disabled={dismissing}
           title="Dismiss this suggestion"
           className={css((t) => ({
-            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-            border: `1px solid ${t.colors.borderLight}`,
-            borderRadius: t.radiusSm,
-            background: "transparent",
-            color: t.colors.textMuted,
+            flex: 1,
+            padding: `${t.spacing(2)} ${t.spacing(3)}`,
+            border: "1px solid rgba(217, 70, 166, 0.15)",
+            borderRadius: "16px",
+            background: "rgba(217, 70, 166, 0.08)",
+            color: "#d946a6",
+            fontWeight: "600",
             fontSize: t.fontSize.xs,
             cursor: "pointer",
-            transition: "background 0.15s, color 0.15s",
-            minHeight: "44px",
-            "&:hover:not(:disabled)": { background: "#fef2f2", color: "#dc2626", borderColor: "#fecaca" },
+            transition: "all 0.3s ease",
+            minHeight: "auto",
+            "&:hover:not(:disabled)": { background: "rgba(217, 70, 166, 0.12)", borderColor: "rgba(217, 70, 166, 0.25)" },
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
-            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+            "&:focus-visible": { outline: "none" },
           }))}
         >
-          <span aria-hidden="true">✕</span> {dismissing ? "Dismissing…" : "Dismiss"}
+          {dismissing ? "Dismiss…" : "Dismiss"}
+        </button>
+        <button
+          onClick={handleMention}
+          title="Mention this suggestion in the chat"
+          className={css((t) => ({
+            width: "44px",
+            height: "44px",
+            minWidth: "44px",
+            minHeight: "44px",
+            padding: t.spacing(2),
+            border: "1.5px solid rgba(167, 139, 250, 0.4)",
+            borderRadius: "16px",
+            background: "transparent",
+            color: "#a78bfa",
+            fontSize: t.fontSize.sm,
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "600",
+            "&:hover": { background: "rgba(167, 139, 250, 0.08)", borderColor: "rgba(167, 139, 250, 0.6)" },
+            "&:focus-visible": { outline: "none" },
+          }))}
+        >
+          @
         </button>
       </div>
     </div>
@@ -335,7 +327,6 @@ export default function ProposalSidebar({
   const [suggestionsWithIds, setSuggestionsWithIds] = useState<SuggestionWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -371,12 +362,7 @@ export default function ProposalSidebar({
     loadSuggestions();
   }, [refreshKey]);
 
-  // Auto-show sidebar when suggestions arrive
-  useEffect(() => {
-    if (suggestionsWithIds.length > 0) {
-      setSidebarCollapsed(false);
-    }
-  }, [suggestionsWithIds]);
+
 
   async function dismissSuggestion(id: string) {
     try {
@@ -430,170 +416,99 @@ export default function ProposalSidebar({
         minWidth: 0,
         display: "flex",
         flexDirection: "column",
-        gap: t.spacing(3),
+        gap: 0,
         "@media (max-width: 1100px)": { flex: "0 0 300px" },
         "@media (max-width: 960px)": { flex: "1 1 auto", width: "100%" },
       }))}
     >
-      {/* Sidebar toggle header */}
-      <button
-        onClick={() => setSidebarCollapsed((v) => !v)}
-        aria-expanded={!sidebarCollapsed}
+      {/* Sidebar panel container */}
+      <div
         className={css((t) => ({
+          background: "linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 187, 208, 0.08))",
+          borderRadius: t.radiusPanel,
+          padding: t.spacing(6),
           display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          width: "100%",
-          padding: `${t.spacing(3)} ${t.spacing(4)}`,
-          border: `1px solid ${t.colors.border}`,
-          borderRadius: t.radius,
-          cursor: "pointer",
-          fontSize: t.fontSize.sm,
-          fontWeight: t.fontWeight.bold,
-          color: t.colors.text,
-          transition: "background 0.15s, border-radius 0.15s, border-color 0.15s",
-          "&:hover": { background: t.colors.borderLight },
-          "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+          flexDirection: "column",
+          gap: t.spacing(3.5),
+          height: "100%",
+          overflowY: "auto",
+          boxShadow: "0 16px 48px rgba(217, 70, 166, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+          border: "1px solid rgba(217, 70, 166, 0.08)",
+          maxHeight: "calc(100vh - 180px)",
         }))}
-        style={sidebarCollapsed
-          ? { backgroundColor: "#fafaf8" }
-          : {
-              backgroundColor: "#eef2ff",
-              borderColor: "#4f46e5",
-              borderBottomColor: "transparent",
-              borderRadius: "0.5rem 0.5rem 0 0",
-              color: "#4f46e5",
-              fontWeight: "700",
-            }}
       >
-        <span className={css({ display: "flex", alignItems: "center", gap: "8px" })}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-          Proposals
-          {suggestionsWithIds.length > 0 && (
-            <span
-              className={`${css((t) => ({
-                padding: "1px 8px",
-                borderRadius: "999px",
-                fontSize: t.fontSize.xs,
-                fontWeight: t.fontWeight.semibold,
-              }))} ${suggestionsWithIds.length > 0 ? "proposals-badge-pulse" : ""}`}
-              style={suggestionsWithIds.length > 0 ? { background: theme.colors.primary, color: "#fff" } : { background: theme.colors.border, color: theme.colors.textMuted }}
-            >
-              {suggestionsWithIds.length}
-            </span>
-          )}
-        </span>
-        <span
-          style={{
-            fontSize: "0.8rem",
-            transition: "transform 0.2s",
-            transform: sidebarCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
-            display: "inline-block",
-          }}
-          aria-hidden="true"
-        >
-          ▾
-        </span>
-      </button>
-
-      {/* Sidebar body */}
-      {!sidebarCollapsed && (
-        <div
-          className={css((t) => ({
-            border: `1px solid ${t.colors.border}`,
-            borderTop: "none",
-            borderRadius: `0 0 ${t.radius} ${t.radius}`,
-            background: t.colors.bg,
-            padding: t.spacing(3),
-            display: "flex",
-            flexDirection: "column",
-            gap: t.spacing(3),
-            maxHeight: "calc(100vh - 180px)",
-            overflowY: "auto",
-            scrollbarWidth: "thin",
-            scrollbarColor: "#d1d5db transparent",
-          }))}
-        >
-          {/* Error */}
-          {error && (
-            <div
-              className={css((t) => ({
-                padding: t.spacing(2.5),
-                background: "#fef2f2",
-                borderRadius: t.radiusSm,
-                color: t.colors.error,
-                fontSize: t.fontSize.sm,
-              }))}
-            >
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Loading skeleton */}
-          {loading && (
-            <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2) }))}>
-              <ProposalSkeletonCard />
-              <ProposalSkeletonCard />
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!loading && suggestionsWithIds.length === 0 && (
-            <div
-              className={css((t) => ({
-                textAlign: "center",
-                padding: `${t.spacing(6)} ${t.spacing(3)}`,
-                background: t.colors.bgAlt,
-                borderRadius: t.radius,
-              }))}
-            >
-              <div className={css({ fontSize: "2rem", marginBottom: "6px" })}>✨</div>
-              <p className={css((t) => ({ fontWeight: t.fontWeight.semibold, fontSize: t.fontSize.sm, margin: "0 0 4px" }))}>No proposals yet</p>
-              <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, margin: 0 }))}>
-                Ask the chat agent to create suggestions for your inbox.
-              </p>
-            </div>
-          )}
-
-          {/* Proposal cards */}
-          {!loading && suggestionsWithIds.length > 0 && (
-            <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2) }))}>
-              {suggestionsWithIds.map((item) => (
-                <ProposalCard
-                  key={item.id}
-                  id={item.id}
-                  suggestion={item.suggestion}
-                  messageMap={messageMap}
-                  onAccept={() => setAcceptingId(item.id)}
-                  onDismiss={() => dismissSuggestion(item.id)}
-                  onMentionSuggestion={onMentionSuggestion}
-                  onNotifyAgent={onSuggestionNotification}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Chat hint */}
-          {suggestionsWithIds.length > 0 && !loading && (
-            <div
-              className={css((t) => ({
-                padding: t.spacing(2.5),
-                background: t.colors.primaryLight,
-                borderRadius: t.radiusSm,
-                fontSize: t.fontSize.xs,
-                color: "#1e40af",
-                lineHeight: t.lineHeight.normal,
-                display: "flex",
-                alignItems: "flex-start",
-                gap: t.spacing(1.5),
-              }))}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0, marginTop: "1px", flexShrink: 0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              <span>Refine any proposal by discussing it in the chat. The agent will update suggestions based on your instructions.</span>
-            </div>
-          )}
+        {/* Title */}
+        <div className={css((t) => ({
+          fontSize: "13px",
+          fontWeight: "700",
+          textTransform: "uppercase",
+          letterSpacing: "1.2px",
+          background: t.gradients.suggestionsTitle,
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          margin: "0 0 4px",
+        }))}>
+          Suggested Actions
         </div>
-      )}
+        {/* Error */}
+        {error && (
+          <div
+            className={css((t) => ({
+              padding: t.spacing(2.5),
+              background: "#fef2f2",
+              borderRadius: t.radiusSm,
+              color: t.colors.error,
+              fontSize: t.fontSize.sm,
+            }))}
+          >
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Loading skeleton */}
+        {loading && (
+          <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(2) }))}>
+            <ProposalSkeletonCard />
+            <ProposalSkeletonCard />
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && suggestionsWithIds.length === 0 && (
+          <div
+            className={css((t) => ({
+              textAlign: "center",
+              padding: `${t.spacing(8)} ${t.spacing(4)}`,
+              color: t.colors.textMuted,
+            }))}
+          >
+            <div className={css((t) => ({ fontSize: "2.5rem", marginBottom: t.spacing(2) }))}>✨</div>
+            <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.sm, margin: "0 0 4px", color: "#333" }))}>No suggestions yet</p>
+            <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, margin: 0 }))}>
+              Ask the chat to find suggestions for your inbox.
+            </p>
+          </div>
+        )}
+
+        {/* Proposal cards */}
+        {!loading && suggestionsWithIds.length > 0 && (
+          <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(3.5) }))}>
+            {suggestionsWithIds.map((item) => (
+              <ProposalCard
+                key={item.id}
+                id={item.id}
+                suggestion={item.suggestion}
+                messageMap={messageMap}
+                onAccept={() => setAcceptingId(item.id)}
+                onDismiss={() => dismissSuggestion(item.id)}
+                onMentionSuggestion={onMentionSuggestion}
+                onNotifyAgent={onSuggestionNotification}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Approval confirmation modal */}
       {acceptingId && suggestionsWithIds.find((s) => s.id === acceptingId) && (

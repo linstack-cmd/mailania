@@ -498,17 +498,17 @@ export default function App() {
       cursor: "pointer",
       minHeight: "44px",
       transition: "color 0.15s, border-color 0.15s",
-      "&:hover": { color: t.colors.primary },
-      "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+      "&:hover": { color: "#d946a6" },
+      "&:focus-visible": { outline: `2px solid #d946a6`, outlineOffset: "-2px" },
     }));
     const tabActiveClass = css((t) => ({
-      borderBottomColor: t.colors.primary,
-      color: t.colors.primary,
+      borderBottomColor: "#d946a6",
+      color: "#d946a6",
       fontWeight: "700",
     }));
 
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box", background: "linear-gradient(135deg, #f0f4ff, #e8edf8)" }))}>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box", background: "linear-gradient(135deg, #fce4ec 0%, #f3e5f5 25%, #ede7f6 50%, #e0f2f1 75%, #f0f9ff 100%)" }))}>
         {!isPasskeySupported() ? (
           <div className={css((t) => ({ textAlign: "center", maxWidth: "360px", padding: t.spacing(4) }))}>
             <p className={css((t) => ({ color: t.colors.error, fontSize: t.fontSize.sm, lineHeight: "1.6" }))}>
@@ -520,8 +520,14 @@ export default function App() {
             {/* Logomark above branding */}
             <div style={{display: "flex", justifyContent: "center", marginBottom: "16px"}}>
               <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                <rect width="48" height="48" rx="12" fill="#4f46e5"/>
-                <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="white" fontFamily="system-ui, sans-serif" fontWeight="700" fontSize="26">M</text>
+                <defs>
+                  <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#d946a6" />
+                    <stop offset="100%" stopColor="#a78bfa" />
+                  </linearGradient>
+                </defs>
+                <rect width="48" height="48" rx="12" fill="url(#logoBg)"/>
+                <text x="50%" y="54%" dominantBaseline="middle" textAnchor="middle" fill="white" fontFamily="system-ui, sans-serif" fontWeight="700" fontSize="26">✨</text>
               </svg>
             </div>
             {/* Branding inside card */}
@@ -561,7 +567,7 @@ export default function App() {
                     justifyContent: "center",
                     gap: t.spacing(2),
                     padding: `${t.spacing(3)} ${t.spacing(6)}`,
-                    background: t.colors.primary,
+                    background: t.gradients.button,
                     color: "#fff",
                     borderRadius: t.radius,
                     border: "none",
@@ -570,8 +576,8 @@ export default function App() {
                     cursor: "pointer",
                     minHeight: "44px",
                     transition: "background 0.15s",
-                    "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-                    "&:focus-visible": { outline: `2px solid #4f46e5`, outlineOffset: "2px" },
+                    "&:hover:not(:disabled)": { opacity: 0.9 },
+                    "&:focus-visible": { outline: `2px solid #d946a6`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
@@ -616,7 +622,7 @@ export default function App() {
                     justifyContent: "center",
                     gap: t.spacing(2),
                     padding: `${t.spacing(3)} ${t.spacing(6)}`,
-                    background: t.colors.primary,
+                    background: t.gradients.button,
                     color: "#fff",
                     borderRadius: t.radius,
                     border: "none",
@@ -625,8 +631,8 @@ export default function App() {
                     cursor: "pointer",
                     minHeight: "44px",
                     transition: "background 0.15s",
-                    "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-                    "&:focus-visible": { outline: `2px solid #4f46e5`, outlineOffset: "2px" },
+                    "&:hover:not(:disabled)": { opacity: 0.9 },
+                    "&:focus-visible": { outline: `2px solid #d946a6`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
@@ -675,14 +681,14 @@ export default function App() {
             alignItems: "center",
             gap: t.spacing(2),
             padding: `${t.spacing(3)} ${t.spacing(6)}`,
-            background: t.colors.primary,
+            background: t.gradients.button,
             color: "#fff",
             borderRadius: t.radius,
             textDecoration: "none",
             fontWeight: "600",
             fontSize: t.fontSize.base,
             transition: "background 0.15s",
-            "&:hover": { background: t.colors.primaryHover },
+            "&:hover": { opacity: 0.9 },
           }))}
         >
           Connect Gmail Account
@@ -721,15 +727,20 @@ export default function App() {
       <Route>
     <div className={css((t) => ({
       width: "100%",
-      maxWidth: "1400px",
+      maxWidth: "1280px",
       margin: "0 auto",
-      padding: `${t.spacing(6)} ${t.spacing(5)}`,
+      padding: `${t.spacing(8)} ${t.spacing(8)}`,
       minWidth: 0,
       boxSizing: "border-box",
       overflowX: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      gap: t.spacing(6),
+      minHeight: "100vh",
       "@media (max-width: 640px)": {
         padding: `${t.spacing(3)} ${t.spacing(2.5)} calc(${t.spacing(20)} + env(safe-area-inset-bottom, 0px))`,
         maxWidth: "100vw",
+        gap: t.spacing(4),
       },
       "@media (max-width: 360px)": {
         padding: `${t.spacing(2)} ${t.spacing(2)} calc(${t.spacing(10)} + env(safe-area-inset-bottom, 0px))`,
@@ -741,22 +752,45 @@ export default function App() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          paddingBottom: t.spacing(4),
-          marginBottom: t.spacing(5),
-          borderBottom: `2px solid ${t.colors.border}`,
-          gap: t.spacing(2),
+          paddingLeft: t.spacing(4),
+          paddingRight: t.spacing(4),
+          gap: t.spacing(4),
           minWidth: 0,
-          flexWrap: "wrap",
           "@media (max-width: 640px)": {
-            paddingBottom: t.spacing(3),
-            marginBottom: t.spacing(3),
-            alignItems: "stretch",
+            paddingLeft: 0,
+            paddingRight: 0,
+            gap: t.spacing(2),
           },
         }))}
       >
-        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0, overflow: "visible" }))}>
-          <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
-            <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, flexShrink: 0, margin: 0, letterSpacing: "-0.02em" }))}>
+        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(3.5), minWidth: 0, overflow: "visible" }))}>
+          <div className={css((t) => ({ 
+            width: "44px",
+            height: "44px",
+            background: t.gradients.logo,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "24px",
+            fontWeight: "700",
+            color: "white",
+            boxShadow: "0 6px 20px rgba(217, 70, 166, 0.25)",
+            flexShrink: 0,
+          }))}>
+            ✨
+          </div>
+          <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0 }))}>
+            <h1 className={css((t) => ({ 
+              fontSize: "28px", 
+              fontWeight: "700", 
+              flexShrink: 0, 
+              margin: 0, 
+              background: t.gradients.headerText,
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }))}>
               Mailania
             </h1>
             {testMode && (
@@ -765,77 +799,60 @@ export default function App() {
               </span>
             )}
           </div>
-          {status?.user && (
-            <span
-              className={css((t) => ({
-                fontSize: t.fontSize.xs,
-                color: t.colors.textMuted,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                minWidth: 0,
-                "@media (max-width: 480px)": {
-                  display: "none",
-                },
-              }))}
-            >
-              {status.user.displayName}
-              {status.gmailAccounts && status.gmailAccounts.length > 0 && (
-                <> · {status.gmailAccounts.find((a) => a.isActive)?.email}</>
-              )}
-            </span>
-          )}
         </div>
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(1.5), flexWrap: "wrap", flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto", "@media (max-width: 640px)": { width: "100%" }, "@media (max-width: 480px)": { gap: t.spacing(0.75) } }))}>
-
+        <div className={css((t) => ({ display: "flex", gap: t.spacing(3), flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto", "@media (max-width: 640px)": { gap: t.spacing(2) } }))}>
           <a
             href="/settings"
             title="Account settings"
             className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radiusSm,
-              background: t.colors.bg,
+              width: "40px",
+              height: "40px",
+              background: t.gradients.avatarUser,
+              borderRadius: "50%",
               cursor: "pointer",
-              fontSize: t.fontSize.xs,
+              fontSize: t.fontSize.base,
               textDecoration: "none",
-              color: t.colors.text,
+              color: "white",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: t.spacing(1),
-              minHeight: "44px",
-              minWidth: "44px",
-              transition: "background 0.15s",
-              "&:hover": { background: t.colors.borderLight },
-              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+              fontWeight: "600",
+              minHeight: "40px",
+              minWidth: "40px",
+              transition: "all 0.3s ease",
+              boxShadow: "0 4px 12px rgba(167, 139, 250, 0.3)",
+              "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(167, 139, 250, 0.4)" },
+              "&:focus-visible": { outline: "none" },
             }))}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-            {!isNarrowHeader && "Account"}
+            {status?.user?.displayName?.charAt(0).toUpperCase() || "A"}
           </a>
           <button
             onClick={handleLogout}
             title="Sign out"
             className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(2.5)}`,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radiusSm,
-              background: t.colors.bg,
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              border: "none",
+              borderRadius: "16px",
+              background: "rgba(217, 70, 166, 0.08)",
               cursor: "pointer",
               fontSize: t.fontSize.xs,
-              color: t.colors.textMuted,
-              minHeight: "44px",
-              minWidth: "44px",
+              color: "#d946a6",
+              fontWeight: "600",
+              minHeight: "40px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "background 0.15s, color 0.15s",
-              "&:hover": { background: t.colors.borderLight, color: t.colors.text },
-              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+              transition: "all 0.3s ease",
+              "&:hover": { background: "rgba(217, 70, 166, 0.15)" },
+              "&:focus-visible": { outline: "none" },
+              "@media (max-width: 480px)": {
+                padding: `${t.spacing(2)} ${t.spacing(2)}`,
+                fontSize: t.fontSize.xs,
+              },
             }))}
           >
-            {isNarrowHeader ? "↪" : "Sign out"}
+            Sign out
           </button>
         </div>
       </header>
@@ -890,15 +907,18 @@ export default function App() {
         </div>
       )}
 
-      {/* 2-column layout: chat (left/center) + proposal sidebar (right) */}
+      {/* Main content: grid layout for desktop */}
       <div
         className={css((t) => ({
-          display: "flex",
-          gap: t.spacing(5),
+          display: "grid",
+          gridTemplateColumns: "1fr 340px",
+          gap: t.spacing(6),
           alignItems: "flex-start",
           minWidth: 0,
+          flex: 1,
+          minHeight: 0,
           "@media (max-width: 960px)": {
-            flexDirection: "column",
+            gridTemplateColumns: "1fr",
             gap: t.spacing(4),
           },
           "@media (max-width: 640px)": {
@@ -906,85 +926,35 @@ export default function App() {
           },
         }))}
       >
-        {/* Left column: Chat (now full width on all devices, inbox removed per Fix 1) */}
-        <div className={css((t) => ({ flex: "1 1 0%", minWidth: 0, width: "100%", maxWidth: "100%", overflow: "hidden", display: "flex", flexDirection: "column", gap: t.spacing(5), borderRight: `1px solid ${t.colors.border}`, "@media (max-width: 960px)": { borderRight: "none" } }))}>
-          {/* General Chat — primary surface */}
-          <section className={css((t) => ({ display: "flex", flexDirection: "column", flex: "1", minHeight: 0 }))}>
-            <div className={css((t) => ({ marginBottom: t.spacing(3), display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: t.spacing(3) }))}>
-              <div>
-                <h2 className={css((t) => ({ fontSize: t.fontSize.lg, fontWeight: t.fontWeight.bold, margin: "0", display: "flex", alignItems: "center", gap: t.spacing(1.5) }))}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0,verticalAlign:"middle"}} aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  Inbox Chat
-                </h2>
-                <p className={css((t) => ({ fontSize: t.fontSize.sm, color: t.colors.textMuted, margin: `${t.spacing(1)} 0 0`, lineHeight: t.lineHeight.normal }))}>
-                  Ask about your inbox, search mail, refine proposals, or update triage preferences — all from one thread.
-                </p>
-              </div>
-              <button
-                onClick={async () => {
-                  try {
-                    const res = await fetch("/api/chat", { method: "DELETE" });
-                    if (res.ok) {
-                      setGeneralChatMessages([]);
-                    }
-                  } catch (err) {
-                    console.error("Failed to clear chat:", err);
-                  }
-                }}
-                title="Clear chat history"
-                className={css((t) => ({
-                  padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-                  border: "none",
-                  background: "transparent",
-                  color: t.colors.textMuted,
-                  fontSize: t.fontSize.xs,
-                  cursor: "pointer",
-                  borderRadius: t.radiusSm,
-                  whiteSpace: "nowrap",
-                  transition: "background 0.15s, color 0.15s",
-                  minHeight: "44px",
-                  "&:hover": { background: t.colors.bgAlt, color: t.colors.text },
-                  "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
-                }))}
-              >
-                Clear chat
-              </button>
-            </div>
+        {/* Left column: Chat area */}
+        <ChatPanel
+          title="Chat with Mailania"
+          subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won't change your mailbox from chat."
+          messages={generalChatMessages}
+          loading={generalChatLoading}
+          initLoading={generalChatInitLoading}
+          error={generalChatError}
+          input={generalChatInput}
+          onInputChange={setGeneralChatInput}
+          onSend={sendGeneralChatMessage}
+          placeholder="Ask about your inbox…"
+          emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
+          starterPrompts={[
+            "What stands out in my inbox right now?",
+            "Search for receipts from this month",
+            "What triage preferences do you remember?",
+            "Summarize the latest triage suggestions",
+          ]}
+          onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
+          mentionSuggestions={mentionSuggestions}
+          textareaRef={chatPanelTextareaRef}
+        />
 
-            <ChatPanel
-              title="Chat with Mailania"
-              subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won't change your mailbox from chat."
-              messages={generalChatMessages}
-              loading={generalChatLoading}
-              initLoading={generalChatInitLoading}
-              error={generalChatError}
-              input={generalChatInput}
-              onInputChange={setGeneralChatInput}
-              onSend={sendGeneralChatMessage}
-              placeholder="Ask about your inbox…"
-              emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
-              starterPrompts={[
-                "What stands out in my inbox right now?",
-                "Search for receipts from this month",
-                "What triage preferences do you remember?",
-                "Summarize the latest triage suggestions",
-              ]}
-              onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
-              mentionSuggestions={mentionSuggestions}
-              textareaRef={chatPanelTextareaRef}
-            />
-          </section>
-        </div>
-
-        {/* Right column: Proposal Sidebar (hidden on mobile — shown via bottom sheet instead) */}
+        {/* Right column: Proposal Sidebar (hidden on mobile via CSS) */}
         <div
-          className={css({
-            width: "340px",
-            maxWidth: "340px",
-            flexShrink: 0,
-            "@media (max-width: 960px)": { width: "100%", maxWidth: "100%" },
+          className={css((t) => ({
             "@media (max-width: 640px)": { display: "none" },
-          })}
+          }))}
         >
           <ProposalSidebar
             onAuthLost={() => {

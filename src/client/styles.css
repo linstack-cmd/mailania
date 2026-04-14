@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 @flow-css;
 
 *,
@@ -20,15 +22,42 @@ html {
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #fafaf8;
+  font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 25%, #ede7f6 50%, #e0f2f1 75%, #f0f9ff 100%);
+  background-attachment: fixed;
   color: #1a1a1a;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Scrollbar styling for webkit browsers */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(248, 187, 208, 0.15);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ec4899, #a78bfa);
+  border-radius: 10px;
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #d946a6, #9333ea);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-color: #ec4899 rgba(248, 187, 208, 0.15);
+  scrollbar-width: thin;
+}
+
 /* Global focus visible ring for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid #4f46e5 !important;
+  outline: 2px solid #d946a6 !important;
   outline-offset: 2px !important;
 }
 

@@ -210,7 +210,8 @@ function parseInlineFormats(text: string): React.ReactNode {
         <code
           key={`ic-${key++}`}
           className={css((t) => ({
-            background: t.colors.bgAlt,
+            background: "rgba(0, 0, 0, 0.2)",
+            color: "white",
             padding: `0 ${t.spacing(0.75)}`,
             borderRadius: t.radiusSm,
             fontSize: "0.9em",
@@ -233,7 +234,7 @@ function parseInlineFormats(text: string): React.ReactNode {
             target="_blank"
             rel="noopener noreferrer"
             className={css((t) => ({
-              color: t.colors.primary,
+              color: "rgba(255, 255, 255, 0.9)",
               textDecoration: "underline",
               transition: "opacity 0.15s",
               "&:hover": { opacity: 0.7 },
@@ -446,10 +447,10 @@ export function ChatPanel({
   return (
     <div
       className={css((t) => ({
-        border: `1px solid ${t.colors.border}`,
-        borderRadius: t.radius,
+        border: "1px solid rgba(217, 70, 166, 0.08)",
+        borderRadius: t.radiusLarge,
         overflow: "hidden",
-        background: t.colors.bg,
+        background: "linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 187, 208, 0.12) 100%)",
         minWidth: 0,
         maxWidth: "100%",
         width: "100%",
@@ -457,6 +458,7 @@ export function ChatPanel({
         flexDirection: "column",
         minHeight: "200px",
         boxSizing: "border-box",
+        boxShadow: "0 20px 60px rgba(217, 70, 166, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
         "@media (max-width: 640px)": {
           flex: "1",
           minHeight: "180px",
@@ -466,8 +468,8 @@ export function ChatPanel({
       <div
         className={css((t) => ({
           padding: `${t.spacing(3)} ${t.spacing(4)}`,
-          background: t.colors.bgAlt,
-          borderBottom: `1px solid ${t.colors.borderLight}`,
+          background: "transparent",
+          borderBottom: "1px solid rgba(217, 70, 166, 0.05)",
           flexShrink: 0,
         }))}
       >
@@ -521,9 +523,7 @@ export function ChatPanel({
           padding: t.spacing(3),
           display: "flex",
           flexDirection: "column",
-          gap: t.spacing(2.5),
-          scrollbarWidth: "thin",
-          scrollbarColor: "#d1d5db transparent",
+          gap: 0,
           overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
           flex: "1 1 auto",
@@ -592,9 +592,9 @@ export function ChatPanel({
                   wordBreak: "break-word",
                   textAlign: "center",
                   "&:hover:not(:disabled)": {
-                    borderColor: t.colors.primary,
-                    color: t.colors.primary,
-                    background: t.colors.primaryLight,
+                    borderColor: "#d946a6",
+                    color: "#d946a6",
+                    background: "rgba(217, 70, 166, 0.1)",
                   },
                   "&:disabled": {
                     opacity: 0.5,
@@ -608,9 +608,18 @@ export function ChatPanel({
           </div>
         )}
 
-        {messages.map((msg) => (
-          <ChatBubble key={msg.id} msg={msg} assistantName={assistantName} />
-        ))}
+        {messages.map((msg, idx) => {
+          const prevMsg = idx > 0 ? messages[idx - 1] : null;
+          const isSameSenderAsLast = prevMsg !== null && prevMsg.role === msg.role;
+          return (
+            <ChatBubble 
+              key={msg.id} 
+              msg={msg} 
+              assistantName={assistantName}
+              hideAvatar={isSameSenderAsLast}
+            />
+          );
+        })}
 
         {loading && (
           <div className={chatRowAssistantClass}>
@@ -628,7 +637,7 @@ export function ChatPanel({
             background: "#fef2f2",
             color: t.colors.error,
             fontSize: t.fontSize.xs,
-            borderTop: `1px solid ${t.colors.borderLight}`,
+            borderTop: "1px solid rgba(217, 70, 166, 0.05)",
             flexShrink: 0,
           }))}
         >
@@ -641,8 +650,8 @@ export function ChatPanel({
           display: "flex",
           gap: t.spacing(2),
           padding: t.spacing(3),
-          borderTop: `1px solid ${t.colors.borderLight}`,
-          background: t.colors.bg,
+          borderTop: "1px solid rgba(217, 70, 166, 0.05)",
+          background: "transparent",
           minWidth: 0,
           alignItems: "flex-end",
           flexShrink: 0,
@@ -685,20 +694,22 @@ export function ChatPanel({
               minHeight: "44px",
               maxHeight: "180px",
               padding: `${t.spacing(2)} ${t.spacing(3)}`,
-              border: `1px solid ${t.colors.border}`,
-              borderRadius: t.radiusSm,
+              border: "1px solid rgba(217, 70, 166, 0.08)",
+              borderRadius: t.radiusInput,
               fontSize: t.fontSize.sm,
               resize: "none",
               fontFamily: "inherit",
               lineHeight: t.lineHeight.normal,
               outline: "none",
-              transition: "border-color 0.15s",
+              transition: "all 0.3s ease",
               overflowX: "hidden",
               overflowY: "auto",
               boxSizing: "border-box",
               width: "100%",
-              "&:focus": { borderColor: t.colors.primary },
-              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+              background: "white",
+              boxShadow: "0 4px 16px rgba(217, 70, 166, 0.1)",
+              "&:focus": { borderColor: "rgba(217, 70, 166, 0.2)", boxShadow: "0 6px 24px rgba(217, 70, 166, 0.18)", background: "#fafafa" },
+              "&:focus-visible": { outline: "none" },
               "&:disabled": { opacity: 0.6 },
             }))}
           />
@@ -713,9 +724,9 @@ export function ChatPanel({
                 left: 0,
                 right: 0,
                 background: t.colors.bg,
-                border: `1px solid ${t.colors.border}`,
-                borderRadius: t.radiusSm,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                border: "1px solid rgba(217, 70, 166, 0.15)",
+                borderRadius: t.radiusCard,
+                boxShadow: "0 8px 24px rgba(217, 70, 166, 0.15)",
                 maxHeight: "200px",
                 overflowY: "auto",
                 zIndex: 1000,
@@ -739,7 +750,7 @@ export function ChatPanel({
                     onClick={() => selectMention(suggestion)}
                     className={css((t) => ({
                       padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-                      borderBottom: `1px solid ${t.colors.borderLight}`,
+                      borderBottom: "1px solid rgba(217, 70, 166, 0.08)",
                       cursor: "pointer",
                       transition: "background 0.15s",
                       display: "flex",
@@ -747,9 +758,9 @@ export function ChatPanel({
                       gap: t.spacing(2),
                       fontSize: t.fontSize.sm,
                       "&:last-child": { borderBottom: "none" },
-                      "&:hover": { background: t.colors.primaryLight },
+                      "&:hover": { background: "rgba(217, 70, 166, 0.04)" },
                     }))}
-                    style={idx === highlightedIndex ? { background: "#eef2ff" } : undefined}
+                    style={idx === highlightedIndex ? { background: "rgba(217, 70, 166, 0.08)" } : undefined}
                   >
                     <span className={css({ fontSize: "0.85rem", flexShrink: 0 })}>
                       {KIND_LABELS[suggestion.kind as keyof typeof KIND_LABELS]?.icon ?? "📝"}
@@ -778,9 +789,9 @@ export function ChatPanel({
                 left: 0,
                 right: 0,
                 background: t.colors.bg,
-                border: `1px solid ${t.colors.border}`,
-                borderRadius: t.radiusSm,
-                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                border: "1px solid rgba(217, 70, 166, 0.15)",
+                borderRadius: t.radiusCard,
+                boxShadow: "0 8px 24px rgba(217, 70, 166, 0.15)",
                 zIndex: 1000,
               }))}
             >
@@ -802,28 +813,33 @@ export function ChatPanel({
           onClick={() => onSend()}
           disabled={loading || !input.trim() || mentionActive}
           className={css((t) => ({
-            padding: `${t.spacing(2)} ${t.spacing(3.5)}`,
+            width: "48px",
+            height: "48px",
             border: "none",
-            borderRadius: t.radiusSm,
-            background: t.colors.primary,
-            color: "#fff",
+            background: t.gradients.button,
+            color: "white",
+            borderRadius: "50%",
             cursor: "pointer",
-            fontSize: t.fontSize.sm,
-            fontWeight: t.fontWeight.bold,
-            transition: "background 0.15s, opacity 0.15s, outline 0.15s",
-            alignSelf: "flex-end",
-            minHeight: "44px",
+            fontSize: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.3s ease",
+            boxShadow: "0 6px 18px rgba(217, 70, 166, 0.28)",
+            fontWeight: "600",
             flexShrink: 0,
             "@media (max-width: 640px)": {
-              width: "100%",
-              alignSelf: "stretch",
+              width: "44px",
+              height: "44px",
+              fontSize: "18px",
             },
-            "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+            "&:hover:not(:disabled)": { transform: "scale(1.08) translateY(-2px)", boxShadow: "0 10px 26px rgba(217, 70, 166, 0.35)" },
+            "&:focus-visible": { outline: "none" },
+            "&:active:not(:disabled)": { transform: "scale(0.96)" },
             "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
           }))}
         >
-          Send
+          ⏎
         </button>
       </div>
     </div>
@@ -832,96 +848,127 @@ export function ChatPanel({
 
 const chatRowUserClass = css((t) => ({
   display: "flex",
-  flexDirection: "column",
+  gap: t.spacing(1),
   alignItems: "flex-end",
-  gap: t.spacing(0.5),
+  flexDirection: "row-reverse",
+  marginBottom: t.spacing(2),
 }));
 
 const chatRowAssistantClass = css((t) => ({
   display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
-  gap: t.spacing(0.5),
+  gap: t.spacing(1),
+  alignItems: "flex-end",
+  flexDirection: "row",
+  marginBottom: t.spacing(2),
+}));
+
+const avatarClass = css((t) => ({
+  width: "32px",
+  height: "32px",
+  borderRadius: "50%",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontWeight: "600",
+  fontSize: "14px",
+  flexShrink: 0,
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+}));
+
+const avatarAiClass = css((t) => ({
+  background: t.gradients.avatarAi,
+  color: "white",
+}));
+
+const avatarUserClass = css((t) => ({
+  background: t.gradients.avatarUser,
+  color: "white",
 }));
 
 const chatBubbleUserClass = css((t) => ({
-  maxWidth: "85%",
+  maxWidth: "72%",
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderRadius: "12px",
-  borderBottomRightRadius: "4px",
+  borderRadius: t.radiusBubble,
   fontSize: t.fontSize.sm,
   lineHeight: t.lineHeight.relaxed,
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   overflowWrap: "anywhere",
   minWidth: 0,
-  background: t.colors.primary,
-  color: "#fff",
+  background: t.gradients.userMessage,
+  color: "#ffffff",
+  boxShadow: t.shadowUserBubble,
   "@media (max-width: 640px)": {
-    maxWidth: "92%",
+    maxWidth: "85%",
     padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
   },
 }));
 
 const chatBubbleAssistantClass = css((t) => ({
-  maxWidth: "85%",
+  maxWidth: "72%",
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderRadius: "12px",
-  borderBottomLeftRadius: "4px",
+  borderRadius: t.radiusBubble,
   fontSize: t.fontSize.sm,
   lineHeight: t.lineHeight.relaxed,
   whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   overflowWrap: "anywhere",
   minWidth: 0,
-  background: t.colors.bgAlt,
-  color: t.colors.text,
-  border: `1px solid ${t.colors.borderLight}`,
+  background: t.gradients.aiMessage,
+  color: "#ffffff",
+  boxShadow: t.shadowAiBubble,
   "@media (max-width: 640px)": {
-    maxWidth: "92%",
+    maxWidth: "85%",
     padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
   },
 }));
 
 const chatMetaClass = css((t) => ({
   fontSize: t.fontSize.xs,
-  color: t.colors.textMuted,
+  color: "#999",
   padding: "0 4px",
   maxWidth: "100%",
   overflowWrap: "anywhere",
+  marginTop: t.spacing(0.5),
 }));
 
-function ChatBubble({ msg, assistantName }: { msg: ChatMessageData; assistantName: string }) {
+function ChatBubble({ msg, assistantName, hideAvatar = false }: { msg: ChatMessageData; assistantName: string; hideAvatar?: boolean }) {
   const isUser = msg.role === "user";
+  const firstChar = isUser ? "Y" : "M";
   return (
     <div className={isUser ? chatRowUserClass : chatRowAssistantClass}>
-      {msg.toolStatus && (
-        <div
-          className={css((t) => ({
-            maxWidth: "85%",
-            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-            borderRadius: "12px",
-            borderBottomLeftRadius: "4px",
-            fontSize: t.fontSize.xs,
-            color: t.colors.textMuted,
-            background: t.colors.bgAlt,
-            border: `1px solid ${t.colors.borderLight}`,
-            fontStyle: "italic",
-            "@media (max-width: 640px)": {
-              maxWidth: "92%",
-            },
-          }))}
-        >
-          {msg.toolStatus}
-        </div>
-      )}
-      <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>
-        {isUser ? msg.content : <MarkdownRenderer text={msg.content} />}
+      {/* Avatar — hidden if same sender as previous message */}
+      <div className={`${avatarClass} ${isUser ? avatarUserClass : avatarAiClass}`} style={{ opacity: hideAvatar ? 0 : 1 }}>
+        {firstChar}
       </div>
-      <span className={chatMetaClass}>
-        {isUser ? "You" : assistantName} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-        {msg.streaming && <span> · streaming…</span>}
-      </span>
+      
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(0.5), minWidth: 0 }))}>
+        {msg.toolStatus && (
+          <div
+            className={css((t) => ({
+              maxWidth: "72%",
+              padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
+              borderRadius: t.radiusBubble,
+              fontSize: t.fontSize.xs,
+              color: "#999",
+              background: "rgba(100,100,100,0.08)",
+              fontStyle: "italic",
+              "@media (max-width: 640px)": {
+                maxWidth: "100%",
+              },
+            }))}
+          >
+            {msg.toolStatus}
+          </div>
+        )}
+        <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>
+          {isUser ? msg.content : <MarkdownRenderer text={msg.content} />}
+        </div>
+        <span className={chatMetaClass}>
+          {isUser ? "You" : assistantName} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+          {msg.streaming && <span> · streaming…</span>}
+        </span>
+      </div>
     </div>
   );
 }
