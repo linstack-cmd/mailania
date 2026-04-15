@@ -345,7 +345,7 @@ export function MobileSwipePane({
       className={css((t) => ({
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        height: "100dvh",
         width: "100%",
         background: t.gradients.pageBackground,
         overflow: "hidden",
