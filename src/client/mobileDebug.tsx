@@ -22,6 +22,9 @@ export interface MailaniaMobileDebugState {
   windowError?: string | null;
   unhandledRejection?: string | null;
   errorBoundaryError?: string | null;
+  windowInnerHeight?: number;
+  visualViewportHeight?: number;
+  snapContainerHeight?: number;
   lastUpdatedAt: string;
   localDev?: boolean;
 }
@@ -97,6 +100,9 @@ export function getDefaultMobileDebugState(): MailaniaMobileDebugState {
     windowError: null,
     unhandledRejection: null,
     errorBoundaryError: null,
+    windowInnerHeight: undefined,
+    visualViewportHeight: undefined,
+    snapContainerHeight: undefined,
     lastUpdatedAt: nowIso(),
     localDev: undefined,
   };
@@ -232,6 +238,22 @@ export function MobileDebugOverlay() {
     return new URLSearchParams(window.location.search).get("debugMobile") === "1";
   });
 
+  useEffect(() => {
+    const update = () => {
+      updateMobileDebug({
+        windowInnerHeight: window.innerHeight,
+        visualViewportHeight: window.visualViewport?.height ?? undefined,
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, []);
+
   const visible = useMemo(() => shouldShowMobileDebug(), [state.routePath]);
   if (!visible) return null;
 
@@ -252,12 +274,14 @@ export function MobileDebugOverlay() {
     ["window.onerror", state.windowError],
     ["unhandledrej", state.unhandledRejection],
     ["boundary", state.errorBoundaryError],
+    ["innerHeight", state.windowInnerHeight],
+    ["vvHeight", state.visualViewportHeight],
+    ["snapH", state.snapContainerHeight],
     ["updated", state.lastUpdatedAt],
   ];
 
   return (
     <>
-      {state.localDev && (
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -280,8 +304,7 @@ export function MobileDebugOverlay() {
       >
         debug {state.authenticated ? "auth" : "anon"} · {state.routePath}
       </button>
-      )}
-      {state.localDev && open && (
+      {open && (
         <div
           className={css({
             position: "fixed",
