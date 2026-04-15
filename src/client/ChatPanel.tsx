@@ -414,7 +414,7 @@ export function ChatPanel({
         },
       }))}
     >
-      <div
+      {!suppressInput && <div
         className={css((t) => ({
           padding: `${t.spacing(3)} ${t.spacing(4)}`,
           background: "transparent",
@@ -460,7 +460,7 @@ export function ChatPanel({
             {subtitle}
           </p>
         )}
-      </div>
+      </div>}
 
       <div
         ref={chatScrollRef}
