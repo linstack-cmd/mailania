@@ -233,10 +233,7 @@ function fieldValue(value: unknown) {
 
 export function MobileDebugOverlay() {
   const state = useMobileDebugState();
-  const [open, setOpen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return new URLSearchParams(window.location.search).get("debugMobile") === "1";
-  });
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const update = () => {
@@ -257,94 +254,45 @@ export function MobileDebugOverlay() {
   const visible = useMemo(() => shouldShowMobileDebug(), [state.routePath]);
   if (!visible) return null;
 
-  const rows: Array<[string, unknown]> = [
-    ["bootedJS", state.bootedJs],
-    ["statusFetch", state.statusFetch],
-    ["statusHttp", state.statusFetchHttp],
-    ["authenticated", state.authenticated],
-    ["gmailConnected", state.gmailConnected],
-    ["status.user", state.statusUserExists],
-    ["messages", state.messagesCount],
-    ["generalChat", state.generalChatMessagesCount],
-    ["latestSuggestions", state.latestSuggestionsState],
-    ["path", state.routePath],
-    ["ChatPanel", state.chatPanelMounted],
-    ["MobileSheet", state.mobileProposalSheetMounted],
-    ["appError", state.appError],
-    ["window.onerror", state.windowError],
-    ["unhandledrej", state.unhandledRejection],
-    ["boundary", state.errorBoundaryError],
-    ["innerHeight", state.windowInnerHeight],
-    ["vvHeight", state.visualViewportHeight],
-    ["snapH", state.snapContainerHeight],
-    ["updated", state.lastUpdatedAt],
-  ];
+  const handleCopyDebug = async () => {
+    const debugPayload = {
+      ...state,
+      windowInnerHeight: window.innerHeight,
+      visualViewportHeight: window.visualViewport?.height,
+    };
+    const jsonStr = JSON.stringify(debugPayload, null, 2);
+    try {
+      await navigator.clipboard.writeText(jsonStr);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) {
+      console.error("[Mailania debug] Failed to copy to clipboard:", err);
+    }
+  };
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          position: "fixed",
-          right: 12,
-          bottom: 12,
-          zIndex: 2147483647,
-          border: "1px solid rgba(255,255,255,0.25)",
-          borderRadius: 999,
-          background: "rgba(17,24,39,0.92)",
-          color: "#fff",
-          padding: "8px 12px",
-          fontSize: 12,
-          fontWeight: 700,
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-          maxWidth: "calc(100vw - 24px)",
-        }}
-      >
-        debug {state.authenticated ? "auth" : "anon"} · {state.routePath}
-      </button>
-      {open && (
-        <div
-          className={css({
-            position: "fixed",
-            left: "12px",
-            right: "12px",
-            bottom: "56px",
-            zIndex: 2147483647,
-            background: "rgba(17,24,39,0.96)",
-            color: "#fff",
-            borderRadius: "12px",
-            padding: "12px",
-            boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            fontSize: "11px",
-            lineHeight: "1.45",
-            maxHeight: "55vh",
-            overflowY: "auto",
-            border: "1px solid rgba(255,255,255,0.15)",
-          })}
-        >
-          <div className={css({ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", gap: "8px" })}>
-            <strong>Mailania mobile debug</strong>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              style={{ background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, padding: "4px 8px", fontSize: 11 }}
-            >
-              close
-            </button>
-          </div>
-          <div className={css({ display: "grid", gridTemplateColumns: "minmax(96px, 120px) 1fr", gap: "6px 8px", alignItems: "start" })}>
-            {rows.map(([label, value]) => (
-              <div key={label} style={{ display: "contents" }}>
-                <div style={{ opacity: 0.72 }}>{label}</div>
-                <div style={{ wordBreak: "break-word", whiteSpace: "pre-wrap" }}>{fieldValue(value)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
+    <button
+      type="button"
+      onClick={handleCopyDebug}
+      onPointerDown={(e) => e.preventDefault()}
+      style={{
+        position: "fixed",
+        right: 12,
+        bottom: 12,
+        zIndex: 2147483647,
+        border: "1px solid rgba(255,255,255,0.25)",
+        borderRadius: 999,
+        background: "rgba(17,24,39,0.92)",
+        color: "#fff",
+        padding: "8px 12px",
+        fontSize: 12,
+        fontWeight: 700,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+        maxWidth: "calc(100vw - 24px)",
+      }}
+    >
+      {copied ? "copied!" : "debug"}
+    </button>
   );
 }
