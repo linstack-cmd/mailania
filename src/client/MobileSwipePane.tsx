@@ -306,11 +306,26 @@ export function MobileSwipePane({
   const [activePaneIndex, setActivePaneIndex] = useState(0);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [vpHeight, setVpHeight] = useState<number | undefined>(undefined);
 
   const messageMap = new Map<string, InboxMessage>();
   for (const m of inboxMessages) {
     messageMap.set(m.id, m);
   }
+
+  // Track visual viewport height for Firefox Android keyboard handling
+  useEffect(() => {
+    const update = () => {
+      setVpHeight(window.visualViewport?.height ?? undefined);
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, []);
 
   // Detect active pane on scroll
   useEffect(() => {
@@ -342,10 +357,12 @@ export function MobileSwipePane({
 
   return (
     <div
+      style={{
+        height: vpHeight !== undefined ? `${vpHeight}px` : "100dvh",
+      }}
       className={css((t) => ({
         display: "flex",
         flexDirection: "column",
-        height: "100dvh",
         width: "100%",
         background: t.gradients.pageBackground,
         overflow: "hidden",
