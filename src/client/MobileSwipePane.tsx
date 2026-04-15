@@ -471,7 +471,6 @@ export function MobileSwipePane({
         <div
           className={css((t) => ({
             width: "100vw",
-            height: "100%",
             flexShrink: 0,
             scrollSnapAlign: "start",
             display: "flex",
@@ -505,7 +504,6 @@ export function MobileSwipePane({
         <div
           className={css((t) => ({
             width: "100vw",
-            height: "100%",
             flexShrink: 0,
             scrollSnapAlign: "start",
             display: "flex",
