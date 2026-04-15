@@ -476,11 +476,13 @@ export function ChatPanel({
           overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
           flex: "1 1 auto",
+          justifyContent: "flex-end",
           "@media (max-width: 640px)": {
             flex: "1",
             minHeight: "200px",
             maxHeight: "none",
             padding: t.spacing(2.5),
+            justifyContent: "flex-end",
           },
           "@media (max-width: 360px)": {
             paddingBottom: "65px",
