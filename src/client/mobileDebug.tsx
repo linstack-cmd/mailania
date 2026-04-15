@@ -234,6 +234,8 @@ function fieldValue(value: unknown) {
 export function MobileDebugOverlay() {
   const state = useMobileDebugState();
   const [copied, setCopied] = useState(false);
+  const [buttonTop, setButtonTop] = useState<number | undefined>(undefined);
+  const BUTTON_HEIGHT = 32; // Approximate height of the button
 
   useEffect(() => {
     const update = () => {
@@ -248,6 +250,23 @@ export function MobileDebugOverlay() {
     return () => {
       window.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, []);
+
+  // Position button relative to visual viewport
+  useEffect(() => {
+    const updateButtonPosition = () => {
+      if (window.visualViewport) {
+        const top = window.visualViewport.offsetTop + window.visualViewport.height - BUTTON_HEIGHT - 12;
+        setButtonTop(top);
+      }
+    };
+    updateButtonPosition();
+    window.visualViewport?.addEventListener("resize", updateButtonPosition);
+    window.visualViewport?.addEventListener("scroll", updateButtonPosition);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateButtonPosition);
+      window.visualViewport?.removeEventListener("scroll", updateButtonPosition);
     };
   }, []);
 
@@ -270,13 +289,25 @@ export function MobileDebugOverlay() {
     }
   };
 
-  return (
-    <button
-      type="button"
-      onClick={handleCopyDebug}
-      onPointerDown={(e) => e.preventDefault()}
-      style={{
-        position: "fixed",
+  const buttonStyle = buttonTop !== undefined
+    ? {
+        position: "fixed" as const,
+        top: buttonTop,
+        right: 12,
+        zIndex: 2147483647,
+        border: "1px solid rgba(255,255,255,0.25)",
+        borderRadius: 999,
+        background: "rgba(17,24,39,0.92)",
+        color: "#fff",
+        padding: "8px 12px",
+        fontSize: 12,
+        fontWeight: 700 as const,
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+        maxWidth: "calc(100vw - 24px)",
+      }
+    : {
+        position: "fixed" as const,
         right: 12,
         bottom: 12,
         zIndex: 2147483647,
@@ -286,11 +317,18 @@ export function MobileDebugOverlay() {
         color: "#fff",
         padding: "8px 12px",
         fontSize: 12,
-        fontWeight: 700,
+        fontWeight: 700 as const,
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
         maxWidth: "calc(100vw - 24px)",
-      }}
+      };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopyDebug}
+      onPointerDown={(e) => e.preventDefault()}
+      style={buttonStyle}
     >
       {copied ? "copied!" : "debug"}
     </button>
