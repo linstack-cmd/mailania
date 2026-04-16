@@ -338,6 +338,16 @@ export function MobileSwipePane({
     };
   }, []);
 
+  // Prevent body vertical scroll when MobileSwipePane is mounted
+  useEffect(() => {
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    
+    return () => {
+      document.documentElement.style.overflow = previousOverflow;
+    };
+  }, []);
+
   // Detect active pane on scroll
   useEffect(() => {
     const container = containerRef.current;
