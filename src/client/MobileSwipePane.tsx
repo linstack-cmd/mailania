@@ -308,6 +308,16 @@ export function MobileSwipePane({
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [vpHeight, setVpHeight] = useState<number | undefined>(undefined);
 
+  // Touch tracking for manual scroll handling
+  const touchRef = useRef<{
+    startX: number;
+    startY: number;
+    startScrollLeft: number;
+    locked: boolean;
+    direction: "none" | "horizontal" | "vertical";
+    startTime: number;
+  } | null>(null);
+
   const messageMap = new Map<string, InboxMessage>();
   for (const m of inboxMessages) {
     messageMap.set(m.id, m);
@@ -341,6 +351,131 @@ export function MobileSwipePane({
 
     container.addEventListener("scroll", handleScroll);
     return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Touch handlers for manual horizontal swiping (fixes Firefox Android)
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const DISAMBIGUATE_THRESHOLD = 10; // px of movement to lock direction
+    const SNAP_THRESHOLD = 0.3; // 30% of pane width
+    const VELOCITY_THRESHOLD = 0.5; // reasonable flick speed (px/ms)
+
+    const handleTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      touchRef.current = {
+        startX: touch.clientX,
+        startY: touch.clientY,
+        startScrollLeft: container.scrollLeft,
+        locked: false,
+        direction: "none",
+        startTime: Date.now(),
+      };
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchRef.current) return;
+
+      const touch = e.touches[0];
+      const moveX = touch.clientX - touchRef.current.startX;
+      const moveY = touch.clientY - touchRef.current.startY;
+
+      // On first move, disambiguate direction
+      if (!touchRef.current.locked) {
+        // Once we've moved enough in one direction, lock into that direction
+        const absMoveX = Math.abs(moveX);
+        const absMoveY = Math.abs(moveY);
+
+        if (absMoveX > DISAMBIGUATE_THRESHOLD || absMoveY > DISAMBIGUATE_THRESHOLD) {
+          touchRef.current.locked = true;
+
+          if (absMoveX > absMoveY) {
+            // Horizontal movement detected
+            touchRef.current.direction = "horizontal";
+            e.preventDefault();
+          } else {
+            // Vertical movement detected
+            touchRef.current.direction = "vertical";
+            // Let vertical scroll happen naturally
+          }
+        }
+        return;
+      }
+
+      // If locked into horizontal mode, drive scrollLeft
+      if (touchRef.current.direction === "horizontal") {
+        e.preventDefault();
+        const containerWidth = container.offsetWidth;
+        const newScrollLeft = touchRef.current.startScrollLeft - moveX;
+        
+        // Clamp to valid range [0, containerWidth]
+        const clampedScrollLeft = Math.max(0, Math.min(newScrollLeft, containerWidth));
+        container.scrollLeft = clampedScrollLeft;
+      }
+      // If vertical, do nothing — let the browser handle it
+    };
+
+    const handleTouchEnd = () => {
+      if (!touchRef.current || touchRef.current.direction !== "horizontal") {
+        touchRef.current = null;
+        return;
+      }
+
+      const container = containerRef.current;
+      if (!container) {
+        touchRef.current = null;
+        return;
+      }
+
+      const containerWidth = container.offsetWidth;
+      const currentScrollLeft = container.scrollLeft;
+      const startScrollLeft = touchRef.current.startScrollLeft;
+      const dragDistance = startScrollLeft - currentScrollLeft;
+      const dragPercentage = dragDistance / containerWidth;
+
+      // Calculate velocity (distance / time)
+      const elapsedTime = Date.now() - touchRef.current.startTime;
+      const velocity = Math.abs(dragDistance) / Math.max(elapsedTime, 1);
+
+      // Compute starting pane from startScrollLeft (don't use activePaneIndex to avoid mid-gesture state churn)
+      const startingPaneIndex = Math.round(startScrollLeft / containerWidth);
+
+      // Decide snap target
+      let targetPaneIndex = startingPaneIndex;
+
+      if (Math.abs(dragPercentage) > SNAP_THRESHOLD) {
+        // User dragged far enough to snap to next/prev pane
+        // dragPercentage > 0 means scrollLeft decreased (user dragged left toward pane 0)
+        targetPaneIndex = dragPercentage < 0 ? 1 : 0;
+      } else if (velocity > VELOCITY_THRESHOLD) {
+        // Flick velocity is high — snap in the direction of motion
+        // dragDistance > 0 means scrollLeft decreased (user dragged left toward pane 0)
+        targetPaneIndex = dragDistance < 0 ? 1 : 0;
+      }
+
+      // Clamp to valid panes [0, 1]
+      targetPaneIndex = Math.max(0, Math.min(targetPaneIndex, 1));
+
+      // Snap to target pane with animation
+      const targetScrollLeft = targetPaneIndex * containerWidth;
+      container.scrollTo({
+        left: targetScrollLeft,
+        behavior: "smooth",
+      });
+
+      touchRef.current = null;
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, false);
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd, false);
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
   }, []);
 
   // Handle mention button: insert text, scroll to chat, focus
@@ -476,12 +611,8 @@ export function MobileSwipePane({
           flex: 1,
           display: "flex",
           width: "100%",
-          overflowX: "auto",
+          overflowX: "hidden",
           overflowY: "hidden",
-          scrollSnapType: "x mandatory",
-          WebkitOverflowScrolling: "touch",
-          overscrollBehavior: "contain",
-          touchAction: "pan-x",
           minHeight: 0,
         }))}
       >
@@ -490,7 +621,6 @@ export function MobileSwipePane({
           className={css((t) => ({
             width: "100vw",
             flexShrink: 0,
-            scrollSnapAlign: "start",
             display: "flex",
             flexDirection: "column",
             minHeight: 0,
@@ -523,7 +653,6 @@ export function MobileSwipePane({
           className={css((t) => ({
             width: "100vw",
             flexShrink: 0,
-            scrollSnapAlign: "start",
             display: "flex",
             flexDirection: "column",
             minHeight: 0,
