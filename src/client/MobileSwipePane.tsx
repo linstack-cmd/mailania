@@ -587,13 +587,39 @@ export function MobileSwipePane({
       });
     };
 
+    // Global window-level touchmove listener — throttled to 100ms
+    // Logs scroll position and current touch point coordinates
+    let lastWindowTouchMoveTime = 0;
+    const handleWindowTouchMove = (e: TouchEvent) => {
+      const now = Date.now();
+      if (now - lastWindowTouchMoveTime < 100) {
+        return;
+      }
+      lastWindowTouchMoveTime = now;
+
+      const touch = e.touches[0];
+      const x = touch.clientX;
+      const y = touch.clientY;
+
+      logSwipeTouchEvent("window-touchmove", {
+        x,
+        y,
+        documentScrollY: window.scrollY,
+        documentScrollX: window.scrollX,
+        bodyScrollTop: document.body.scrollTop,
+        htmlScrollTop: document.documentElement.scrollTop,
+      });
+    };
+
     window.addEventListener("touchstart", handleWindowTouchStart, false);
+    window.addEventListener("touchmove", handleWindowTouchMove, false);
 
     return () => {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("touchstart", handleWindowTouchStart);
+      window.removeEventListener("touchmove", handleWindowTouchMove);
     };
   }, []);
 
