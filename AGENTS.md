@@ -8,7 +8,7 @@ Email client with AI-assisted triage and suggestions.
 - CockroachDB (PostgreSQL-compatible)
 
 ## Running Locally
-- Source: `/tmp/mailania`
+- Source: `/var/lib/patronum/projects/mailania`
 - Start: `node dist/server/index.js`
 - Port: 3001
 - Set `LOCAL_DEV_NO_AUTH=true` in `.env` to bypass Google OAuth
