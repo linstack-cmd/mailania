@@ -608,6 +608,8 @@ export function MobileSwipePane({
         documentScrollX: window.scrollX,
         bodyScrollTop: document.body.scrollTop,
         htmlScrollTop: document.documentElement.scrollTop,
+        visualViewportOffsetTop: window.visualViewport?.offsetTop,
+        visualViewportOffsetLeft: window.visualViewport?.offsetLeft,
       });
     };
 
