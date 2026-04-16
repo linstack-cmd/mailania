@@ -481,6 +481,7 @@ export function MobileSwipePane({
           scrollSnapType: "x mandatory",
           WebkitOverflowScrolling: "touch",
           overscrollBehavior: "contain",
+          touchAction: "pan-x",
           minHeight: 0,
         }))}
       >
@@ -531,6 +532,7 @@ export function MobileSwipePane({
             overflowY: "auto",
             WebkitOverflowScrolling: "touch",
             overscrollBehavior: "contain",
+            touchAction: "pan-y",
             boxSizing: "border-box",
           }))}
         >

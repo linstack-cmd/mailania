@@ -475,6 +475,7 @@ export function ChatPanel({
           gap: 0,
           overscrollBehavior: "contain",
           WebkitOverflowScrolling: "touch",
+          touchAction: "pan-y",
           flex: "1 1 auto",
           "@media (max-width: 640px)": {
             flex: "1",
