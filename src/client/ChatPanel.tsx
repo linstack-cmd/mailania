@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { css } from "@flow-css/core/css";
 import { KIND_LABELS } from "./TriageSuggestions";
 import { ChatInputBar } from "./ChatInputBar";
+import { logSwipeTouchEvent } from "./mobileDebug";
 
 function canSafelyAutoFocus(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -377,6 +378,29 @@ export function ChatPanel({
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasMore, paginationLoading, onLoadMore]);
+
+  // Log chat scroll area scroll events
+  useEffect(() => {
+    const chatScroll = chatScrollRef.current;
+    if (!chatScroll) return;
+
+    let lastScrollTop = chatScroll.scrollTop;
+
+    const handleChatScroll = () => {
+      const scrollTop = chatScroll.scrollTop;
+      logSwipeTouchEvent("chat:scroll", {
+        scrollTop,
+        previousScrollTop: lastScrollTop,
+        delta: scrollTop - lastScrollTop,
+        scrollHeight: chatScroll.scrollHeight,
+        clientHeight: chatScroll.clientHeight,
+      });
+      lastScrollTop = scrollTop;
+    };
+
+    chatScroll.addEventListener("scroll", handleChatScroll);
+    return () => chatScroll.removeEventListener("scroll", handleChatScroll);
+  }, []);
 
   useEffect(() => {
     if (!hasMountedRef.current) {

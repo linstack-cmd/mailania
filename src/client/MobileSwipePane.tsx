@@ -15,6 +15,7 @@ import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import { ChatInputBar } from "./ChatInputBar";
 import type { TriageSuggestion, InboxMessage } from "./TriageSuggestions";
 import { KIND_LABELS, ApprovalConfirmModal, Toast } from "./TriageSuggestions";
+import { logSwipeTouchEvent } from "./mobileDebug";
 
 interface SuggestionWithId {
   id: string;
@@ -342,10 +343,21 @@ export function MobileSwipePane({
     const container = containerRef.current;
     if (!container) return;
 
+    let lastScrollLeft = container.scrollLeft;
+
     const handleScroll = () => {
       const scrollLeft = container.scrollLeft;
       const containerWidth = container.offsetWidth;
       const paneIndex = Math.round(scrollLeft / containerWidth);
+      
+      logSwipeTouchEvent("container:scroll", {
+        scrollLeft,
+        previousScrollLeft: lastScrollLeft,
+        delta: scrollLeft - lastScrollLeft,
+        paneIndex: Math.max(0, Math.min(paneIndex, 1)),
+      });
+
+      lastScrollLeft = scrollLeft;
       setActivePaneIndex(Math.max(0, Math.min(paneIndex, 1)));
     };
 
@@ -364,6 +376,8 @@ export function MobileSwipePane({
 
     const handleTouchStart = (e: TouchEvent) => {
       const touch = e.touches[0];
+      const targetElement = e.target as HTMLElement;
+      
       touchRef.current = {
         startX: touch.clientX,
         startY: touch.clientY,
@@ -372,6 +386,14 @@ export function MobileSwipePane({
         direction: "none",
         startTime: Date.now(),
       };
+
+      logSwipeTouchEvent("touchstart", {
+        x: touch.clientX,
+        y: touch.clientY,
+        targetTag: targetElement?.tagName,
+        targetClass: targetElement?.className,
+        startScrollLeft: container.scrollLeft,
+      });
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -380,17 +402,18 @@ export function MobileSwipePane({
       const touch = e.touches[0];
       const moveX = touch.clientX - touchRef.current.startX;
       const moveY = touch.clientY - touchRef.current.startY;
+      const absMoveX = Math.abs(moveX);
+      const absMoveY = Math.abs(moveY);
 
       // On first move, disambiguate direction
       if (!touchRef.current.locked) {
         // Once we've moved enough in one direction, lock into that direction
-        const absMoveX = Math.abs(moveX);
-        const absMoveY = Math.abs(moveY);
-
         if (absMoveX > DISAMBIGUATE_THRESHOLD || absMoveY > DISAMBIGUATE_THRESHOLD) {
           touchRef.current.locked = true;
 
-          if (absMoveX > absMoveY) {
+          // Require horizontal to be at least 2x vertical for horizontal lock
+          // This gives a strong bias toward vertical scrolling on ambiguous touches
+          if (absMoveX > absMoveY * 2) {
             // Horizontal movement detected
             touchRef.current.direction = "horizontal";
             e.preventDefault();
@@ -399,6 +422,15 @@ export function MobileSwipePane({
             touchRef.current.direction = "vertical";
             // Let vertical scroll happen naturally
           }
+
+          logSwipeTouchEvent("touchmove:lock", {
+            direction: touchRef.current.direction,
+            absMoveX,
+            absMoveY,
+            moveX,
+            moveY,
+            scrollLeft: container.scrollLeft,
+          });
         }
         return;
       }
@@ -412,18 +444,52 @@ export function MobileSwipePane({
         // Clamp to valid range [0, containerWidth]
         const clampedScrollLeft = Math.max(0, Math.min(newScrollLeft, containerWidth));
         container.scrollLeft = clampedScrollLeft;
+
+        logSwipeTouchEvent("touchmove:horizontal", {
+          direction: "horizontal",
+          absMoveX,
+          absMoveY,
+          moveX,
+          moveY,
+          scrollLeft: container.scrollLeft,
+          newScrollLeft,
+          containerWidth,
+        });
+      } else if (touchRef.current.direction === "vertical") {
+        logSwipeTouchEvent("touchmove:vertical", {
+          direction: "vertical",
+          absMoveX,
+          absMoveY,
+          moveX,
+          moveY,
+          scrollLeft: container.scrollLeft,
+        });
       }
       // If vertical, do nothing — let the browser handle it
     };
 
     const handleTouchEnd = () => {
-      if (!touchRef.current || touchRef.current.direction !== "horizontal") {
+      if (!touchRef.current) {
+        return;
+      }
+
+      const direction = touchRef.current.direction;
+
+      const container = containerRef.current;
+      if (!container) {
         touchRef.current = null;
         return;
       }
 
-      const container = containerRef.current;
-      if (!container) {
+      // Log all touch ends, not just horizontal
+      logSwipeTouchEvent("touchend", {
+        direction,
+        finalScrollLeft: container.scrollLeft,
+        startScrollLeft: touchRef.current.startScrollLeft,
+        duration: Date.now() - touchRef.current.startTime,
+      });
+
+      if (direction !== "horizontal") {
         touchRef.current = null;
         return;
       }
@@ -443,19 +509,32 @@ export function MobileSwipePane({
 
       // Decide snap target
       let targetPaneIndex = startingPaneIndex;
+      let snapReason = "default";
 
       if (Math.abs(dragPercentage) > SNAP_THRESHOLD) {
         // User dragged far enough to snap to next/prev pane
         // dragPercentage > 0 means scrollLeft decreased (user dragged left toward pane 0)
         targetPaneIndex = dragPercentage < 0 ? 1 : 0;
+        snapReason = "threshold";
       } else if (velocity > VELOCITY_THRESHOLD) {
         // Flick velocity is high — snap in the direction of motion
         // dragDistance > 0 means scrollLeft decreased (user dragged left toward pane 0)
         targetPaneIndex = dragDistance < 0 ? 1 : 0;
+        snapReason = "velocity";
       }
 
       // Clamp to valid panes [0, 1]
       targetPaneIndex = Math.max(0, Math.min(targetPaneIndex, 1));
+
+      logSwipeTouchEvent("touchend:snap", {
+        startingPaneIndex,
+        targetPaneIndex,
+        snapReason,
+        dragDistance,
+        dragPercentage,
+        velocity,
+        velocityThreshold: VELOCITY_THRESHOLD,
+      });
 
       // Snap to target pane with animation
       const targetScrollLeft = targetPaneIndex * containerWidth;
@@ -614,6 +693,7 @@ export function MobileSwipePane({
           overflowX: "hidden",
           overflowY: "hidden",
           minHeight: 0,
+          touchAction: "pan-y",
         }))}
       >
         {/* Pane 0: Chat */}

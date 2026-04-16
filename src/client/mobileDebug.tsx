@@ -27,6 +27,7 @@ export interface MailaniaMobileDebugState {
   snapContainerHeight?: number;
   lastUpdatedAt: string;
   localDev?: boolean;
+  swipeTouchLogs?: Array<{ time: string; event: string; details: Record<string, any> }>;
 }
 
 declare global {
@@ -105,6 +106,7 @@ export function getDefaultMobileDebugState(): MailaniaMobileDebugState {
     snapContainerHeight: undefined,
     lastUpdatedAt: nowIso(),
     localDev: undefined,
+    swipeTouchLogs: [],
   };
 }
 
@@ -134,6 +136,26 @@ export function updateMobileDebug(patch: Partial<MailaniaMobileDebugState>) {
 
 export function markMobileDebugMounted(key: "chatPanelMounted" | "mobileProposalSheetMounted", mounted: boolean) {
   updateMobileDebug({ [key]: mounted } as Partial<MailaniaMobileDebugState>);
+}
+
+const MAX_TOUCH_LOGS = 50;
+
+export function logSwipeTouchEvent(event: string, details: Record<string, any>) {
+  const state = getMobileDebugState();
+  const logs = [...(state.swipeTouchLogs || [])];
+  
+  // Keep only the last MAX_TOUCH_LOGS entries
+  if (logs.length >= MAX_TOUCH_LOGS) {
+    logs.shift();
+  }
+  
+  logs.push({
+    time: nowIso(),
+    event,
+    details,
+  });
+  
+  updateMobileDebug({ swipeTouchLogs: logs });
 }
 
 function truncateError(value: unknown): string {
@@ -323,14 +345,80 @@ export function MobileDebugOverlay() {
         maxWidth: "calc(100vw - 24px)",
       };
 
+  const [showPanel, setShowPanel] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={handleCopyDebug}
-      onPointerDown={(e) => e.preventDefault()}
-      style={buttonStyle}
-    >
-      {copied ? "copied!" : "debug"}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setShowPanel(!showPanel)}
+        onPointerDown={(e) => e.preventDefault()}
+        style={buttonStyle}
+      >
+        {showPanel ? "×" : "debug"}
+      </button>
+
+      {showPanel && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 50,
+            right: 12,
+            width: "calc(100vw - 24px)",
+            maxHeight: "60vh",
+            background: "rgba(17, 24, 39, 0.98)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "8px",
+            padding: "12px",
+            overflowY: "auto",
+            zIndex: 2147483646,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: "11px",
+            color: "#d1d5db",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+          }}
+        >
+          <div style={{ marginBottom: "8px", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+            <button
+              onClick={handleCopyDebug}
+              style={{
+                background: "rgba(99, 102, 241, 0.8)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                padding: "4px 8px",
+                fontSize: "11px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                marginBottom: "8px",
+              }}
+            >
+              {copied ? "✓ copied!" : "copy debug"}
+            </button>
+          </div>
+
+          <div style={{ marginBottom: "12px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "8px" }}>
+            <div style={{ fontWeight: "bold", marginBottom: "4px", color: "#f3f4f6" }}>Touch/Scroll Logs:</div>
+            {state.swipeTouchLogs && state.swipeTouchLogs.length > 0 ? (
+              <div>
+                {state.swipeTouchLogs.map((log, idx) => (
+                  <div key={idx} style={{ marginBottom: "6px", padding: "4px", background: "rgba(255,255,255,0.05)", borderRadius: "3px" }}>
+                    <div style={{ color: "#60a5fa", fontWeight: "bold" }}>{log.event}</div>
+                    <div style={{ color: "#9ca3af", fontSize: "10px" }}>{log.time}</div>
+                    {Object.entries(log.details).map(([key, value]) => (
+                      <div key={key} style={{ color: "#d1d5db", marginLeft: "4px" }}>
+                        {key}: <span style={{ color: "#fbbf24" }}>{typeof value === "object" ? JSON.stringify(value) : String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: "#9ca3af" }}>No touch/scroll events yet...</div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
