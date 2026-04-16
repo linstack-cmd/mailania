@@ -556,10 +556,34 @@ export function MobileSwipePane({
     container.addEventListener("touchmove", handleTouchMove, { passive: false });
     container.addEventListener("touchend", handleTouchEnd, false);
 
+    // Global window-level touchstart listener — can't be suppressed by compositor
+    // so we can verify if touch events are firing at all on the device
+    const handleWindowTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      const x = touch.clientX;
+      const y = touch.clientY;
+      const target = e.target as HTMLElement;
+
+      // Get element at touch point
+      const elementAtPoint = document.elementFromPoint(x, y) as HTMLElement;
+
+      logSwipeTouchEvent("window-touchstart", {
+        x,
+        y,
+        target: target?.tagName,
+        targetClass: target?.className,
+        elementAtPoint: elementAtPoint?.tagName,
+        elementAtPointClass: elementAtPoint?.className,
+      });
+    };
+
+    window.addEventListener("touchstart", handleWindowTouchStart, false);
+
     return () => {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchstart", handleWindowTouchStart);
     };
   }, []);
 
