@@ -304,6 +304,7 @@ export function MobileSwipePane({
   onLoadMore,
 }: MobileSwipePaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputBarWrapperRef = useRef<HTMLDivElement>(null);
   const [activePaneIndex, setActivePaneIndex] = useState(0);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -317,6 +318,11 @@ export function MobileSwipePane({
     locked: boolean;
     direction: "none" | "horizontal" | "vertical";
     startTime: number;
+  } | null>(null);
+
+  // Touch tracking for input bar vertical scroll prevention
+  const inputBarTouchRef = useRef<{
+    startY: number;
   } | null>(null);
 
   const messageMap = new Map<string, InboxMessage>();
@@ -625,6 +631,109 @@ export function MobileSwipePane({
     };
   }, []);
 
+  // Prevent vertical touchmove on fixed input bar (Firefox Android visual viewport pan fix)
+  useEffect(() => {
+    // Handler to prevent vertical touchmove on the input bar wrapper
+    const handleInputBarTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      inputBarTouchRef.current = {
+        startY: touch.clientY,
+      };
+    };
+
+    const handleInputBarTouchMove = (e: TouchEvent) => {
+      if (!inputBarTouchRef.current) return;
+
+      const touch = e.touches[0];
+      const moveY = touch.clientY - inputBarTouchRef.current.startY;
+      const absMoveY = Math.abs(moveY);
+
+      // Only process if there's meaningful vertical movement
+      if (absMoveY < 2) {
+        return;
+      }
+
+      const targetElement = e.target as HTMLElement;
+
+      // Check if the touch target is the textarea
+      const isTextarea = targetElement && targetElement.tagName === "TEXTAREA";
+
+      if (isTextarea && textareaRef?.current) {
+        // Textarea is the touch target. Check if it has internal scroll overflow.
+        const textarea = textareaRef.current;
+        const hasInternalScroll = textarea.scrollHeight > textarea.clientHeight;
+
+        logSwipeTouchEvent("input-bar-touchmove", {
+          isTextarea: true,
+          hasInternalScroll,
+          scrollHeight: textarea.scrollHeight,
+          clientHeight: textarea.clientHeight,
+          moveY,
+          absMoveY,
+        });
+
+        // If textarea has internal scroll, check if it can scroll in the direction of the swipe
+        if (hasInternalScroll) {
+          const isSwipingDown = moveY > 0; // Finger moving down → content scrolls up
+          const isSwipingUp = moveY < 0; // Finger moving up → content scrolls down
+          
+          const canScrollDown = textarea.scrollTop < textarea.scrollHeight - textarea.clientHeight;
+          const canScrollUp = textarea.scrollTop > 0;
+          
+          logSwipeTouchEvent("input-bar-touchmove:scroll-check", {
+            isSwipingDown,
+            isSwipingUp,
+            canScrollDown,
+            canScrollUp,
+            scrollTop: textarea.scrollTop,
+            scrollHeight: textarea.scrollHeight,
+            clientHeight: textarea.clientHeight,
+          });
+
+          // Only allow touchmove if textarea can scroll in the direction of the swipe
+          if ((isSwipingDown && canScrollUp) || (isSwipingUp && canScrollDown)) {
+            return;
+          }
+        }
+      } else {
+        logSwipeTouchEvent("input-bar-touchmove", {
+          isTextarea: false,
+          targetTag: targetElement?.tagName,
+          moveY,
+          absMoveY,
+        });
+      }
+
+      // Prevent vertical touchmove on the input bar to block Firefox visual viewport pan
+      e.preventDefault();
+    };
+
+    const handleInputBarTouchEnd = () => {
+      inputBarTouchRef.current = null;
+    };
+
+    const handleInputBarTouchCancel = () => {
+      inputBarTouchRef.current = null;
+    };
+
+    // Attach handlers to the input bar wrapper
+    // We'll use a ref for the input bar wrapper below
+    if (inputBarWrapperRef.current) {
+      const inputBarWrapper = inputBarWrapperRef.current;
+      inputBarWrapper.addEventListener("touchstart", handleInputBarTouchStart, false);
+      inputBarWrapper.addEventListener("touchmove", handleInputBarTouchMove, { passive: false });
+      inputBarWrapper.addEventListener("touchend", handleInputBarTouchEnd, false);
+      inputBarWrapper.addEventListener("touchcancel", handleInputBarTouchCancel, false);
+
+      return () => {
+        inputBarWrapper.removeEventListener("touchstart", handleInputBarTouchStart);
+        inputBarWrapper.removeEventListener("touchmove", handleInputBarTouchMove);
+        inputBarWrapper.removeEventListener("touchend", handleInputBarTouchEnd);
+        inputBarWrapper.removeEventListener("touchcancel", handleInputBarTouchCancel);
+      };
+    }
+  }, [textareaRef]);
+
   // Handle mention button: insert text, scroll to chat, focus
   const handleMentionWithScroll = (suggestion: { id: string; title: string }) => {
     onMentionSuggestion(suggestion);
@@ -871,6 +980,7 @@ export function MobileSwipePane({
 
       {/* Fixed input bar at bottom */}
       <div
+        ref={inputBarWrapperRef}
         className={css((t) => ({
           minHeight: "56px",
           padding: `${t.spacing(2)} ${t.spacing(3)} calc(${t.spacing(2)} + env(safe-area-inset-bottom, 0px))`,
