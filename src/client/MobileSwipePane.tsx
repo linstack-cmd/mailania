@@ -370,6 +370,12 @@ export function MobileSwipePane({
     const container = containerRef.current;
     if (!container) return;
 
+    logSwipeTouchEvent("handlers-registered", {
+      containerWidth: container.offsetWidth,
+      containerHeight: container.offsetHeight,
+      scrollLeft: container.scrollLeft,
+    });
+
     const DISAMBIGUATE_THRESHOLD = 10; // px of movement to lock direction
     const SNAP_THRESHOLD = 0.3; // 30% of pane width
     const VELOCITY_THRESHOLD = 0.5; // reasonable flick speed (px/ms)
