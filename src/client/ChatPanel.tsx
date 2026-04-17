@@ -751,13 +751,40 @@ const chatBubbleAssistantClass = css((t) => ({
   },
 }));
 
-const chatMetaClass = css((t) => ({
+const chatColumnWrapperUserClass = css((t) => ({
+  display: "flex",
+  flexDirection: "column",
+  gap: t.spacing(0.5),
+  minWidth: 0,
+  alignItems: "flex-end",
+}));
+
+const chatColumnWrapperAssistantClass = css((t) => ({
+  display: "flex",
+  flexDirection: "column",
+  gap: t.spacing(0.5),
+  minWidth: 0,
+  alignItems: "flex-start",
+}));
+
+const chatMetaUserClass = css((t) => ({
   fontSize: t.fontSize.xs,
   color: "#999",
   padding: "0 4px",
   maxWidth: "100%",
   overflowWrap: "anywhere",
   marginTop: t.spacing(0.5),
+  textAlign: "end",
+}));
+
+const chatMetaAssistantClass = css((t) => ({
+  fontSize: t.fontSize.xs,
+  color: "#999",
+  padding: "0 4px",
+  maxWidth: "100%",
+  overflowWrap: "anywhere",
+  marginTop: t.spacing(0.5),
+  textAlign: "start",
 }));
 
 function ChatBubble({ msg, assistantName, hideAvatar = false }: { msg: ChatMessageData; assistantName: string; hideAvatar?: boolean }) {
@@ -770,7 +797,7 @@ function ChatBubble({ msg, assistantName, hideAvatar = false }: { msg: ChatMessa
         {firstChar}
       </div>
       
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(0.5), minWidth: 0 }))}>
+      <div className={isUser ? chatColumnWrapperUserClass : chatColumnWrapperAssistantClass}>
         {msg.toolStatus && (
           <div
             className={css((t) => ({
@@ -792,7 +819,7 @@ function ChatBubble({ msg, assistantName, hideAvatar = false }: { msg: ChatMessa
         <div className={isUser ? chatBubbleUserClass : chatBubbleAssistantClass}>
           {isUser ? msg.content : <MarkdownRenderer text={msg.content} />}
         </div>
-        <span className={chatMetaClass}>
+        <span className={isUser ? chatMetaUserClass : chatMetaAssistantClass}>
           {isUser ? "You" : assistantName} · {new Date(msg.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
           {msg.streaming && <span> · streaming…</span>}
         </span>
