@@ -42,7 +42,6 @@ const theme = {
     aiMessage: "linear-gradient(135deg, rgba(167, 139, 250, 0.95), rgba(192, 132, 252, 0.95))",
     userMessage: "linear-gradient(135deg, rgba(217, 70, 166, 0.92), rgba(236, 72, 153, 0.92))",
     button: "linear-gradient(135deg, #d946a6, #ec4899)",
-    avatarAi: "linear-gradient(135deg, #a78bfa, #c084fc)",
     avatarUser: "linear-gradient(135deg, #d946a6, #ec4899)",
     logo: "linear-gradient(135deg, #ec4899, #a78bfa)",
     confidenceText: "linear-gradient(135deg, #ec4899, #a78bfa)",

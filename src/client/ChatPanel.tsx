@@ -600,18 +600,13 @@ export function ChatPanel({
           </div>
         )}
 
-        {messages.map((msg, idx) => {
-          const prevMsg = idx > 0 ? messages[idx - 1] : null;
-          const isSameSenderAsLast = prevMsg !== null && prevMsg.role === msg.role;
-          return (
-            <ChatBubble 
-              key={msg.id} 
-              msg={msg} 
-              assistantName={assistantName}
-              hideAvatar={isSameSenderAsLast}
-            />
-          );
-        })}
+        {messages.map((msg) => (
+          <ChatBubble 
+            key={msg.id} 
+            msg={msg} 
+            assistantName={assistantName}
+          />
+        ))}
 
         {loading && (
           <div className={chatRowAssistantClass}>
@@ -676,7 +671,6 @@ export function ChatPanel({
 
 const chatRowUserClass = css((t) => ({
   display: "flex",
-  gap: t.spacing(1),
   alignItems: "flex-end",
   flexDirection: "row-reverse",
   marginBottom: t.spacing(2),
@@ -684,33 +678,9 @@ const chatRowUserClass = css((t) => ({
 
 const chatRowAssistantClass = css((t) => ({
   display: "flex",
-  gap: t.spacing(1),
   alignItems: "flex-end",
   flexDirection: "row",
   marginBottom: t.spacing(2),
-}));
-
-const avatarClass = css((t) => ({
-  width: "32px",
-  height: "32px",
-  borderRadius: "50%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontWeight: "600",
-  fontSize: "14px",
-  flexShrink: 0,
-  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-}));
-
-const avatarAiClass = css((t) => ({
-  background: t.gradients.avatarAi,
-  color: "white",
-}));
-
-const avatarUserClass = css((t) => ({
-  background: t.gradients.avatarUser,
-  color: "white",
 }));
 
 const chatBubbleUserClass = css((t) => ({
@@ -787,16 +757,10 @@ const chatMetaAssistantClass = css((t) => ({
   textAlign: "start",
 }));
 
-function ChatBubble({ msg, assistantName, hideAvatar = false }: { msg: ChatMessageData; assistantName: string; hideAvatar?: boolean }) {
+function ChatBubble({ msg, assistantName }: { msg: ChatMessageData; assistantName: string }) {
   const isUser = msg.role === "user";
-  const firstChar = isUser ? "Y" : "M";
   return (
     <div className={isUser ? chatRowUserClass : chatRowAssistantClass}>
-      {/* Avatar — hidden if same sender as previous message */}
-      <div className={`${avatarClass} ${isUser ? avatarUserClass : avatarAiClass}`} style={{ opacity: hideAvatar ? 0 : 1 }}>
-        {firstChar}
-      </div>
-      
       <div className={isUser ? chatColumnWrapperUserClass : chatColumnWrapperAssistantClass}>
         {msg.toolStatus && (
           <div
