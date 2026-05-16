@@ -379,12 +379,12 @@ export default function ProposalSidebar({
         <div className={css((t) => ({
           fontSize: "13px",
           fontWeight: "700",
-          textTransform: "uppercase",
-          letterSpacing: "1.2px",
+          textTransform: "lowercase",
+          letterSpacing: "0.5px",
           color: "#2A0E1A",
           margin: "0 0 4px",
         }))}>
-          Suggested Actions
+          your pile
         </div>
         {/* Error */}
         {suggestionsError && (

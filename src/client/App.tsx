@@ -607,7 +607,7 @@ export default function App() {
     }));
 
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box", background: "linear-gradient(135deg, #fce4ec 0%, #f3e5f5 25%, #ede7f6 50%, #e0f2f1 75%, #f0f9ff 100%)" }))}>
+      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box", background: "transparent" }))}>
         {!isPasskeySupported() ? (
           <div className={css((t) => ({ textAlign: "center", maxWidth: "360px", padding: t.spacing(4) }))}>
             <p className={css((t) => ({ color: t.colors.error, fontSize: t.fontSize.sm, lineHeight: "1.6" }))}>
@@ -704,12 +704,15 @@ export default function App() {
                   className={css((t) => ({
                     padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
                     borderRadius: t.radius,
-                    border: `1px solid ${t.colors.border}`,
+                    border: "1px solid rgba(255, 255, 255, 0.6)",
                     fontSize: t.fontSize.base,
                     outline: "none",
                     transition: "border-color 0.15s",
-                    "&:focus": { borderColor: t.colors.primary },
-                    "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+                    background: "rgba(255, 255, 255, 0.15)",
+                    backdropFilter: "blur(8px)",
+                    color: "#2A0E1A",
+                    "&:focus": { borderColor: "rgba(255, 255, 255, 0.95)", background: "rgba(255, 255, 255, 0.25)" },
+                    "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "-2px" },
                   }))}
                 />
                 <button
