@@ -6,6 +6,7 @@
  * - Tablet/Desktop: Right pane in split view
  */
 
+import { useState } from "react";
 import { css } from "@flow-css/core/css";
 
 export interface Suggestion {
@@ -166,7 +167,16 @@ interface PileCardProps {
 }
 
 function PileCard({ suggestion, onApprove, onViewDetail }: PileCardProps) {
+  const [isApproving, setIsApproving] = useState(false);
   const colorSet = JELLY_COLORS[suggestion.kind] || JELLY_COLORS.archive;
+
+  const handleApprove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsApproving(true);
+    onApprove();
+    // Animation completes after 300ms, card is removed from list
+    setTimeout(() => setIsApproving(false), 300);
+  };
 
   return (
     <div
@@ -186,6 +196,10 @@ function PileCard({ suggestion, onApprove, onViewDetail }: PileCardProps) {
           boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -8px rgba(255, 79, 138, 0.35)",
         },
       }))}
+      style={{
+        opacity: isApproving ? 0 : 1,
+        transform: isApproving ? "translateY(-8px)" : "translateY(0)",
+      }}
       role="button"
       tabIndex={0}
       onClick={onViewDetail}
@@ -298,10 +312,7 @@ function PileCard({ suggestion, onApprove, onViewDetail }: PileCardProps) {
 
       {/* Approve button (pink jelly) */}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onApprove();
-        }}
+        onClick={handleApprove}
         className={css((t) => ({
           width: "100%",
           background: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",

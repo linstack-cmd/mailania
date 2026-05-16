@@ -86,7 +86,7 @@ export function SettingsScreen({
           maxWidth: "600px",
         }))}
       >
-        {/* Connected - Mint */}
+        {/* Connected - Mint (read-only) */}
         <SettingRow
           jellyIcon="✓"
           jellyColor="mint"
@@ -96,9 +96,10 @@ export function SettingsScreen({
               ? userEmail || "Connected"
               : "Not connected"
           }
-          onAction={() => {}} // Read-only in current version
+          onAction={undefined}
           actionLabel={gmailConnected ? "connected" : "connect"}
           disabled={isLoading}
+          isReadOnly={true}
         />
 
         {/* Preferences - Butter */}
@@ -133,10 +134,11 @@ interface SettingRowProps {
   jellyColor: "mint" | "butter" | "coral" | "lilac";
   label: string;
   description: string;
-  onAction: () => void;
+  onAction?: () => void;
   actionLabel: string;
   isDangerous?: boolean;
   disabled?: boolean;
+  isReadOnly?: boolean;
 }
 
 function SettingRow({
@@ -148,6 +150,7 @@ function SettingRow({
   actionLabel,
   isDangerous = false,
   disabled = false,
+  isReadOnly = false,
 }: SettingRowProps) {
   const colorMap = {
     mint: "linear-gradient(135deg, rgba(140, 220, 180, 0.75), rgba(160, 235, 195, 0.85))",
@@ -155,6 +158,8 @@ function SettingRow({
     coral: "linear-gradient(135deg, rgba(255, 140, 130, 0.75), rgba(255, 160, 150, 0.85))",
     lilac: "linear-gradient(135deg, rgba(200, 150, 220, 0.75), rgba(220, 170, 240, 0.85))",
   };
+
+  const isClickable = !disabled && !isReadOnly && onAction;
 
   return (
     <div
@@ -169,7 +174,6 @@ function SettingRow({
         alignItems: "center",
         gap: t.spacing(3),
         transition: "all 0.3s ease",
-        cursor: "pointer",
         "&:hover": {
           background: "rgba(255, 255, 255, 0.42)",
           transform: "translateY(-2px)",
@@ -177,16 +181,19 @@ function SettingRow({
           boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -8px rgba(255, 79, 138, 0.35)",
         },
       }))}
-      style={{ opacity: disabled ? 0.6 : 1, cursor: disabled ? "not-allowed" : "pointer" }}
-      role={disabled ? undefined : "button"}
-      tabIndex={disabled ? -1 : 0}
-      onClick={!disabled ? onAction : undefined}
+      style={{ 
+        opacity: disabled ? 0.6 : 1,
+        cursor: isClickable ? "pointer" : "default",
+      }}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : -1}
+      onClick={isClickable ? onAction : undefined}
       onKeyDown={
-        !disabled
+        isClickable
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onAction();
+                onAction?.();
               }
             }
           : undefined
@@ -242,44 +249,46 @@ function SettingRow({
         </p>
       </div>
 
-      {/* Chevron / Action button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onAction();
-        }}
-        disabled={disabled}
-        className={css((t) => ({
-          borderRadius: "8px",
-          padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
-          fontSize: t.fontSize.xs,
-          fontWeight: "600",
-          cursor: "pointer",
-          flexShrink: 0,
-          transition: "all 0.15s",
-          border: "1px solid rgba(255, 255, 255, 0.3)",
-          color: "#2A0E1A",
-          background: "rgba(255, 255, 255, 0.15)",
-          "&:hover:not(:disabled)": {
-            background: "rgba(255, 255, 255, 0.25)",
-            borderColor: "rgba(255, 255, 255, 0.5)",
-          },
-          "&:active:not(:disabled)": {
-            transform: "scale(0.96)",
-          },
-          "&:disabled": {
-            opacity: 0.5,
-            cursor: "not-allowed",
-          },
-        }))}
-        style={isDangerous ? {
-          background: "rgba(255, 140, 130, 0.2)",
-          borderColor: "rgba(255, 140, 130, 0.4)",
-          color: "rgba(255, 100, 90, 0.8)",
-        } : undefined}
-      >
-        {actionLabel}
-      </button>
+      {/* Action button (not shown if read-only) */}
+      {!isReadOnly && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction?.();
+          }}
+          disabled={disabled || !onAction}
+          className={css((t) => ({
+            borderRadius: "8px",
+            padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
+            fontSize: t.fontSize.xs,
+            fontWeight: "600",
+            cursor: "pointer",
+            flexShrink: 0,
+            transition: "all 0.15s",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            color: "#2A0E1A",
+            background: "rgba(255, 255, 255, 0.15)",
+            "&:hover:not(:disabled)": {
+              background: "rgba(255, 255, 255, 0.25)",
+              borderColor: "rgba(255, 255, 255, 0.5)",
+            },
+            "&:active:not(:disabled)": {
+              transform: "scale(0.96)",
+            },
+            "&:disabled": {
+              opacity: 0.5,
+              cursor: "not-allowed",
+            },
+          }))}
+          style={isDangerous ? {
+            background: "rgba(255, 140, 130, 0.2)",
+            borderColor: "rgba(255, 140, 130, 0.4)",
+            color: "rgba(255, 100, 90, 0.8)",
+          } : undefined}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
