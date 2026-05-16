@@ -34,7 +34,7 @@ import { Router, Route, Switch, useLocation } from "wouter";
 import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
-import { MobileSwipePane } from "./MobileSwipePane";
+import { MobileLayout } from "./MobileLayout";
 import { TodayCard } from "./TodayCard";
 import { updateMobileDebug } from "./mobileDebug";
 import {
@@ -791,7 +791,7 @@ export default function App() {
 
   // --- Main authenticated view ---
   if (isMobileViewport) {
-    // Mobile layout with swipe panes
+    // Single-column mobile layout (Glassy design)
     return (
       <ErrorBoundary>
       <Router>
@@ -852,9 +852,26 @@ export default function App() {
           {() => {
             const [, setLocation] = useLocation();
             return (
-              <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", gap: "0" }}>
-                {/* Today Card above swipe pane */}
-                <div style={{ padding: "16px", paddingBottom: "0" }}>
+              <MobileLayout
+                messages={generalChatMessages}
+                loading={generalChatLoading}
+                initLoading={generalChatInitLoading}
+                error={generalChatError}
+                input={generalChatInput}
+                onInputChange={setGeneralChatInput}
+                onSend={sendGeneralChatMessage}
+                mentionSuggestions={mentionSuggestions}
+                textareaRef={chatPanelTextareaRef}
+                suggestionsWithIds={suggestionsWithIds}
+                suggestionsLoading={suggestionsLoading}
+                suggestionsError={suggestionsError}
+                inboxMessages={[]}
+                status={status}
+                testMode={testMode}
+                hasMore={generalChatHasMore}
+                paginationLoading={generalChatPaginationLoading}
+                onLoadMore={fetchMoreGeneralChat}
+                todayCardElement={
                   <TodayCard
                     pileCount={suggestionsWithIds.length}
                     userName={status?.user?.displayName?.split(" ")[0]}
@@ -862,32 +879,8 @@ export default function App() {
                     lastTriageSuggestions={undefined}
                     onViewPile={() => setLocation("/pile")}
                   />
-                </div>
-                <MobileSwipePane
-                  messages={generalChatMessages}
-                  loading={generalChatLoading}
-                  initLoading={generalChatInitLoading}
-                  error={generalChatError}
-                  input={generalChatInput}
-                  onInputChange={setGeneralChatInput}
-                  onSend={sendGeneralChatMessage}
-                  mentionSuggestions={mentionSuggestions}
-                  textareaRef={chatPanelTextareaRef}
-                  suggestionsWithIds={suggestionsWithIds}
-                  suggestionsLoading={suggestionsLoading}
-                  suggestionsError={suggestionsError}
-                  onDismissSuggestion={dismissSuggestion}
-                  onAcceptSuggestion={acceptSuggestion}
-                  onMentionSuggestion={handleMentionSuggestion}
-                  onSuggestionNotification={handleSuggestionNotification}
-                  inboxMessages={[]}
-                  status={status}
-                  testMode={testMode}
-                  hasMore={generalChatHasMore}
-                  paginationLoading={generalChatPaginationLoading}
-                  onLoadMore={fetchMoreGeneralChat}
-                />
-              </div>
+                }
+              />
             );
           }}
         </Route>
