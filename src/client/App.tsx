@@ -784,56 +784,16 @@ export default function App() {
     );
   }
 
-  // --- Logged in but no Gmail connected ---
+  // --- Logged in but no Gmail connected: ConnectGmailScreen (Glassy design) ---
   if (!gmailConnected && !status?.localDev) {
     return (
-      <div className={css((t) => ({ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100dvh", gap: t.spacing(4), padding: `${t.spacing(5)} ${t.spacing(3)} calc(${t.spacing(5)} + env(safe-area-inset-bottom, 0px))`, boxSizing: "border-box" }))}>
-        <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: "700", textAlign: "center", lineHeight: "1.2" }))}>Mailania</h1>
-        <p className={css((t) => ({ color: t.colors.textMuted, textAlign: "center", maxWidth: "400px", lineHeight: "1.6" }))}>
-          Welcome{status?.user?.displayName ? `, ${status.user.displayName}` : ""}! Connect a Gmail account to start triaging your inbox.
-        </p>
-
-        {error && (
-          <div className={css((t) => ({ padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, fontSize: t.fontSize.sm, textAlign: "center", maxWidth: "420px" }))}>
-            {error}
-          </div>
-        )}
-
-        <a
-          href="/auth/login"
-          className={css((t) => ({
-            display: "inline-flex",
-            alignItems: "center",
-            gap: t.spacing(2),
-            padding: `${t.spacing(3)} ${t.spacing(6)}`,
-            background: t.gradients.button,
-            color: "#fff",
-            borderRadius: t.radius,
-            textDecoration: "none",
-            fontWeight: "600",
-            fontSize: t.fontSize.base,
-            transition: "background 0.15s",
-            "&:hover": { opacity: 0.9 },
-          }))}
-        >
-          Connect Gmail Account
-        </a>
-
-        <button
-          onClick={handleLogout}
-          className={css((t) => ({
-            padding: `${t.spacing(2)} ${t.spacing(4)}`,
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            fontSize: t.fontSize.xs,
-            color: t.colors.textMuted,
-            "&:hover": { color: t.colors.text },
-          }))}
-        >
-          Sign out
-        </button>
-      </div>
+      <ConnectGmailScreen
+        onConnect={() => {
+          window.location.href = "/auth/login";
+        }}
+        isLoading={passkeyLoading}
+        error={error || undefined}
+      />
     );
   }
 
@@ -845,11 +805,54 @@ export default function App() {
       <Router>
       <Switch>
         <Route path="/settings">
-          <AccountSettings
-            status={status}
+          <SettingsScreen
+            userEmail={status?.user?.email || undefined}
+            gmailConnected={gmailConnected}
+            onEditPreferences={() => {}} // TODO: wire to preferences editor
+            onDisconnect={handleLogout}
             onBack={() => window.history.back()}
-            onStatusChange={refreshStatus}
+            isLoading={passkeyLoading}
           />
+        </Route>
+        <Route path="/pile/:id">
+          {(params) => {
+            const suggestionId = params.id;
+            setSelectedSuggestionId(suggestionId);
+            setCurrentScreen("detail");
+            return (
+              <DetailScreen
+                ruleTitle={selectedSuggestion?.title || "Unknown Rule"}
+                ruleDescription={selectedSuggestion?.subtitle}
+                emailPreviews={[]}
+                isLoading={false}
+                onApprove={() => {
+                  if (suggestionId) acceptSuggestion(suggestionId);
+                  setCurrentScreen(null);
+                }}
+                onDismiss={() => {
+                  if (suggestionId) dismissSuggestion(suggestionId);
+                  setCurrentScreen(null);
+                }}
+                onBack={() => setCurrentScreen(null)}
+                isMobileView={true}
+              />
+            );
+          }}
+        </Route>
+        <Route path="/pile">
+          {() => (
+            <PileScreen
+              suggestions={pileScreenSuggestions}
+              isLoading={suggestionsLoading}
+              onApproveSuggestion={acceptSuggestion}
+              onViewDetail={(id) => {
+                setSelectedSuggestionId(id);
+                setCurrentScreen("detail");
+              }}
+              onBack={() => setCurrentScreen(null)}
+              isMobileView={true}
+            />
+          )}
         </Route>
         <Route>
           <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", gap: "0" }}>
@@ -860,6 +863,7 @@ export default function App() {
                 userName={status?.user?.displayName?.split(" ")[0]}
                 lastTriageMessages={undefined}
                 lastTriageSuggestions={undefined}
+                onViewPile={() => window.location.hash = "#/pile"}
               />
             </div>
             <MobileSwipePane
@@ -900,10 +904,13 @@ export default function App() {
     <Router>
     <Switch>
       <Route path="/settings">
-        <AccountSettings
-          status={status}
+        <SettingsScreen
+          userEmail={status?.user?.email || undefined}
+          gmailConnected={gmailConnected}
+          onEditPreferences={() => {}} // TODO: wire to preferences editor
+          onDisconnect={handleLogout}
           onBack={() => window.history.back()}
-          onStatusChange={refreshStatus}
+          isLoading={passkeyLoading}
         />
       </Route>
       <Route>
@@ -1077,6 +1084,7 @@ export default function App() {
         userName={status?.user?.displayName?.split(" ")[0]}
         lastTriageMessages={undefined}
         lastTriageSuggestions={undefined}
+        onViewPile={() => setCurrentScreen("pile")}
       />
 
       {/* Main content: grid layout for desktop */}
