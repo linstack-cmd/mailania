@@ -83,15 +83,15 @@ const theme = {
   },
   gradients: {
     button: "linear-gradient(180deg, #FF6FA0 0%, #FF3B7A 100%)",
-    logo: "linear-gradient(135deg, #FF4F8A, #A78BFA)",
-    headerText: "linear-gradient(135deg, #FF4F8A, #7C3AED)",
-    avatarUser: "linear-gradient(135deg, #FF4F8A, #A78BFA)",
+    logo: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",  // Pink-only gradient
+    headerText: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",  // Pink-only gradient
+    avatarUser: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",  // Pink-only gradient
     pageBackground: "linear-gradient(135deg, #FFE2EC 0%, #E2C4ED 100%)",
     userMessage: "linear-gradient(135deg, rgba(217, 70, 166, 0.92), rgba(236, 72, 153, 0.92))",
     aiMessage: "linear-gradient(135deg, rgba(167, 139, 250, 0.95), rgba(192, 132, 252, 0.95))",
-    scrollbar: "linear-gradient(180deg, #FF4F8A, #A78BFA)",
-    confidenceText: "linear-gradient(135deg, #FF4F8A, #A78BFA)",
-    suggestionsTitle: "linear-gradient(135deg, #FF4F8A, #7C3AED)",
+    scrollbar: "linear-gradient(180deg, #FF4F8A, #FF6FA0)",  // Pink-only gradient
+    confidenceText: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",  // Pink-only gradient
+    suggestionsTitle: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",  // Pink-only gradient
   },
 } as const;
 

@@ -597,12 +597,12 @@ export default function App() {
       cursor: "pointer",
       minHeight: "44px",
       transition: "color 0.15s, border-color 0.15s",
-      "&:hover": { color: "#d946a6" },
-      "&:focus-visible": { outline: `2px solid #d946a6`, outlineOffset: "-2px" },
+      "&:hover": { color: "#FF4F8A" },
+      "&:focus-visible": { outline: `2px solid #FF4F8A`, outlineOffset: "-2px" },
     }));
     const tabActiveClass = css((t) => ({
-      borderBottomColor: "#d946a6",
-      color: "#d946a6",
+      borderBottomColor: "#FF4F8A",
+      color: "#FF4F8A",
       fontWeight: "700",
     }));
 
@@ -621,8 +621,8 @@ export default function App() {
               <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
                 <defs>
                   <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#d946a6" />
-                    <stop offset="100%" stopColor="#a78bfa" />
+                    <stop offset="0%" stopColor="#FF4F8A" />
+                    <stop offset="100%" stopColor="#FF6FA0" />
                   </linearGradient>
                 </defs>
                 <rect width="48" height="48" rx="12" fill="url(#logoBg)"/>
@@ -676,7 +676,7 @@ export default function App() {
                     minHeight: "44px",
                     transition: "background 0.15s",
                     "&:hover:not(:disabled)": { opacity: 0.9 },
-                    "&:focus-visible": { outline: `2px solid #d946a6`, outlineOffset: "2px" },
+                    "&:focus-visible": { outline: `2px solid #FF4F8A`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
@@ -731,7 +731,7 @@ export default function App() {
                     minHeight: "44px",
                     transition: "background 0.15s",
                     "&:hover:not(:disabled)": { opacity: 0.9 },
-                    "&:focus-visible": { outline: `2px solid #d946a6`, outlineOffset: "2px" },
+                    "&:focus-visible": { outline: `2px solid #FF4F8A`, outlineOffset: "2px" },
                     "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                   }))}
                 >
@@ -962,20 +962,21 @@ export default function App() {
             title="Sign out"
             className={css((t) => ({
               padding: `${t.spacing(2)} ${t.spacing(3)}`,
-              border: "none",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
               borderRadius: "16px",
-              background: "rgba(217, 70, 166, 0.08)",
+              background: "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(8px)",
               cursor: "pointer",
               fontSize: t.fontSize.xs,
-              color: "#d946a6",
+              color: "#2A0E1A",
               fontWeight: "600",
               minHeight: "40px",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               transition: "all 0.3s ease",
-              "&:hover": { background: "rgba(217, 70, 166, 0.15)" },
-              "&:focus-visible": { outline: "none" },
+              "&:hover": { background: "rgba(255, 255, 255, 0.25)" },
+              "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
             }))}
           >
             Sign out
