@@ -94,19 +94,15 @@ export function DetailScreen({
         </button>
         <h1
           className={css((t) => ({
-            fontSize: t.fontSize.lg,
-            fontWeight: "600",
+            fontSize: "19px",
+            fontFamily: '"Instrument Serif", serif',
+            fontStyle: "italic",
+            fontWeight: "400",
             margin: 0,
             color: "#2A0E1A",
-            "@media (max-width: 640px)": {
-              fontSize: t.fontSize.lg,
-            },
-            "@media (min-width: 641px)": {
-              fontSize: t.fontSize.sm,
-            },
           }))}
         >
-          {isMobileView ? "Rule Details" : "Rule Details"}
+          rule details
         </h1>
       </div>
 

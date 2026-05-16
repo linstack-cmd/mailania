@@ -235,7 +235,6 @@ export function ConnectGmailScreen({ onConnect, isLoading = false, error }: Conn
           className={css((t) => ({
             fontSize: t.fontSize.xs,
             fontWeight: "700",
-            textTransform: "uppercase",
             letterSpacing: "0.08em",
             color: "#A87B95",
             marginBottom: t.spacing(4),
@@ -418,7 +417,6 @@ export function PreferencesScreen({
           className={css((t) => ({
             fontSize: t.fontSize.xs,
             fontWeight: "700",
-            textTransform: "uppercase",
             letterSpacing: "0.08em",
             color: "#A87B95",
             marginBottom: t.spacing(4),

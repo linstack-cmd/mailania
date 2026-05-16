@@ -124,12 +124,35 @@ function ProposalCard({
         "&:active": { transform: "translateY(0px)" },
       }))}
     >
-      {/* Header: label + emoji + confidence */}
+      {/* Header: jelly tile + title + confidence */}
       <div className={css((t) => ({ display: "flex", justifyContent: "space-between", alignItems: "center", gap: t.spacing(2) }))}>
         <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), flex: 1, minWidth: 0 }))}>
-          <span className={css({ fontSize: "18px", flexShrink: 0 })}>
+          {/* Jelly tile with kind icon */}
+          <div
+            className={css((t) => ({
+              width: "36px",
+              height: "36px",
+              minWidth: "36px",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "16px",
+              fontWeight: "600",
+              color: "white",
+              boxShadow: "inset 0 1.5px 1px rgba(255, 255, 255, 0.95), inset 0 -2px 4px rgba(120, 30, 80, 0.18), 0 4px 14px -4px rgba(255, 79, 138, 0.35)",
+              border: "1px solid rgba(255, 255, 255, 0.6)",
+            }))}
+            style={{
+              background: 
+                suggestion.kind === "archive_bulk" ? "rgba(140, 220, 180, 0.75)" :
+                suggestion.kind === "mark_read_bulk" ? "rgba(250, 235, 165, 0.85)" :
+                suggestion.kind === "create_filter" ? "rgba(255, 130, 165, 0.85)" :
+                "rgba(200, 175, 235, 0.75)",
+            }}
+          >
             {kindInfo.icon}
-          </span>
+          </div>
           <div className={css({ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 })}>
             <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#2A0E1A", lineHeight: "1.35" }))}>
               {suggestion.title}
@@ -373,6 +396,21 @@ export default function ProposalSidebar({
           boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
           border: "1px solid rgba(255, 255, 255, 0.85)",
           maxHeight: "calc(100vh - 180px)",
+          scrollbarColor: "rgba(255, 79, 138, 0.4) transparent",
+          scrollbarWidth: "thin",
+          "&::-webkit-scrollbar": {
+            width: "10px",
+          },
+          "&::-webkit-scrollbar-track": {
+            background: "transparent",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            background: "rgba(255, 79, 138, 0.4)",
+            borderRadius: "5px",
+          },
+          "&::-webkit-scrollbar-thumb:hover": {
+            background: "rgba(255, 79, 138, 0.6)",
+          },
         }))}
       >
         {/* Title */}

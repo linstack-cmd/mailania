@@ -97,13 +97,15 @@ export function PileScreen({
           </button>
           <h1
             className={css((t) => ({
-              fontSize: t.fontSize.lg,
-              fontWeight: "600",
+              fontSize: "19px",
+              fontFamily: '"Instrument Serif", serif',
+              fontStyle: "italic",
+              fontWeight: "400",
               margin: 0,
               color: "#2A0E1A",
             }))}
           >
-            Review Pile
+            review pile
           </h1>
         </div>
       )}
@@ -173,9 +175,11 @@ function PileCard({ suggestion, onApprove, onViewDetail }: PileCardProps) {
   const handleApprove = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsApproving(true);
-    onApprove();
-    // Animation completes after 300ms, card is removed from list
-    setTimeout(() => setIsApproving(false), 300);
+    // Run animation for 300ms
+    setTimeout(() => {
+      onApprove();
+      setIsApproving(false);
+    }, 300);
   };
 
   return (
@@ -187,7 +191,7 @@ function PileCard({ suggestion, onApprove, onViewDetail }: PileCardProps) {
         border: "1px solid rgba(255, 255, 255, 0.6)",
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px -8px rgba(255, 79, 138, 0.25)",
         padding: t.spacing(3),
-        transition: "all 0.3s ease",
+        transition: "opacity 300ms ease, transform 300ms ease",
         cursor: "pointer",
         "&:hover": {
           background: "rgba(255, 255, 255, 0.42)",
