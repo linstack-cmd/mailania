@@ -758,7 +758,7 @@ export function MobileSwipePane({
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        background: t.gradients.pageBackground,
+        background: "transparent",
         overflow: "hidden",
       }))}
     >
@@ -770,9 +770,10 @@ export function MobileSwipePane({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          background: "linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 187, 208, 0.08))",
-          borderBottom: "1px solid rgba(217, 70, 166, 0.08)",
-          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.6)",
+          background: "rgba(255, 255, 255, 0.55)",
+          backdropFilter: "blur(24px) saturate(1.6)",
+          border: "1px solid rgba(255, 255, 255, 0.85)",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
           flexShrink: 0,
           gap: t.spacing(3),
         }))}
@@ -797,7 +798,7 @@ export function MobileSwipePane({
               width: activePaneIndex === 0 ? "8px" : "6px",
               height: activePaneIndex === 0 ? "8px" : "6px",
               borderRadius: "50%",
-              background: activePaneIndex === 0 ? "linear-gradient(135deg, #d946a6, #ec4899)" : "rgba(100, 100, 100, 0.3)",
+              background: activePaneIndex === 0 ? "#FF4F8A" : "rgba(200, 100, 150, 0.3)",
               transition: "all 0.3s ease",
             }}
           />
@@ -806,7 +807,7 @@ export function MobileSwipePane({
               width: activePaneIndex === 1 ? "8px" : "6px",
               height: activePaneIndex === 1 ? "8px" : "6px",
               borderRadius: "50%",
-              background: activePaneIndex === 1 ? "linear-gradient(135deg, #d946a6, #ec4899)" : "rgba(100, 100, 100, 0.3)",
+              background: activePaneIndex === 1 ? "#FF4F8A" : "rgba(200, 100, 150, 0.3)",
               transition: "all 0.3s ease",
             }}
           />
@@ -832,8 +833,8 @@ export function MobileSwipePane({
             minHeight: "40px",
             minWidth: "40px",
             transition: "all 0.3s ease",
-            boxShadow: "0 4px 12px rgba(217, 70, 166, 0.3)",
-            "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(217, 70, 166, 0.4)" },
+            boxShadow: "0 4px 12px rgba(255, 79, 138, 0.3)",
+            "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(255, 79, 138, 0.4)" },
             "&:focus-visible": { outline: "none" },
           }))}
         >
@@ -993,8 +994,9 @@ export function MobileSwipePane({
           padding: `${t.spacing(2)} ${t.spacing(3)} calc(${t.spacing(2)} + env(safe-area-inset-bottom, 0px))`,
           display: "flex",
           gap: t.spacing(2),
-          borderTop: "1px solid rgba(217, 70, 166, 0.08)",
-          background: "linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(248, 187, 208, 0.05))",
+          borderTop: "1px solid rgba(255, 255, 255, 0.3)",
+          background: "rgba(255, 255, 255, 0.15)",
+          backdropFilter: "blur(8px)",
           flexShrink: 0,
           boxSizing: "border-box",
         }))}

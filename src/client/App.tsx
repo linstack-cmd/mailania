@@ -907,7 +907,7 @@ export default function App() {
             fontSize: "24px",
             fontWeight: "700",
             color: "white",
-            boxShadow: "0 6px 20px rgba(217, 70, 166, 0.25)",
+            boxShadow: "0 6px 20px rgba(255, 79, 138, 0.25)",
             flexShrink: 0,
           }))}>
             ✨
@@ -918,12 +918,10 @@ export default function App() {
               fontWeight: "700", 
               flexShrink: 0, 
               margin: 0, 
-              background: t.gradients.headerText,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
+              color: "#2A0E1A",
+              fontFamily: '"Instrument Serif", serif',
             }))}>
-              Mailania
+              mailania
             </h1>
             {testMode && (
               <span className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "700", textTransform: "uppercase", padding: `${t.spacing(0.5)} ${t.spacing(1.5)}`, borderRadius: "999px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", letterSpacing: "0.05em" }))}>
@@ -952,8 +950,8 @@ export default function App() {
               minHeight: "40px",
               minWidth: "40px",
               transition: "all 0.3s ease",
-              boxShadow: "0 4px 12px rgba(167, 139, 250, 0.3)",
-              "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(167, 139, 250, 0.4)" },
+              boxShadow: "0 4px 12px rgba(255, 79, 138, 0.3)",
+              "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(255, 79, 138, 0.4)" },
               "&:focus-visible": { outline: "none" },
             }))}
           >

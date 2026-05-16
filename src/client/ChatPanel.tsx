@@ -444,7 +444,7 @@ export function ChatPanel({
         className={css((t) => ({
           padding: `${t.spacing(3)} ${t.spacing(4)}`,
           background: "transparent",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.3)",
           flexShrink: 0,
         }))}
       >
@@ -641,7 +641,7 @@ export function ChatPanel({
             display: "flex",
             gap: t.spacing(2),
             padding: t.spacing(3),
-            borderTop: "1px solid rgba(255, 255, 255, 0.2)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.3)",
             background: "transparent",
             minWidth: 0,
             alignItems: "flex-end",
@@ -776,8 +776,10 @@ function ChatBubble({ msg, assistantName }: { msg: ChatMessageData; assistantNam
               padding: `${t.spacing(1.5)} ${t.spacing(2)}`,
               borderRadius: t.radiusBubble,
               fontSize: t.fontSize.xs,
-              color: "#999",
-              background: "rgba(100,100,100,0.08)",
+              color: "#2A0E1A",
+              background: "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
               fontStyle: "italic",
               "@media (max-width: 640px)": {
                 maxWidth: "100%",
