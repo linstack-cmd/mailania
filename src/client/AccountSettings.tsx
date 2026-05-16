@@ -347,7 +347,7 @@ export default function AccountSettings({
               </div>
             )}
             {triagePreferencesError && (
-              <div className={css((t) => ({ marginTop: t.spacing(2), padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radiusSm, color: t.colors.error, fontSize: t.fontSize.sm }))}>
+              <div className={css((t) => ({ marginTop: t.spacing(2), padding: t.spacing(3), background: "rgba(255, 130, 165, 0.20)", backdropFilter: "blur(8px)", borderRadius: t.radiusSm, color: t.colors.error, fontSize: t.fontSize.sm }))}>
                 {triagePreferencesError}
               </div>
             )}
@@ -384,12 +384,14 @@ export default function AccountSettings({
                       onClick={() => handleSwitchGmail(account.id)}
                       className={css((t) => ({
                         padding: `${t.spacing(1)} ${t.spacing(2)}`,
-                        border: `1px solid ${t.colors.border}`,
+                        border: "1px solid rgba(255, 255, 255, 0.3)",
                         borderRadius: t.radiusSm,
                         background: "transparent",
                         cursor: "pointer",
                         fontSize: t.fontSize.sm,
-                        "&:hover": { background: t.colors.bgAlt },
+                        color: "#2A0E1A",
+                        transition: "all 0.15s",
+                        "&:hover": { background: "rgba(255, 255, 255, 0.15)", borderColor: "rgba(255, 255, 255, 0.5)" },
                       }))}
                     >
                       Use
@@ -475,6 +477,8 @@ export default function AccountSettings({
                   borderRadius: t.radiusSm,
                   fontSize: t.fontSize.sm,
                   backdropFilter: "blur(8px)",
+                  transition: "all 0.15s",
+                  "&:hover": { background: "rgba(255, 255, 255, 0.25)", borderColor: "rgba(255, 255, 255, 0.6)" },
                 }))}
               >
                 <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(1), minWidth: 0, flex: 1 }))}>
@@ -496,15 +500,18 @@ export default function AccountSettings({
                           className={css((t) => ({
                             fontWeight: t.fontWeight.semibold,
                             fontSize: t.fontSize.sm,
-                            border: `1px solid ${t.colors.primary}`,
+                            border: "1px solid #FF4F8A",
                             borderRadius: t.radiusSm,
                             padding: `${t.spacing(0.5)} ${t.spacing(1.5)}`,
                             outline: "none",
-                            background: t.colors.bg,
-                            color: t.colors.text,
+                            background: "rgba(255, 255, 255, 0.15)",
+                            backdropFilter: "blur(8px)",
+                            color: "#2A0E1A",
                             width: "100%",
                             maxWidth: "180px",
-                            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "-2px" },
+                            transition: "all 0.15s",
+                            "&:focus": { background: "rgba(255, 255, 255, 0.25)" },
+                            "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "-2px" },
                           }))}
                         />
                       </form>
@@ -526,10 +533,11 @@ export default function AccountSettings({
                             border: "none",
                             cursor: "pointer",
                             fontSize: t.fontSize.xs,
-                            color: t.colors.textMuted,
+                            color: "#A87B95",
                             padding: "0 2px",
-                            "&:hover": { color: t.colors.primary },
-                            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+                            transition: "color 0.15s",
+                            "&:hover": { color: "#FF4F8A" },
+                            "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
                           }))}
                         >
                           ✏️
@@ -640,7 +648,7 @@ export default function AccountSettings({
           </div>
         )}
         {passkeyError && (
-          <div className={css((t) => ({ marginTop: t.spacing(2), padding: t.spacing(3), background: "#fef2f2", borderRadius: t.radiusSm, color: t.colors.error, fontSize: t.fontSize.sm }))}>
+          <div className={css((t) => ({ marginTop: t.spacing(2), padding: t.spacing(3), background: "rgba(255, 130, 165, 0.20)", backdropFilter: "blur(8px)", borderRadius: t.radiusSm, color: t.colors.error, fontSize: t.fontSize.sm }))}>
             {passkeyError}
           </div>
         )}
