@@ -30,9 +30,8 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     return this.props.children;
   }
 }
-import { Router, Route, Switch } from "wouter";
+import { Router, Route, Switch, useLocation } from "wouter";
 import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passkey";
-import AccountSettings from "./AccountSettings";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import { MobileSwipePane } from "./MobileSwipePane";
@@ -40,16 +39,14 @@ import { TodayCard } from "./TodayCard";
 import { updateMobileDebug } from "./mobileDebug";
 import {
   isTestUIMode,
-  TEST_INBOX_MESSAGES,
   TEST_CHAT_MESSAGES,
   TEST_SUGGESTIONS,
   TEST_STATUS,
 } from "./testUIMode";
-import { WelcomeScreen, ConnectGmailScreen, PreferencesScreen } from "./OnboardingScreens";
+import { ConnectGmailScreen } from "./OnboardingScreens";
 import { SettingsScreen } from "./SettingsScreen";
 import { PileScreen, type Suggestion } from "./PileScreen";
-import { DetailScreen, type EmailPreview } from "./DetailScreen";
-import { AITypingIndicator } from "./Phase7Screens";
+import { DetailScreen } from "./DetailScreen";
 
 interface GmailAccountInfo {
   id: string;
@@ -96,8 +93,6 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [signupName, setSignupName] = useState("");
-  const [currentScreen, setCurrentScreen] = useState<"pile" | "detail" | null>(null);
-  const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
   const [generalChatMessages, setGeneralChatMessages] = useState<ChatMessageData[]>(testMode ? TEST_CHAT_MESSAGES : []);
   const [generalChatInput, setGeneralChatInput] = useState("");
   const [generalChatLoading, setGeneralChatLoading] = useState(false);
@@ -122,9 +117,6 @@ export default function App() {
     isApproved: s.status === "accepted",
   }));
   
-  const selectedSuggestion = selectedSuggestionId 
-    ? suggestionsWithIds.find((s) => s.id === selectedSuggestionId)?.suggestion
-    : null;
   const chatPanelTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const loadingRef = useRef(false);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
@@ -816,81 +808,88 @@ export default function App() {
         </Route>
         <Route path="/pile/:id">
           {(params) => {
+            const [, setLocation] = useLocation();
             const suggestionId = params.id;
-            setSelectedSuggestionId(suggestionId);
-            setCurrentScreen("detail");
+            const suggestion = suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
             return (
               <DetailScreen
-                ruleTitle={selectedSuggestion?.title || "Unknown Rule"}
-                ruleDescription={selectedSuggestion?.subtitle}
+                ruleTitle={suggestion?.title || "Unknown Rule"}
+                ruleDescription={suggestion?.subtitle}
                 emailPreviews={[]}
                 isLoading={false}
                 onApprove={() => {
-                  if (suggestionId) acceptSuggestion(suggestionId);
-                  setCurrentScreen(null);
+                  acceptSuggestion(suggestionId);
+                  setLocation("/pile");
                 }}
                 onDismiss={() => {
-                  if (suggestionId) dismissSuggestion(suggestionId);
-                  setCurrentScreen(null);
+                  dismissSuggestion(suggestionId);
+                  setLocation("/pile");
                 }}
-                onBack={() => setCurrentScreen(null)}
+                onBack={() => setLocation("/pile")}
                 isMobileView={true}
               />
             );
           }}
         </Route>
         <Route path="/pile">
-          {() => (
-            <PileScreen
-              suggestions={pileScreenSuggestions}
-              isLoading={suggestionsLoading}
-              onApproveSuggestion={acceptSuggestion}
-              onViewDetail={(id) => {
-                setSelectedSuggestionId(id);
-                setCurrentScreen("detail");
-              }}
-              onBack={() => setCurrentScreen(null)}
-              isMobileView={true}
-            />
-          )}
+          {() => {
+            const [, setLocation] = useLocation();
+            return (
+              <PileScreen
+                suggestions={pileScreenSuggestions}
+                isLoading={suggestionsLoading}
+                onApproveSuggestion={acceptSuggestion}
+                onViewDetail={(id) => {
+                  setLocation(`/pile/${id}`);
+                }}
+                onBack={() => setLocation("/")}
+                isMobileView={true}
+              />
+            );
+          }}
         </Route>
         <Route>
-          <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", gap: "0" }}>
-            {/* Today Card above swipe pane */}
-            <div style={{ padding: "16px", paddingBottom: "0" }}>
-              <TodayCard
-                pileCount={suggestionsWithIds.length}
-                userName={status?.user?.displayName?.split(" ")[0]}
-                lastTriageMessages={undefined}
-                lastTriageSuggestions={undefined}
-                onViewPile={() => window.location.hash = "#/pile"}
-              />
-            </div>
-            <MobileSwipePane
-              messages={generalChatMessages}
-              loading={generalChatLoading}
-              initLoading={generalChatInitLoading}
-              error={generalChatError}
-              input={generalChatInput}
-              onInputChange={setGeneralChatInput}
-              onSend={sendGeneralChatMessage}
-              mentionSuggestions={mentionSuggestions}
-              textareaRef={chatPanelTextareaRef}
-              suggestionsWithIds={suggestionsWithIds}
-              suggestionsLoading={suggestionsLoading}
-              suggestionsError={suggestionsError}
-              onDismissSuggestion={dismissSuggestion}
-              onAcceptSuggestion={acceptSuggestion}
-              onMentionSuggestion={handleMentionSuggestion}
-              onSuggestionNotification={handleSuggestionNotification}
-              inboxMessages={[]}
-              status={status}
-              testMode={testMode}
-              hasMore={generalChatHasMore}
-              paginationLoading={generalChatPaginationLoading}
-              onLoadMore={fetchMoreGeneralChat}
-            />
-          </div>
+          {() => {
+            const [, setLocation] = useLocation();
+            return (
+              <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", gap: "0" }}>
+                {/* Today Card above swipe pane */}
+                <div style={{ padding: "16px", paddingBottom: "0" }}>
+                  <TodayCard
+                    pileCount={suggestionsWithIds.length}
+                    userName={status?.user?.displayName?.split(" ")[0]}
+                    lastTriageMessages={undefined}
+                    lastTriageSuggestions={undefined}
+                    onViewPile={() => setLocation("/pile")}
+                  />
+                </div>
+                <MobileSwipePane
+                  messages={generalChatMessages}
+                  loading={generalChatLoading}
+                  initLoading={generalChatInitLoading}
+                  error={generalChatError}
+                  input={generalChatInput}
+                  onInputChange={setGeneralChatInput}
+                  onSend={sendGeneralChatMessage}
+                  mentionSuggestions={mentionSuggestions}
+                  textareaRef={chatPanelTextareaRef}
+                  suggestionsWithIds={suggestionsWithIds}
+                  suggestionsLoading={suggestionsLoading}
+                  suggestionsError={suggestionsError}
+                  onDismissSuggestion={dismissSuggestion}
+                  onAcceptSuggestion={acceptSuggestion}
+                  onMentionSuggestion={handleMentionSuggestion}
+                  onSuggestionNotification={handleSuggestionNotification}
+                  inboxMessages={[]}
+                  status={status}
+                  testMode={testMode}
+                  hasMore={generalChatHasMore}
+                  paginationLoading={generalChatPaginationLoading}
+                  onLoadMore={fetchMoreGeneralChat}
+                />
+              </div>
+            );
+          }}
         </Route>
       </Switch>
       </Router>
@@ -914,7 +913,9 @@ export default function App() {
         />
       </Route>
       <Route>
-    <div className={css((t) => ({
+    {() => {
+      const [, setLocation] = useLocation();
+      return (<div className={css((t) => ({
       width: "100%",
       maxWidth: "1280px",
       margin: "0 auto",
@@ -975,8 +976,8 @@ export default function App() {
           </div>
         </div>
         <div className={css((t) => ({ display: "flex", gap: t.spacing(3), flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto" }))}>
-          <a
-            href="/settings"
+          <button
+            onClick={() => setLocation("/settings")}
             title="Account settings"
             className={css((t) => ({
               width: "40px",
@@ -985,7 +986,8 @@ export default function App() {
               borderRadius: "50%",
               cursor: "pointer",
               fontSize: t.fontSize.base,
-              textDecoration: "none",
+              border: "none",
+              padding: 0,
               color: "white",
               display: "inline-flex",
               alignItems: "center",
@@ -996,11 +998,11 @@ export default function App() {
               transition: "all 0.3s ease",
               boxShadow: "0 4px 12px rgba(255, 79, 138, 0.3)",
               "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(255, 79, 138, 0.4)" },
-              "&:focus-visible": { outline: "none" },
+              "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
             }))}
           >
             {status?.user?.displayName?.charAt(0).toUpperCase() || "A"}
-          </a>
+          </button>
           <button
             onClick={handleLogout}
             title="Sign out"
@@ -1084,7 +1086,7 @@ export default function App() {
         userName={status?.user?.displayName?.split(" ")[0]}
         lastTriageMessages={undefined}
         lastTriageSuggestions={undefined}
-        onViewPile={() => setCurrentScreen("pile")}
+        onViewPile={() => setLocation("/pile")}
       />
 
       {/* Main content: grid layout for desktop */}
@@ -1142,6 +1144,8 @@ export default function App() {
         />
       </div>
     </div>
+      );
+    }}
       </Route>
     </Switch>
     </Router>
