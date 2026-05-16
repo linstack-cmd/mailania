@@ -170,7 +170,7 @@ export function TodayCard({
                   background: "linear-gradient(90deg, #FF4F8A, #FF6FA0)",
                   boxShadow: "0 0 8px rgba(255, 79, 138, 0.4)",
                   overflow: "hidden",
-                  "::after": {
+                  "&::after": {
                     content: '""',
                     position: "absolute",
                     inset: 0,
