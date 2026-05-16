@@ -36,6 +36,7 @@ import AccountSettings from "./AccountSettings";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import { MobileSwipePane } from "./MobileSwipePane";
+import { TodayCard } from "./TodayCard";
 import { updateMobileDebug } from "./mobileDebug";
 import {
   isTestUIMode,
@@ -829,30 +830,41 @@ export default function App() {
           />
         </Route>
         <Route>
-          <MobileSwipePane
-            messages={generalChatMessages}
-            loading={generalChatLoading}
-            initLoading={generalChatInitLoading}
-            error={generalChatError}
-            input={generalChatInput}
-            onInputChange={setGeneralChatInput}
-            onSend={sendGeneralChatMessage}
-            mentionSuggestions={mentionSuggestions}
-            textareaRef={chatPanelTextareaRef}
-            suggestionsWithIds={suggestionsWithIds}
-            suggestionsLoading={suggestionsLoading}
-            suggestionsError={suggestionsError}
-            onDismissSuggestion={dismissSuggestion}
-            onAcceptSuggestion={acceptSuggestion}
-            onMentionSuggestion={handleMentionSuggestion}
-            onSuggestionNotification={handleSuggestionNotification}
-            inboxMessages={[]}
-            status={status}
-            testMode={testMode}
-            hasMore={generalChatHasMore}
-            paginationLoading={generalChatPaginationLoading}
-            onLoadMore={fetchMoreGeneralChat}
-          />
+          <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", gap: "0" }}>
+            {/* Today Card above swipe pane */}
+            <div style={{ padding: "16px", paddingBottom: "0" }}>
+              <TodayCard
+                pileCount={suggestionsWithIds.length}
+                userName={status?.user?.displayName?.split(" ")[0]}
+                lastTriageMessages={undefined}
+                lastTriageSuggestions={undefined}
+              />
+            </div>
+            <MobileSwipePane
+              messages={generalChatMessages}
+              loading={generalChatLoading}
+              initLoading={generalChatInitLoading}
+              error={generalChatError}
+              input={generalChatInput}
+              onInputChange={setGeneralChatInput}
+              onSend={sendGeneralChatMessage}
+              mentionSuggestions={mentionSuggestions}
+              textareaRef={chatPanelTextareaRef}
+              suggestionsWithIds={suggestionsWithIds}
+              suggestionsLoading={suggestionsLoading}
+              suggestionsError={suggestionsError}
+              onDismissSuggestion={dismissSuggestion}
+              onAcceptSuggestion={acceptSuggestion}
+              onMentionSuggestion={handleMentionSuggestion}
+              onSuggestionNotification={handleSuggestionNotification}
+              inboxMessages={[]}
+              status={status}
+              testMode={testMode}
+              hasMore={generalChatHasMore}
+              paginationLoading={generalChatPaginationLoading}
+              onLoadMore={fetchMoreGeneralChat}
+            />
+          </div>
         </Route>
       </Switch>
       </Router>
@@ -1036,6 +1048,14 @@ export default function App() {
           </button>
         </div>
       )}
+
+      {/* Today Card */}
+      <TodayCard
+        pileCount={suggestionsWithIds.length}
+        userName={status?.user?.displayName?.split(" ")[0]}
+        lastTriageMessages={undefined}
+        lastTriageSuggestions={undefined}
+      />
 
       {/* Main content: grid layout for desktop */}
       <div
