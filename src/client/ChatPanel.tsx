@@ -3,6 +3,7 @@ import { css } from "@flow-css/core/css";
 import { KIND_LABELS } from "./TriageSuggestions";
 import { ChatInputBar } from "./ChatInputBar";
 import { logSwipeTouchEvent } from "./mobileDebug";
+import { AITypingIndicator } from "./Phase7Screens";
 
 function canSafelyAutoFocus(): boolean {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -610,11 +611,7 @@ export function ChatPanel({
           />
         ))}
 
-        {loading && (
-          <div className={chatRowAssistantClass}>
-            <div className={chatBubbleAssistantClass}>Thinking…</div>
-          </div>
-        )}
+        {loading && <AITypingIndicator assistantName="Mailania" />}
 
         <div ref={chatEndRef} />
       </div>
