@@ -67,10 +67,12 @@ export function SettingsScreen({
         )}
         <h1
           className={css((t) => ({
-            fontSize: t.fontSize.xl,
-            fontWeight: "600",
+            fontSize: "34px",
+            fontWeight: "400",
             margin: 0,
             color: "#2A0E1A",
+            fontFamily: '"Instrument Serif", serif',
+            fontStyle: "italic",
           }))}
         >
           settings
