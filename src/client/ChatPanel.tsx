@@ -209,13 +209,13 @@ function parseInlineFormats(text: string): React.ReactNode {
         <code
           key={`ic-${key++}`}
           className={css((t) => ({
-            background: "rgba(255, 255, 255, 0.15)",
+            background: "rgba(255, 255, 255, 0.25)",
             color: "#2A0E1A",
             padding: `0 ${t.spacing(0.75)}`,
             borderRadius: t.radiusSm,
             fontSize: "0.9em",
             fontFamily: "monospace",
-            border: "1px solid rgba(255, 255, 255, 0.3)",
+            border: "1px solid rgba(255, 255, 255, 0.4)",
           }))}
         >
           {content}
@@ -236,6 +236,7 @@ function parseInlineFormats(text: string): React.ReactNode {
             className={css((t) => ({
               color: "#FF4F8A",
               textDecoration: "underline",
+              fontWeight: "600",
               transition: "opacity 0.15s",
               "&:hover": { opacity: 0.85 },
             }))}
@@ -686,7 +687,7 @@ const chatRowAssistantClass = css((t) => ({
 const chatBubbleUserClass = css((t) => ({
   maxWidth: "72%",
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderRadius: t.radiusBubble,
+  borderRadius: "20px 20px 6px 20px",
   fontSize: t.fontSize.sm,
   lineHeight: t.lineHeight.relaxed,
   whiteSpace: "pre-wrap",
@@ -707,7 +708,7 @@ const chatBubbleUserClass = css((t) => ({
 const chatBubbleAssistantClass = css((t) => ({
   maxWidth: "72%",
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  borderRadius: t.radiusBubble,
+  borderRadius: "20px 20px 20px 6px",
   fontSize: t.fontSize.sm,
   lineHeight: t.lineHeight.relaxed,
   whiteSpace: "pre-wrap",

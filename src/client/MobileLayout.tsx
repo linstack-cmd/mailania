@@ -162,60 +162,6 @@ export function MobileLayout({
         overflow: "hidden",
       }))}
     >
-      {/* Header with settings button */}
-      <div
-        className={css((t) => ({
-          height: "56px",
-          padding: `0 ${t.spacing(4)}`,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "rgba(255, 255, 255, 0.55)",
-          backdropFilter: "blur(24px) saturate(1.6)",
-          border: "1px solid rgba(255, 255, 255, 0.85)",
-          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
-          flexShrink: 0,
-          gap: t.spacing(3),
-        }))}
-      >
-        <div className={css((t) => ({
-          fontSize: "14px",
-          fontWeight: "600",
-          color: "#2A0E1A",
-          flex: 1,
-          letterSpacing: "0.5px",
-        }))}>
-          mailania
-        </div>
-
-        {/* Settings button */}
-        <a
-          href="/settings"
-          title="Account settings"
-          className={css((t) => ({
-            width: "40px",
-            height: "40px",
-            background: t.gradients.avatarUser,
-            borderRadius: "50%",
-            cursor: "pointer",
-            fontSize: t.fontSize.base,
-            textDecoration: "none",
-            color: "white",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: "600",
-            minHeight: "40px",
-            minWidth: "40px",
-            transition: "all 0.3s ease",
-            boxShadow: "0 4px 12px rgba(255, 79, 138, 0.3)",
-            "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(255, 79, 138, 0.4)" },
-            "&:focus-visible": { outline: "none" },
-          }))}
-        >
-          {status?.user?.displayName?.charAt(0).toUpperCase() || "A"}
-        </a>
-      </div>
 
       {/* Test mode banner */}
       {testMode && (
@@ -239,10 +185,55 @@ export function MobileLayout({
         </div>
       )}
 
+      {/* Display heading: "here's what i found" or "your inbox is calm" (when idle) */}
+      <div
+        className={css((t) => ({
+          padding: `${t.spacing(4)} ${t.spacing(4)} 0`,
+          flexShrink: 0,
+        }))}
+      >
+        <h1
+          className={css((t) => ({
+            fontSize: "34px",
+            fontFamily: '"Instrument Serif", serif',
+            fontWeight: "400",
+            fontStyle: "normal",
+            lineHeight: "1.0",
+            margin: "0 0 24px 0",
+            color: "#2A0E1A",
+            letterSpacing: "-0.015em",
+          }))}
+        >
+          {suggestionsWithIds.length === 0 ? (
+            <>
+              your inbox is{" "}
+              <span
+                style={{
+                  fontStyle: "italic",
+                }}
+              >
+                calm
+              </span>
+            </>
+          ) : (
+            <>
+              here's what i{" "}
+              <span
+                style={{
+                  fontStyle: "italic",
+                }}
+              >
+                found
+              </span>
+            </>
+          )}
+        </h1>
+      </div>
+
       {/* Today Card */}
       <div
         className={css((t) => ({
-          padding: `${t.spacing(3)} ${t.spacing(3)} 0`,
+          padding: `0 ${t.spacing(3)} 0`,
           flexShrink: 0,
         }))}
       >
@@ -288,11 +279,12 @@ export function MobileLayout({
           padding: `${t.spacing(2)} ${t.spacing(3)} calc(${t.spacing(2)} + env(safe-area-inset-bottom, 0px))`,
           display: "flex",
           gap: t.spacing(2),
-          borderTop: "1px solid rgba(255, 255, 255, 0.3)",
-          background: "rgba(255, 255, 255, 0.15)",
-          backdropFilter: "blur(8px)",
+          borderTop: "1px solid rgba(255, 255, 255, 0.6)",
+          background: "rgba(255, 255, 255, 0.32)",
+          backdropFilter: "blur(14px) saturate(1.4)",
           flexShrink: 0,
           boxSizing: "border-box",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.7)",
         }))}
       >
         <ChatInputBar
