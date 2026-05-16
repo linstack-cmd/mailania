@@ -180,7 +180,7 @@ export function DesktopLayout({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>💬</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>Chat</span>
           </button>
 
@@ -208,7 +208,7 @@ export function DesktopLayout({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>📋</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             <span>Pile</span>
           </button>
 
@@ -236,7 +236,7 @@ export function DesktopLayout({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>⚙️</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><circle cx="12" cy="12" r="1"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-15.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24"/></svg>
             <span>Preferences</span>
           </button>
 
@@ -264,7 +264,7 @@ export function DesktopLayout({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>🔧</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
             <span>Settings</span>
           </button>
         </nav>
@@ -571,7 +571,7 @@ export function DesktopLayoutWithPile({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>💬</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>Chat</span>
           </button>
 
@@ -599,7 +599,7 @@ export function DesktopLayoutWithPile({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>📋</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             <span>Pile</span>
           </button>
 
@@ -627,7 +627,7 @@ export function DesktopLayoutWithPile({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>⚙️</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><circle cx="12" cy="12" r="1"/><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-15.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24"/></svg>
             <span>Preferences</span>
           </button>
 
@@ -655,7 +655,7 @@ export function DesktopLayoutWithPile({
               },
             }))}
           >
-            <span style={{ fontSize: "18px" }}>🔧</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink: 0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
             <span>Settings</span>
           </button>
         </nav>
