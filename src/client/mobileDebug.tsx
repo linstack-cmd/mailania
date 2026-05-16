@@ -218,6 +218,12 @@ export function installMobileDebugGlobalHandlers() {
 
 export function shouldShowMobileDebug(): boolean {
   if (typeof window === "undefined") return false;
+  
+  // Only show debug if in local dev mode (LOCAL_DEV_NO_AUTH=true on server)
+  // This flag is set by App.tsx after fetching /api/status
+  const isLocalDev = (window as any).__MAILANIA_LOCAL_DEV__ === true;
+  if (!isLocalDev) return false;
+  
   const params = new URLSearchParams(window.location.search);
   if (params.get("debugMobile") === "1") return true;
   if (params.get("debugMobile") === "0") return false;

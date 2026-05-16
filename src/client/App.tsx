@@ -476,6 +476,8 @@ export default function App() {
         return data;
       })
       .then((data: StatusData) => {
+        // Signal to debug overlay that we're in local dev mode
+        (window as any).__MAILANIA_LOCAL_DEV__ = data.localDev === true;
         setStatus(data);
         if (data.authenticated && (data.gmailConnected || data.localDev)) {
           fetchGeneralChat();
@@ -603,6 +605,8 @@ export default function App() {
         gmailConnected: data.gmailConnected ?? null,
         statusUserExists: data.user ? true : false,
       });
+      // Signal to debug overlay that we're in local dev mode
+      (window as any).__MAILANIA_LOCAL_DEV__ = data.localDev === true;
       setStatus(data);
       if (data.authenticated && (data.gmailConnected || data.localDev)) {
         fetchGeneralChat();
