@@ -134,7 +134,7 @@ function TriageProgressBar({ progress }: { progress: ProgressState }) {
           className={css((t) => ({
             height: "100%",
             borderRadius: "3px",
-            background: `linear-gradient(90deg, ${t.colors.primary}, #6366f1)`,
+            background: "linear-gradient(90deg, #FF4F8A, #FF6FA0)",
           }))}
         />
       </div>
@@ -778,9 +778,11 @@ export function ApprovalConfirmModal({
       <div
         className={css((t) => ({
           position: "relative",
-          background: t.colors.bg,
+          background: "rgba(255, 255, 255, 0.55)",
+          backdropFilter: "blur(24px) saturate(1.6)",
+          border: "1px solid rgba(255, 255, 255, 0.85)",
           borderRadius: "0.75rem",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
           width: "min(500px, 90vw)",
           padding: t.spacing(6),
           display: "flex",
