@@ -35,6 +35,7 @@ import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passk
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import { MobileLayout } from "./MobileLayout";
+import { DesktopLayout } from "./DesktopLayout";
 import { TodayCard } from "./TodayCard";
 import { updateMobileDebug } from "./mobileDebug";
 import {
@@ -890,7 +891,7 @@ export default function App() {
     );
   }
 
-  // Desktop layout
+  // Desktop layout (three-column: sidebar + chat + suggestions)
   return (
     <ErrorBoundary>
     <Router>
@@ -906,239 +907,34 @@ export default function App() {
         />
       </Route>
       <Route>
-    {() => {
-      const [, setLocation] = useLocation();
-      return (<div className={css((t) => ({
-      width: "100%",
-      maxWidth: "1280px",
-      margin: "0 auto",
-      padding: `${t.spacing(8)} ${t.spacing(8)}`,
-      minWidth: 0,
-      boxSizing: "border-box",
-      overflowX: "hidden",
-      display: "flex",
-      flexDirection: "column",
-      gap: t.spacing(6),
-      minHeight: "100vh",
-    }))}>
-      {/* Header */}
-      <header
-        className={css((t) => ({
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingLeft: t.spacing(4),
-          paddingRight: t.spacing(4),
-          gap: t.spacing(4),
-          minWidth: 0,
-        }))}
-      >
-        <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(3.5), minWidth: 0, overflow: "visible" }))}>
-          <div className={css((t) => ({ 
-            width: "44px",
-            height: "44px",
-            background: t.gradients.logo,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "24px",
-            fontWeight: "700",
-            color: "white",
-            boxShadow: "0 6px 20px rgba(255, 79, 138, 0.25)",
-            flexShrink: 0,
-          }))}>
-            ✨
-          </div>
-          <div className={css((t) => ({ display: "flex", alignItems: "center", gap: t.spacing(2), minWidth: 0 }))}>
-            <h1 className={css((t) => ({ 
-              fontSize: "28px", 
-              fontWeight: "700", 
-              flexShrink: 0, 
-              margin: 0, 
-              color: "#2A0E1A",
-              fontFamily: '"Instrument Serif", serif',
-            }))}>
-              mailania
-            </h1>
-            {testMode && (
-              <span className={css((t) => ({ fontSize: t.fontSize.xs, fontWeight: "700", textTransform: "uppercase", padding: `${t.spacing(0.5)} ${t.spacing(1.5)}`, borderRadius: "999px", background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d", letterSpacing: "0.05em" }))}>
-                TEST
-              </span>
-            )}
-          </div>
-        </div>
-        <div className={css((t) => ({ display: "flex", gap: t.spacing(3), flexShrink: 1, justifyContent: "flex-end", marginLeft: "auto" }))}>
-          <button
-            onClick={() => setLocation("/settings")}
-            title="Account settings"
-            className={css((t) => ({
-              width: "40px",
-              height: "40px",
-              background: t.gradients.avatarUser,
-              borderRadius: "50%",
-              cursor: "pointer",
-              fontSize: t.fontSize.base,
-              border: "none",
-              padding: 0,
-              color: "white",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "600",
-              minHeight: "40px",
-              minWidth: "40px",
-              transition: "all 0.3s ease",
-              boxShadow: "0 4px 12px rgba(255, 79, 138, 0.3)",
-              "&:hover": { transform: "scale(1.08)", boxShadow: "0 6px 16px rgba(255, 79, 138, 0.4)" },
-              "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
-            }))}
-          >
-            {status?.user?.displayName?.charAt(0).toUpperCase() || "A"}
-          </button>
-          <button
-            onClick={handleLogout}
-            title="Sign out"
-            className={css((t) => ({
-              padding: `${t.spacing(2)} ${t.spacing(3)}`,
-              border: "1px solid rgba(255, 255, 255, 0.3)",
-              borderRadius: "16px",
-              background: "rgba(255, 255, 255, 0.15)",
-              backdropFilter: "blur(8px)",
-              cursor: "pointer",
-              fontSize: t.fontSize.xs,
-              color: "#2A0E1A",
-              fontWeight: "600",
-              minHeight: "40px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.3s ease",
-              "&:hover": { background: "rgba(255, 255, 255, 0.25)" },
-              "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
-            }))}
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      {/* Test Mode Banner */}
-      {testMode && (
-        <div
-          className={css((t) => ({
-            padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
-            background: "linear-gradient(135deg, #fef3c7, #fde68a)",
-            borderRadius: t.radius,
-            marginBottom: t.spacing(4),
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: t.spacing(2),
-            border: "2px dashed #f59e0b",
-            fontSize: t.fontSize.sm,
-            fontWeight: t.fontWeight.semibold,
-            color: "#92400e",
-          }))}
-        >
-          <span style={{ fontSize: "1.2rem" }}>🧪</span>
-          <span>Test Mode — Viewing mock data only. No real emails, no LLM calls.</span>
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className={css((t) => ({ padding: t.spacing(4), background: "#fef2f2", borderRadius: t.radius, color: t.colors.error, marginBottom: t.spacing(4), display: "flex", alignItems: "center", justifyContent: "space-between", gap: t.spacing(3) }))}>
-          <span>{error}</span>
-          <button
-            onClick={async () => {
-              await refreshStatus();
-              setError(null);
-            }}
-            className={css((t) => ({
-              padding: `${t.spacing(1.5)} ${t.spacing(3)}`,
-              border: `1px solid ${t.colors.error}`,
-              borderRadius: t.radiusSm,
-              background: "transparent",
-              color: t.colors.error,
-              cursor: "pointer",
-              fontSize: t.fontSize.sm,
-              fontWeight: t.fontWeight.semibold,
-              flexShrink: 0,
-              "&:hover": { background: "rgba(239,68,68,0.08)" },
-            }))}
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Today Card */}
-      <TodayCard
-        pileCount={suggestionsWithIds.length}
-        userName={status?.user?.displayName?.split(" ")[0]}
-        lastTriageMessages={undefined}
-        lastTriageSuggestions={undefined}
-        onViewPile={() => setLocation("/pile")}
-      />
-
-      {/* Main content: grid layout for desktop */}
-      <div
-        className={css((t) => ({
-          display: "grid",
-          gridTemplateColumns: "1fr 340px",
-          gap: t.spacing(6),
-          alignItems: "flex-start",
-          minWidth: 0,
-          flex: 1,
-          minHeight: 0,
-          "@media (max-width: 960px)": {
-            gridTemplateColumns: "1fr",
-            gap: t.spacing(4),
-          },
-        }))}
-      >
-        {/* Left column: Chat area */}
-        <ChatPanel
-          title="Chat with Mailania"
-          subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won't change your mailbox from chat."
-          messages={generalChatMessages}
-          loading={generalChatLoading}
-          initLoading={generalChatInitLoading}
-          error={generalChatError}
-          input={generalChatInput}
-          onInputChange={setGeneralChatInput}
-          onSend={sendGeneralChatMessage}
-          placeholder="Ask about your inbox…"
-          emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
-          starterPrompts={[
-            "What stands out in my inbox right now?",
-            "Search for receipts from this month",
-            "What triage preferences do you remember?",
-            "Summarize the latest triage suggestions",
-          ]}
-          onMountChange={(mounted) => updateMobileDebug({ chatPanelMounted: mounted })}
-          mentionSuggestions={mentionSuggestions}
-          textareaRef={chatPanelTextareaRef}
-          hasMore={generalChatHasMore}
-          paginationLoading={generalChatPaginationLoading}
-          onLoadMore={fetchMoreGeneralChat}
-        />
-
-        {/* Right column: Proposal Sidebar */}
-        <ProposalSidebar
-          suggestionsWithIds={suggestionsWithIds}
-          suggestionsLoading={suggestionsLoading}
-          suggestionsError={suggestionsError}
-          onDismissSuggestion={dismissSuggestion}
-          onAcceptSuggestion={acceptSuggestion}
-          onMentionSuggestion={handleMentionSuggestion}
-          onSuggestionNotification={handleSuggestionNotification}
-        />
-      </div>
-    </div>
-      );
-    }}
+        {() => (
+          <DesktopLayout
+            messages={generalChatMessages}
+            loading={generalChatLoading}
+            initLoading={generalChatInitLoading}
+            error={generalChatError}
+            input={generalChatInput}
+            onInputChange={setGeneralChatInput}
+            onSend={sendGeneralChatMessage}
+            mentionSuggestions={mentionSuggestions}
+            textareaRef={chatPanelTextareaRef}
+            suggestionsWithIds={suggestionsWithIds}
+            suggestionsLoading={suggestionsLoading}
+            suggestionsError={suggestionsError}
+            onDismissSuggestion={dismissSuggestion}
+            onAcceptSuggestion={acceptSuggestion}
+            onMentionSuggestion={handleMentionSuggestion}
+            onSuggestionNotification={handleSuggestionNotification}
+            status={status}
+            testMode={testMode}
+            hasMore={generalChatHasMore}
+            paginationLoading={generalChatPaginationLoading}
+            onLoadMore={fetchMoreGeneralChat}
+            onLogout={handleLogout}
+            onNavigate={(path) => {}}
+            userName={status?.user?.displayName?.split(" ")[0]}
+          />
+        )}
       </Route>
     </Switch>
     </Router>
