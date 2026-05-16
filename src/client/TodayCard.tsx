@@ -162,16 +162,22 @@ export function TodayCard({
                 style={{
                   width: `${triageProgress}%`,
                   transition: "width 0.4s ease-out",
+                }}
+                className={css((t) => ({
                   position: "relative",
                   height: "100%",
                   borderRadius: "4px",
                   background: "linear-gradient(90deg, #FF4F8A, #FF6FA0)",
                   boxShadow: "0 0 8px rgba(255, 79, 138, 0.4)",
-                }}
-                className={css((t) => ({
-                  animation: "progress-shimmer 1.5s linear infinite",
-                  backgroundImage: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)",
-                  backgroundSize: "200% 100%",
+                  overflow: "hidden",
+                  "::after": {
+                    content: '""',
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                    backgroundSize: "200% 100%",
+                    animation: "progress-shimmer 1.5s linear infinite",
+                  },
                 }))}
               />
             </div>
