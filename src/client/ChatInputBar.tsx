@@ -185,9 +185,9 @@ export function ChatInputBar({
             maxWidth: "100%",
             minHeight: "44px",
             maxHeight: "180px",
-            padding: `${t.spacing(2)} ${t.spacing(3)}`,
-            border: "1px solid rgba(217, 70, 166, 0.08)",
-            borderRadius: t.radiusInput,
+            padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+            border: "1px solid rgba(255, 255, 255, 0.85)",
+            borderRadius: "999px",
             fontSize: t.fontSize.sm,
             resize: "none",
             fontFamily: "inherit",
@@ -198,9 +198,12 @@ export function ChatInputBar({
             overflowY: "auto",
             boxSizing: "border-box",
             width: "100%",
-            background: "white",
-            boxShadow: "0 4px 16px rgba(217, 70, 166, 0.1)",
-            "&:focus": { borderColor: "rgba(217, 70, 166, 0.2)", boxShadow: "0 6px 24px rgba(217, 70, 166, 0.18)", background: "#fafafa" },
+            background: "rgba(255, 255, 255, 0.55)",
+            backdropFilter: "blur(24px) saturate(1.6)",
+            boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+            color: "#2A0E1A",
+            "&::placeholder": { color: "#A87B95" },
+            "&:focus": { borderColor: "rgba(255, 255, 255, 0.95)", background: "rgba(255, 255, 255, 0.65)" },
             "&:focus-visible": { outline: "none" },
             "&:disabled": { opacity: 0.6 },
           }))}
@@ -307,8 +310,10 @@ export function ChatInputBar({
         className={css((t) => ({
           width: "48px",
           height: "48px",
+          minWidth: "48px",
+          minHeight: "48px",
           border: "none",
-          background: t.gradients.button,
+          background: "rgba(255, 79, 138, 0.85)",
           color: "white",
           borderRadius: "50%",
           cursor: "pointer",
@@ -316,17 +321,17 @@ export function ChatInputBar({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transition: "all 0.3s ease",
-          boxShadow: "0 6px 18px rgba(217, 70, 166, 0.28)",
+          transition: "all 120ms ease",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -2px 4px rgba(120, 30, 80, 0.18), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
           fontWeight: "600",
           flexShrink: 0,
-          "&:hover:not(:disabled)": { transform: "scale(1.08) translateY(-2px)", boxShadow: "0 10px 26px rgba(217, 70, 166, 0.35)" },
-          "&:focus-visible": { outline: "none" },
+          "&:hover:not(:disabled)": { background: "rgba(255, 79, 138, 0.95)", boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(120, 30, 80, 0.2), 0 16px 40px rgba(255, 79, 138, 0.4)" },
+          "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
           "&:active:not(:disabled)": { transform: "scale(0.96)" },
           "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
         }))}
       >
-        ⏎
+        →
       </button>
     </div>
   );
