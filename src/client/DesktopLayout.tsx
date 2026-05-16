@@ -373,7 +373,7 @@ export function DesktopLayout({
           flexDirection: "column",
           minWidth: 0,
           maxWidth: "720px",
-          margin: "0 auto",
+          margin: "0 8px",
           width: "100%",
         }))}
       >
@@ -411,8 +411,8 @@ export function DesktopLayout({
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
-          gap: t.spacing(4),
-          padding: `${t.spacing(8)} ${t.spacing(4)}`,
+          gap: t.spacing(3),
+          padding: `${t.spacing(6)} ${t.spacing(3)}`,
           overflow: "auto",
           boxSizing: "border-box",
         }))}
@@ -764,7 +764,7 @@ export function DesktopLayoutWithPile({
           flexDirection: "column",
           minWidth: 0,
           maxWidth: "720px",
-          margin: "0 auto",
+          margin: "0 8px",
           width: "100%",
         }))}
       >
@@ -826,8 +826,8 @@ export function DesktopLayoutWithPile({
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
-          gap: t.spacing(4),
-          padding: `${t.spacing(8)} ${t.spacing(4)}`,
+          gap: t.spacing(3),
+          padding: `${t.spacing(6)} ${t.spacing(3)}`,
           overflow: "auto",
           boxSizing: "border-box",
         }))}
