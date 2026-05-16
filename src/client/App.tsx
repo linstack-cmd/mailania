@@ -45,6 +45,11 @@ import {
   TEST_SUGGESTIONS,
   TEST_STATUS,
 } from "./testUIMode";
+import { WelcomeScreen, ConnectGmailScreen, PreferencesScreen } from "./OnboardingScreens";
+import { SettingsScreen } from "./SettingsScreen";
+import { PileScreen, type Suggestion } from "./PileScreen";
+import { DetailScreen, type EmailPreview } from "./DetailScreen";
+import { AITypingIndicator } from "./Phase7Screens";
 
 interface GmailAccountInfo {
   id: string;
@@ -91,6 +96,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [signupName, setSignupName] = useState("");
+  const [currentScreen, setCurrentScreen] = useState<"pile" | "detail" | null>(null);
+  const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
   const [generalChatMessages, setGeneralChatMessages] = useState<ChatMessageData[]>(testMode ? TEST_CHAT_MESSAGES : []);
   const [generalChatInput, setGeneralChatInput] = useState("");
   const [generalChatLoading, setGeneralChatLoading] = useState(false);
@@ -103,6 +110,21 @@ export default function App() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(true);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
   const mentionSuggestions = suggestionsWithIds.map((s) => ({ id: s.id, title: s.suggestion.title, kind: s.suggestion.kind }));
+  
+  // Map suggestions for Pile/Detail screens
+  const pileScreenSuggestions: Suggestion[] = suggestionsWithIds.map((s) => ({
+    id: s.id,
+    kind: s.suggestion.kind || "digest",
+    count: s.suggestion.count || 1,
+    title: s.suggestion.title || "Untitled",
+    subtitle: s.suggestion.subtitle,
+    actions: s.suggestion.actions || [],
+    isApproved: s.status === "accepted",
+  }));
+  
+  const selectedSuggestion = selectedSuggestionId 
+    ? suggestionsWithIds.find((s) => s.id === selectedSuggestionId)?.suggestion
+    : null;
   const chatPanelTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const loadingRef = useRef(false);
   const [isNarrowHeader, setIsNarrowHeader] = useState(
