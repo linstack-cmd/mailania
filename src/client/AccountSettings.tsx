@@ -46,9 +46,11 @@ const gmailAccountRowClass = css((t) => ({
   alignItems: "center",
   justifyContent: "space-between",
   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-  background: t.colors.bgAlt,
-  border: `1px solid ${t.colors.borderLight}`,
-  borderRadius: t.radiusSm,
+  background: "rgba(255, 255, 255, 0.32)",
+  backdropFilter: "blur(14px) saturate(1.4)",
+  border: "1px solid rgba(255, 255, 255, 0.6)",
+  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+  borderRadius: "16px",
   fontSize: t.fontSize.sm,
 }));
 
