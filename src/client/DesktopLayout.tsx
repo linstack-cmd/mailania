@@ -395,6 +395,7 @@ export function DesktopLayout({
           ]}
           mentionSuggestions={mentionSuggestions}
           textareaRef={textareaRef}
+          suppressHeader={true}
           hasMore={hasMore}
           paginationLoading={paginationLoading}
           onLoadMore={onLoadMore}

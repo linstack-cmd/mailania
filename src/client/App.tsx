@@ -44,7 +44,7 @@ import {
   TEST_SUGGESTIONS,
   TEST_STATUS,
 } from "./testUIMode";
-import { ConnectGmailScreen } from "./OnboardingScreens";
+import { ConnectGmailScreen, PreferencesScreen } from "./OnboardingScreens";
 import { SettingsScreen } from "./SettingsScreen";
 import { PileScreen, type Suggestion } from "./PileScreen";
 import { DetailScreen } from "./DetailScreen";
@@ -905,6 +905,55 @@ export default function App() {
           onBack={() => window.history.back()}
           isLoading={passkeyLoading}
         />
+      </Route>
+      <Route path="/preferences">
+        <PreferencesScreen
+          onSave={() => window.history.back()}
+          onSkip={() => window.history.back()}
+          isLoading={false}
+        />
+      </Route>
+      <Route path="/pile/:id">
+        {(params) => {
+          const [, setLocation] = useLocation();
+          const suggestionId = params.id;
+          const suggestion = suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
+          return (
+            <DetailScreen
+              ruleTitle={suggestion?.title || "Unknown Rule"}
+              ruleDescription={suggestion?.subtitle}
+              emailPreviews={[]}
+              isLoading={false}
+              onApprove={() => {
+                acceptSuggestion(suggestionId);
+                setLocation("/pile");
+              }}
+              onDismiss={() => {
+                dismissSuggestion(suggestionId);
+                setLocation("/pile");
+              }}
+              onBack={() => setLocation("/pile")}
+              isMobileView={false}
+            />
+          );
+        }}
+      </Route>
+      <Route path="/pile">
+        {() => {
+          const [, setLocation] = useLocation();
+          return (
+            <PileScreen
+              suggestions={pileScreenSuggestions}
+              isLoading={suggestionsLoading}
+              onApproveSuggestion={acceptSuggestion}
+              onViewDetail={(id) => {
+                setLocation(`/pile/${id}`);
+              }}
+              onBack={() => setLocation("/")}
+              isMobileView={false}
+            />
+          );
+        }}
       </Route>
       <Route>
         {() => (

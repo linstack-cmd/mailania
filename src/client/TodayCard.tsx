@@ -228,7 +228,7 @@ export function TodayCard({
                 color: "#A87B95",
                 margin: `${t.spacing(0.5)} 0 0`,
               }))}>
-                nothing waiting on you
+                inbox is clear
               </p>
             </div>
           </div>

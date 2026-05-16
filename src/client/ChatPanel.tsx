@@ -277,6 +277,7 @@ export function ChatPanel({
   mentionSuggestions = [],
   textareaRef,
   suppressInput = false,
+  suppressHeader = false,
   hasMore = true,
   paginationLoading = false,
   onLoadMore,
@@ -298,6 +299,7 @@ export function ChatPanel({
   mentionSuggestions?: Array<{id: string, title: string, kind: string}>;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   suppressInput?: boolean;
+  suppressHeader?: boolean;
   hasMore?: boolean;
   paginationLoading?: boolean;
   onLoadMore?: (beforeId: string) => void;
@@ -441,7 +443,7 @@ export function ChatPanel({
         },
       }))}
     >
-      {!suppressInput && <div
+      {!suppressInput && !suppressHeader && <div
         className={css((t) => ({
           padding: `${t.spacing(3)} ${t.spacing(4)}`,
           background: "transparent",
@@ -492,7 +494,6 @@ export function ChatPanel({
       <div
         ref={chatScrollRef}
         className={css((t) => ({
-          maxHeight: "420px",
           minHeight: "80px",
           overflowY: "auto",
           overflowX: "hidden",
@@ -507,7 +508,6 @@ export function ChatPanel({
           "@media (max-width: 640px)": {
             flex: "1",
             minHeight: "200px",
-            maxHeight: "none",
             padding: t.spacing(2.5),
           },
           "@media (max-width: 360px)": {
