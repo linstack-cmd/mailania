@@ -7,6 +7,7 @@
  * 3. Preferences (step 2 of 2)
  */
 
+import React from "react";
 import { css } from "@flow-css/core/css";
 
 /* ============ WELCOME SCREEN ============ */
@@ -608,6 +609,3 @@ export function PreferencesScreen({
     </div>
   );
 }
-
-// Import React at the top level for React.useState
-import React from "react";

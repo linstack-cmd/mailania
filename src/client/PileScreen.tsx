@@ -290,9 +290,8 @@ function PileCard({ suggestion, onApprove, onViewDetail }: PileCardProps) {
               "&:active": {
                 transform: "scale(0.96)",
               },
-            })}
-          >
-            {action}
+            }))}>
+              {action}
           </button>
         ))}
       </div>

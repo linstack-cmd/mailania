@@ -69,8 +69,7 @@ export function DoneScreen({ stats, onClose, userName }: DoneScreenProps) {
           "@media (max-width: 640px)": {
             fontSize: "36px",
           },
-        }))}
-      >
+        }))}>
         all done
       </h1>
 
@@ -151,7 +150,7 @@ export function PartialFailureScreen({
           fontWeight: "700",
           color: "white",
           marginBottom: t.spacing(6),
-        })}>
+        }))}>
         !
       </div>
 
@@ -301,8 +300,7 @@ export function AITypingIndicator({ assistantName = "Mailania" }: AITypingIndica
             maxWidth: "85%",
             padding: `${t.spacing(2.25)} ${t.spacing(2.5)}`,
           },
-        })}
-      >
+        }))}>
         {/* Three animated dots */}
         {[0, 1, 2].map((dotIndex) => (
           <div

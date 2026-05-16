@@ -107,7 +107,7 @@ export function SettingsScreen({
           jellyColor="butter"
           label="Preferences"
           description="Manage rules and behavior"
-          onAction={onEditPreferences}
+          onAction={onEditPreferences || (() => {})}
           actionLabel="edit"
           disabled={isLoading || !gmailConnected}
         />
@@ -118,7 +118,7 @@ export function SettingsScreen({
           jellyColor="coral"
           label="Disconnect Gmail"
           description="Remove access and clear data"
-          onAction={onDisconnect}
+          onAction={onDisconnect || (() => {})}
           actionLabel="disconnect"
           isDangerous
           disabled={isLoading || !gmailConnected}
