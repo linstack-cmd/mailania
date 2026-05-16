@@ -128,8 +128,9 @@ export function TodayCard({
               minWidth: 0,
             }))}>
               <h2 className={css((t) => ({
-                fontSize: t.fontSize.base,
-                fontWeight: "600",
+                fontSize: "19px",
+                fontFamily: '"Instrument Serif", serif',
+                fontWeight: "400",
                 margin: 0,
                 color: "#2A0E1A",
                 lineHeight: "1.2",
@@ -213,13 +214,14 @@ export function TodayCard({
               minWidth: 0,
             }))}>
               <h2 className={css((t) => ({
-                fontSize: t.fontSize.base,
-                fontWeight: "600",
+                fontSize: "19px",
+                fontFamily: '"Instrument Serif", serif',
+                fontWeight: "400",
                 margin: 0,
                 color: "#2A0E1A",
                 lineHeight: "1.2",
               }))}>
-                your inbox is calm
+                nothing waiting on you
               </h2>
               <p className={css((t) => ({
                 fontSize: t.fontSize.xs,
@@ -278,8 +280,9 @@ export function TodayCard({
               minWidth: 0,
             }))}>
               <h2 className={css((t) => ({
-                fontSize: t.fontSize.base,
-                fontWeight: "600",
+                fontSize: "19px",
+                fontFamily: '"Instrument Serif", serif',
+                fontWeight: "400",
                 margin: 0,
                 color: "#2A0E1A",
                 lineHeight: "1.2",
