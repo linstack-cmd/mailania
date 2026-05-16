@@ -183,7 +183,6 @@ export function MobileLayout({
           fontWeight: "600",
           color: "#2A0E1A",
           flex: 1,
-          textTransform: "uppercase",
           letterSpacing: "0.5px",
         }))}>
           mailania
