@@ -50,10 +50,10 @@ export const CONFIDENCE_STYLES: Record<string, { bg: string; text: string; borde
   low: { bg: "#fef2f2", text: "#991b1b", border: "#fecaca" },
 };
 
-// --- Skeleton shimmer ---
+// --- Skeleton shimmer (glass-tinted white, not gray) ---
 const skeletonLineClass = css({
   borderRadius: "4px",
-  background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+  background: "linear-gradient(90deg, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.3) 75%)",
   backgroundSize: "200px 100%",
   animation: "skeleton-shimmer 1.5s ease-in-out infinite",
 });

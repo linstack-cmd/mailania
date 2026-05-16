@@ -84,6 +84,246 @@ function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; hei
   return <div className={skeletonLineClass} style={{ width, height }} />;
 }
 
+// --- Route wrapper components (proper React components so useLocation works) ---
+// These must be real components (not inline callbacks) to satisfy Rules of Hooks.
+
+interface MobilePileDetailRouteProps {
+  params: { id?: string };
+  suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>;
+  acceptSuggestion: (id: string) => void;
+  dismissSuggestion: (id: string) => void;
+}
+function MobilePileDetailRoute({ params, suggestionsWithIds, acceptSuggestion, dismissSuggestion }: MobilePileDetailRouteProps) {
+  const [, setLocation] = useLocation();
+  const suggestionId = params.id || "";
+  const suggestion = suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
+  return (
+    <DetailScreen
+      ruleTitle={suggestion?.title || "Unknown Rule"}
+      ruleDescription={suggestion?.subtitle}
+      emailPreviews={[]}
+      isLoading={false}
+      onApprove={() => { acceptSuggestion(suggestionId); setLocation("/pile"); }}
+      onDismiss={() => { dismissSuggestion(suggestionId); setLocation("/pile"); }}
+      onBack={() => setLocation("/pile")}
+      isMobileView={true}
+    />
+  );
+}
+
+interface MobilePileRouteProps {
+  pileScreenSuggestions: import("./PileScreen").Suggestion[];
+  suggestionsLoading: boolean;
+  acceptSuggestion: (id: string) => void;
+}
+function MobilePileRoute({ pileScreenSuggestions, suggestionsLoading, acceptSuggestion }: MobilePileRouteProps) {
+  const [, setLocation] = useLocation();
+  return (
+    <PileScreen
+      suggestions={pileScreenSuggestions}
+      isLoading={suggestionsLoading}
+      onApproveSuggestion={acceptSuggestion}
+      onViewDetail={(id) => setLocation(`/pile/${id}`)}
+      onBack={() => setLocation("/")}
+      isMobileView={true}
+    />
+  );
+}
+
+interface MobileHomeRouteProps {
+  generalChatMessages: import("./ChatPanel").ChatMessageData[];
+  generalChatLoading: boolean;
+  generalChatInitLoading: boolean;
+  generalChatError: string | null;
+  generalChatInput: string;
+  setGeneralChatInput: (v: string) => void;
+  sendGeneralChatMessage: (msg?: string) => void;
+  mentionSuggestions: Array<{id: string, title: string, kind: string}>;
+  chatPanelTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>;
+  suggestionsLoading: boolean;
+  suggestionsError: string | null;
+  status: any;
+  testMode: boolean;
+  generalChatHasMore: boolean;
+  generalChatPaginationLoading: boolean;
+  fetchMoreGeneralChat: (beforeId: string) => void;
+  pileCount: number;
+  userName: string | undefined;
+}
+function MobileHomeRoute(props: MobileHomeRouteProps) {
+  const [, setLocation] = useLocation();
+  return (
+    <MobileLayout
+      messages={props.generalChatMessages}
+      loading={props.generalChatLoading}
+      initLoading={props.generalChatInitLoading}
+      error={props.generalChatError}
+      input={props.generalChatInput}
+      onInputChange={props.setGeneralChatInput}
+      onSend={props.sendGeneralChatMessage}
+      mentionSuggestions={props.mentionSuggestions}
+      textareaRef={props.chatPanelTextareaRef}
+      suggestionsWithIds={props.suggestionsWithIds}
+      suggestionsLoading={props.suggestionsLoading}
+      suggestionsError={props.suggestionsError}
+      inboxMessages={[]}
+      status={props.status}
+      testMode={props.testMode}
+      hasMore={props.generalChatHasMore}
+      paginationLoading={props.generalChatPaginationLoading}
+      onLoadMore={props.fetchMoreGeneralChat}
+      todayCardElement={
+        <TodayCard
+          pileCount={props.pileCount}
+          userName={props.userName}
+          lastTriageMessages={undefined}
+          lastTriageSuggestions={undefined}
+          onViewPile={() => setLocation("/pile")}
+        />
+      }
+    />
+  );
+}
+
+// Desktop route wrappers
+interface DesktopPileDetailRouteProps {
+  params: { id?: string };
+  suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>;
+  acceptSuggestion: (id: string) => void;
+  dismissSuggestion: (id: string) => Promise<void>;
+  generalChatMessages: import("./ChatPanel").ChatMessageData[];
+  generalChatLoading: boolean;
+  generalChatInitLoading: boolean;
+  generalChatError: string | null;
+  generalChatInput: string;
+  setGeneralChatInput: (v: string) => void;
+  sendGeneralChatMessage: (msg?: string) => void;
+  mentionSuggestions: Array<{id: string, title: string, kind: string}>;
+  chatPanelTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  suggestionsLoading: boolean;
+  suggestionsError: string | null;
+  dismissSuggestion2: (id: string) => Promise<void>;
+  handleMentionSuggestion: (args: {id: string, title: string}) => void;
+  handleSuggestionNotification: (title: string, status: "accepted" | "dismissed") => void;
+  status: any;
+  testMode: boolean;
+  generalChatHasMore: boolean;
+  generalChatPaginationLoading: boolean;
+  fetchMoreGeneralChat: (beforeId: string) => void;
+  handleLogout: () => void;
+  userName: string | undefined;
+}
+function DesktopPileDetailRoute(props: DesktopPileDetailRouteProps) {
+  const [, setLocation] = useLocation();
+  const suggestionId = props.params.id || "";
+  const suggestion = props.suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
+  return (
+    <DesktopLayoutWithPile
+      layout="detail"
+      detailScreenProps={{
+        ruleTitle: suggestion?.title || "Unknown Rule",
+        ruleDescription: suggestion?.subtitle,
+        emailPreviews: [],
+        isLoading: false,
+        onApprove: () => { props.acceptSuggestion(suggestionId); setLocation("/pile"); },
+        onDismiss: () => { props.dismissSuggestion(suggestionId); setLocation("/pile"); },
+        onBack: () => setLocation("/pile"),
+      }}
+      messages={props.generalChatMessages}
+      loading={props.generalChatLoading}
+      initLoading={props.generalChatInitLoading}
+      error={props.generalChatError}
+      input={props.generalChatInput}
+      onInputChange={props.setGeneralChatInput}
+      onSend={props.sendGeneralChatMessage}
+      mentionSuggestions={props.mentionSuggestions}
+      textareaRef={props.chatPanelTextareaRef}
+      suggestionsWithIds={props.suggestionsWithIds}
+      suggestionsLoading={props.suggestionsLoading}
+      suggestionsError={props.suggestionsError}
+      onDismissSuggestion={props.dismissSuggestion2}
+      onAcceptSuggestion={props.acceptSuggestion}
+      onMentionSuggestion={props.handleMentionSuggestion}
+      onSuggestionNotification={props.handleSuggestionNotification}
+      status={props.status}
+      testMode={props.testMode}
+      hasMore={props.generalChatHasMore}
+      paginationLoading={props.generalChatPaginationLoading}
+      onLoadMore={props.fetchMoreGeneralChat}
+      onLogout={props.handleLogout}
+      onNavigate={() => {}}
+      userName={props.userName}
+    />
+  );
+}
+
+interface DesktopPileRouteProps {
+  pileScreenSuggestions: import("./PileScreen").Suggestion[];
+  suggestionsLoading: boolean;
+  acceptSuggestion: (id: string) => void;
+  generalChatMessages: import("./ChatPanel").ChatMessageData[];
+  generalChatLoading: boolean;
+  generalChatInitLoading: boolean;
+  generalChatError: string | null;
+  generalChatInput: string;
+  setGeneralChatInput: (v: string) => void;
+  sendGeneralChatMessage: (msg?: string) => void;
+  mentionSuggestions: Array<{id: string, title: string, kind: string}>;
+  chatPanelTextareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>;
+  suggestionsError: string | null;
+  dismissSuggestion: (id: string) => Promise<void>;
+  handleMentionSuggestion: (args: {id: string, title: string}) => void;
+  handleSuggestionNotification: (title: string, status: "accepted" | "dismissed") => void;
+  status: any;
+  testMode: boolean;
+  generalChatHasMore: boolean;
+  generalChatPaginationLoading: boolean;
+  fetchMoreGeneralChat: (beforeId: string) => void;
+  handleLogout: () => void;
+  userName: string | undefined;
+}
+function DesktopPileRoute(props: DesktopPileRouteProps) {
+  const [, setLocation] = useLocation();
+  return (
+    <DesktopLayoutWithPile
+      layout="pile"
+      pileScreenProps={{
+        suggestions: props.pileScreenSuggestions,
+        isLoading: props.suggestionsLoading,
+        onApproveSuggestion: props.acceptSuggestion,
+        onViewDetail: (id) => setLocation(`/pile/${id}`),
+        onBack: () => setLocation("/"),
+      }}
+      messages={props.generalChatMessages}
+      loading={props.generalChatLoading}
+      initLoading={props.generalChatInitLoading}
+      error={props.generalChatError}
+      input={props.generalChatInput}
+      onInputChange={props.setGeneralChatInput}
+      onSend={props.sendGeneralChatMessage}
+      mentionSuggestions={props.mentionSuggestions}
+      textareaRef={props.chatPanelTextareaRef}
+      suggestionsWithIds={props.suggestionsWithIds}
+      suggestionsLoading={props.suggestionsLoading}
+      suggestionsError={props.suggestionsError}
+      onDismissSuggestion={props.dismissSuggestion}
+      onAcceptSuggestion={props.acceptSuggestion}
+      onMentionSuggestion={props.handleMentionSuggestion}
+      onSuggestionNotification={props.handleSuggestionNotification}
+      status={props.status}
+      testMode={props.testMode}
+      hasMore={props.generalChatHasMore}
+      paginationLoading={props.generalChatPaginationLoading}
+      onLoadMore={props.fetchMoreGeneralChat}
+      onLogout={props.handleLogout}
+      onNavigate={() => {}}
+      userName={props.userName}
+    />
+  );
+}
+
 export default function App() {
   const testMode = isTestUIMode();
   const [status, setStatus] = useState<StatusData | null>(testMode ? TEST_STATUS as StatusData : null);
@@ -808,82 +1048,44 @@ export default function App() {
           />
         </Route>
         <Route path="/pile/:id">
-          {(params) => {
-            const [, setLocation] = useLocation();
-            const suggestionId = params.id;
-            const suggestion = suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
-            return (
-              <DetailScreen
-                ruleTitle={suggestion?.title || "Unknown Rule"}
-                ruleDescription={suggestion?.subtitle}
-                emailPreviews={[]}
-                isLoading={false}
-                onApprove={() => {
-                  acceptSuggestion(suggestionId);
-                  setLocation("/pile");
-                }}
-                onDismiss={() => {
-                  dismissSuggestion(suggestionId);
-                  setLocation("/pile");
-                }}
-                onBack={() => setLocation("/pile")}
-                isMobileView={true}
-              />
-            );
-          }}
+          {(params) => (
+            <MobilePileDetailRoute
+              params={params}
+              suggestionsWithIds={suggestionsWithIds}
+              acceptSuggestion={acceptSuggestion}
+              dismissSuggestion={dismissSuggestion}
+            />
+          )}
         </Route>
         <Route path="/pile">
-          {() => {
-            const [, setLocation] = useLocation();
-            return (
-              <PileScreen
-                suggestions={pileScreenSuggestions}
-                isLoading={suggestionsLoading}
-                onApproveSuggestion={acceptSuggestion}
-                onViewDetail={(id) => {
-                  setLocation(`/pile/${id}`);
-                }}
-                onBack={() => setLocation("/")}
-                isMobileView={true}
-              />
-            );
-          }}
+          <MobilePileRoute
+            pileScreenSuggestions={pileScreenSuggestions}
+            suggestionsLoading={suggestionsLoading}
+            acceptSuggestion={acceptSuggestion}
+          />
         </Route>
         <Route>
-          {() => {
-            const [, setLocation] = useLocation();
-            return (
-              <MobileLayout
-                messages={generalChatMessages}
-                loading={generalChatLoading}
-                initLoading={generalChatInitLoading}
-                error={generalChatError}
-                input={generalChatInput}
-                onInputChange={setGeneralChatInput}
-                onSend={sendGeneralChatMessage}
-                mentionSuggestions={mentionSuggestions}
-                textareaRef={chatPanelTextareaRef}
-                suggestionsWithIds={suggestionsWithIds}
-                suggestionsLoading={suggestionsLoading}
-                suggestionsError={suggestionsError}
-                inboxMessages={[]}
-                status={status}
-                testMode={testMode}
-                hasMore={generalChatHasMore}
-                paginationLoading={generalChatPaginationLoading}
-                onLoadMore={fetchMoreGeneralChat}
-                todayCardElement={
-                  <TodayCard
-                    pileCount={suggestionsWithIds.length}
-                    userName={status?.user?.displayName?.split(" ")[0]}
-                    lastTriageMessages={undefined}
-                    lastTriageSuggestions={undefined}
-                    onViewPile={() => setLocation("/pile")}
-                  />
-                }
-              />
-            );
-          }}
+          <MobileHomeRoute
+            generalChatMessages={generalChatMessages}
+            generalChatLoading={generalChatLoading}
+            generalChatInitLoading={generalChatInitLoading}
+            generalChatError={generalChatError}
+            generalChatInput={generalChatInput}
+            setGeneralChatInput={setGeneralChatInput}
+            sendGeneralChatMessage={sendGeneralChatMessage}
+            mentionSuggestions={mentionSuggestions}
+            chatPanelTextareaRef={chatPanelTextareaRef}
+            suggestionsWithIds={suggestionsWithIds}
+            suggestionsLoading={suggestionsLoading}
+            suggestionsError={suggestionsError}
+            status={status}
+            testMode={testMode}
+            generalChatHasMore={generalChatHasMore}
+            generalChatPaginationLoading={generalChatPaginationLoading}
+            fetchMoreGeneralChat={fetchMoreGeneralChat}
+            pileCount={suggestionsWithIds.length}
+            userName={status?.user?.displayName?.split(" ")[0]}
+          />
         </Route>
       </Switch>
       </Router>
@@ -914,98 +1116,63 @@ export default function App() {
         />
       </Route>
       <Route path="/pile/:id">
-        {(params) => {
-          const [, setLocation] = useLocation();
-          const suggestionId = params.id;
-          const suggestion = suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
-          return (
-            <DesktopLayoutWithPile
-              layout="detail"
-              detailScreenProps={{
-                ruleTitle: suggestion?.title || "Unknown Rule",
-                ruleDescription: suggestion?.subtitle,
-                emailPreviews: [],
-                isLoading: false,
-                onApprove: () => {
-                  acceptSuggestion(suggestionId);
-                  setLocation("/pile");
-                },
-                onDismiss: () => {
-                  dismissSuggestion(suggestionId);
-                  setLocation("/pile");
-                },
-                onBack: () => setLocation("/pile"),
-              }}
-              // DesktopLayout props
-              messages={generalChatMessages}
-              loading={generalChatLoading}
-              initLoading={generalChatInitLoading}
-              error={generalChatError}
-              input={generalChatInput}
-              onInputChange={setGeneralChatInput}
-              onSend={sendGeneralChatMessage}
-              mentionSuggestions={mentionSuggestions}
-              textareaRef={chatPanelTextareaRef}
-              suggestionsWithIds={suggestionsWithIds}
-              suggestionsLoading={suggestionsLoading}
-              suggestionsError={suggestionsError}
-              onDismissSuggestion={dismissSuggestion}
-              onAcceptSuggestion={acceptSuggestion}
-              onMentionSuggestion={handleMentionSuggestion}
-              onSuggestionNotification={handleSuggestionNotification}
-              status={status}
-              testMode={testMode}
-              hasMore={generalChatHasMore}
-              paginationLoading={generalChatPaginationLoading}
-              onLoadMore={fetchMoreGeneralChat}
-              onLogout={handleLogout}
-              onNavigate={(path) => {}}
-              userName={status?.user?.displayName?.split(" ")[0]}
-            />
-          );
-        }}
+        {(params) => (
+          <DesktopPileDetailRoute
+            params={params}
+            suggestionsWithIds={suggestionsWithIds}
+            acceptSuggestion={acceptSuggestion}
+            dismissSuggestion={dismissSuggestion}
+            generalChatMessages={generalChatMessages}
+            generalChatLoading={generalChatLoading}
+            generalChatInitLoading={generalChatInitLoading}
+            generalChatError={generalChatError}
+            generalChatInput={generalChatInput}
+            setGeneralChatInput={setGeneralChatInput}
+            sendGeneralChatMessage={sendGeneralChatMessage}
+            mentionSuggestions={mentionSuggestions}
+            chatPanelTextareaRef={chatPanelTextareaRef}
+            suggestionsLoading={suggestionsLoading}
+            suggestionsError={suggestionsError}
+            dismissSuggestion2={dismissSuggestion}
+            handleMentionSuggestion={handleMentionSuggestion}
+            handleSuggestionNotification={handleSuggestionNotification}
+            status={status}
+            testMode={testMode}
+            generalChatHasMore={generalChatHasMore}
+            generalChatPaginationLoading={generalChatPaginationLoading}
+            fetchMoreGeneralChat={fetchMoreGeneralChat}
+            handleLogout={handleLogout}
+            userName={status?.user?.displayName?.split(" ")[0]}
+          />
+        )}
       </Route>
       <Route path="/pile">
-        {() => {
-          const [, setLocation] = useLocation();
-          return (
-            <DesktopLayoutWithPile
-              layout="pile"
-              pileScreenProps={{
-                suggestions: pileScreenSuggestions,
-                isLoading: suggestionsLoading,
-                onApproveSuggestion: acceptSuggestion,
-                onViewDetail: (id) => setLocation(`/pile/${id}`),
-                onBack: () => setLocation("/"),
-              }}
-              // DesktopLayout props
-              messages={generalChatMessages}
-              loading={generalChatLoading}
-              initLoading={generalChatInitLoading}
-              error={generalChatError}
-              input={generalChatInput}
-              onInputChange={setGeneralChatInput}
-              onSend={sendGeneralChatMessage}
-              mentionSuggestions={mentionSuggestions}
-              textareaRef={chatPanelTextareaRef}
-              suggestionsWithIds={suggestionsWithIds}
-              suggestionsLoading={suggestionsLoading}
-              suggestionsError={suggestionsError}
-              onDismissSuggestion={dismissSuggestion}
-              onAcceptSuggestion={acceptSuggestion}
-              onMentionSuggestion={handleMentionSuggestion}
-              onSuggestionNotification={handleSuggestionNotification}
-              status={status}
-              testMode={testMode}
-              hasMore={generalChatHasMore}
-              paginationLoading={generalChatPaginationLoading}
-              onLoadMore={fetchMoreGeneralChat}
-              onLogout={handleLogout}
-              onNavigate={(path) => {}}
-              userName={status?.user?.displayName?.split(" ")[0]}
-            />
-          );
-        }}
+        <DesktopPileRoute
+          pileScreenSuggestions={pileScreenSuggestions}
+          suggestionsLoading={suggestionsLoading}
+          acceptSuggestion={acceptSuggestion}
+          generalChatMessages={generalChatMessages}
+          generalChatLoading={generalChatLoading}
+          generalChatInitLoading={generalChatInitLoading}
+          generalChatError={generalChatError}
+          generalChatInput={generalChatInput}
+          setGeneralChatInput={setGeneralChatInput}
+          sendGeneralChatMessage={sendGeneralChatMessage}
+          mentionSuggestions={mentionSuggestions}
+          chatPanelTextareaRef={chatPanelTextareaRef}
+          suggestionsWithIds={suggestionsWithIds}
+          suggestionsError={suggestionsError}
+          dismissSuggestion={dismissSuggestion}
+          handleMentionSuggestion={handleMentionSuggestion}
+          handleSuggestionNotification={handleSuggestionNotification}
+          status={status}
+          testMode={testMode}
+          generalChatHasMore={generalChatHasMore}
+          generalChatPaginationLoading={generalChatPaginationLoading}
+          fetchMoreGeneralChat={fetchMoreGeneralChat}
+          handleLogout={handleLogout}
+          userName={status?.user?.displayName?.split(" ")[0]}
+        />
       </Route>
       <Route>
         {() => (
