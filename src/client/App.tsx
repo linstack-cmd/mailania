@@ -87,6 +87,28 @@ function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; hei
 // --- Route wrapper components (proper React components so useLocation works) ---
 // These must be real components (not inline callbacks) to satisfy Rules of Hooks.
 
+// Helper to compute kind summary from suggestions
+function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>): string {
+  if (suggestionsWithIds.length === 0) return "";
+  
+  const kindMap: Record<string, string> = {
+    archive_bulk: "archive",
+    create_filter: "filter",
+    needs_user_input: "reply",
+    mark_read_bulk: "digest",
+  };
+  
+  const uniqueKinds = new Set<string>();
+  for (const { suggestion } of suggestionsWithIds) {
+    const kind = suggestion?.kind;
+    if (kind && kindMap[kind]) {
+      uniqueKinds.add(kindMap[kind]);
+    }
+  }
+  
+  return Array.from(uniqueKinds).join(" · ");
+}
+
 // Mock email previews for detail screen
 const MOCK_EMAIL_PREVIEWS = [
   {
@@ -223,6 +245,7 @@ function MobileHomeRoute(props: MobileHomeRouteProps) {
         <TodayCard
           pileCount={props.pileCount}
           userName={props.userName}
+          kindSummary={computeKindSummary(props.suggestionsWithIds)}
           lastTriageMessages={undefined}
           lastTriageSuggestions={undefined}
           onViewPile={() => setLocation("/pile")}

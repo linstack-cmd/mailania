@@ -31,6 +31,9 @@ export interface TodayCardProps {
   /** User's first name for greeting */
   userName?: string;
   
+  /** Suggestion kinds summary (e.g. "archive · filter · reply") */
+  kindSummary?: string;
+  
   /** Callback when user clicks to view pile */
   onViewPile?: () => void;
 }
@@ -43,6 +46,7 @@ export function TodayCard({
   lastTriageSuggestions,
   isIdle = false,
   userName,
+  kindSummary,
   onViewPile,
 }: TodayCardProps) {
   const isTriaging = triageProgress !== undefined && triageProgress !== null;
@@ -135,7 +139,8 @@ export function TodayCard({
                 color: "#2A0E1A",
                 lineHeight: "1.2",
               }))}>
-                reading your inbox
+                reading your{" "}
+                <span style={{ fontStyle: "italic" }}>inbox</span>
               </h2>
               <p className={css((t) => ({
                 fontSize: t.fontSize.xs,
@@ -297,14 +302,15 @@ export function TodayCard({
                 color: "#2A0E1A",
                 lineHeight: "1.2",
               }))}>
-                today's pile
+                today's{" "}
+                <span style={{ fontStyle: "italic" }}>pile</span>
               </h2>
               <p className={css((t) => ({
                 fontSize: t.fontSize.xs,
                 color: "#A87B95",
                 margin: `${t.spacing(0.5)} 0 0`,
               }))}>
-                pending suggestions awaiting your review
+                {kindSummary || "pending suggestions awaiting your review"}
               </p>
             </div>
             {onViewPile && (
