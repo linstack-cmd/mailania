@@ -437,8 +437,8 @@ export function ChatPanel({
         minHeight: "200px",
         boxSizing: "border-box",
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+        flex: "1",
         "@media (max-width: 640px)": {
-          flex: "1",
           minHeight: "180px",
         },
       }))}
