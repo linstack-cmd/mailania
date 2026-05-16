@@ -615,7 +615,7 @@ export default function App() {
             </p>
           </div>
         ) : (
-          <div className={css((t) => ({ width: "min(100%, 420px)", display: "flex", flexDirection: "column", gap: t.spacing(3), padding: `${t.spacing(4)} ${t.spacing(4.5)}`, border: `1px solid ${t.colors.borderLight}`, borderRadius: t.radius, background: t.colors.bg, boxShadow: t.shadow, boxSizing: "border-box", "@media (max-width: 480px)": { padding: `${t.spacing(3.5)} ${t.spacing(3)}` } }))}>
+          <div className={css((t) => ({ width: "min(100%, 420px)", display: "flex", flexDirection: "column", gap: t.spacing(3), padding: `${t.spacing(4)} ${t.spacing(4.5)}`, border: "1px solid rgba(255, 255, 255, 0.85)", borderRadius: "24px", background: "rgba(255, 255, 255, 0.55)", backdropFilter: "blur(24px) saturate(1.6)", boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)", boxSizing: "border-box", "@media (max-width: 480px)": { padding: `${t.spacing(3.5)} ${t.spacing(3)}` } }))}>
             {/* Logomark above branding */}
             <div style={{display: "flex", justifyContent: "center", marginBottom: "16px"}}>
               <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
