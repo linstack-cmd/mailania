@@ -251,7 +251,7 @@ export default function AccountSettings({
       </button>
 
       <h1 className={css((t) => ({ fontSize: t.fontSize.xl, fontWeight: t.fontWeight.bold, marginBottom: t.spacing(6), display: "flex", alignItems: "center", gap: t.spacing(2) }))}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2" style={{marginRight:0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF4F8A" strokeWidth="2" style={{marginRight:0}}><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         Account Settings
       </h1>
 
@@ -293,10 +293,11 @@ export default function AccountSettings({
                 minHeight: "180px",
                 resize: "vertical",
                 padding: t.spacing(3),
-                border: `1px solid ${t.colors.border}`,
+                border: "1px solid rgba(255, 255, 255, 0.3)",
                 borderRadius: t.radiusSm,
-                background: t.colors.bg,
-                color: t.colors.text,
+                background: "rgba(255, 255, 255, 0.15)",
+                backdropFilter: "blur(8px)",
+                color: "#2A0E1A",
                 fontSize: t.fontSize.sm,
                 lineHeight: t.lineHeight.relaxed,
                 outline: "none",
@@ -304,11 +305,11 @@ export default function AccountSettings({
                 boxSizing: "border-box",
                 transition: "border-color 0.15s, box-shadow 0.15s",
                 "&:focus": {
-                  borderColor: t.colors.primary,
-                  boxShadow: `0 0 0 3px color-mix(in srgb, ${t.colors.primary} 15%, transparent)`,
+                  borderColor: "rgba(255, 255, 255, 0.6)",
+                  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 8px 24px -8px rgba(255, 79, 138, 0.25)",
                 },
                 "&:focus-visible": {
-                  outline: `2px solid ${t.colors.primary}`,
+                  outline: "2px solid #FF4F8A",
                   outlineOffset: "-2px",
                 },
               }))}
@@ -324,15 +325,16 @@ export default function AccountSettings({
                   padding: `${t.spacing(2)} ${t.spacing(4)}`,
                   border: "none",
                   borderRadius: t.radiusSm,
-                  background: t.colors.primary,
+                  background: "linear-gradient(180deg, #FF6FA0 0%, #FF3B7A 100%)",
                   color: "#fff",
                   cursor: "pointer",
                   fontSize: t.fontSize.sm,
                   fontWeight: t.fontWeight.semibold,
                   minHeight: "44px",
-                  transition: "background 0.15s",
-                  "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-                  "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+                  transition: "opacity 0.15s",
+                  boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+                  "&:hover:not(:disabled)": { opacity: 0.9 },
+                  "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
                   "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
                 }))}
               >
@@ -428,16 +430,18 @@ export default function AccountSettings({
             gap: t.spacing(1.5),
             marginTop: t.spacing(3),
             padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
-            border: `1px solid ${t.colors.border}`,
+            border: "1px solid rgba(255, 255, 255, 0.3)",
             borderRadius: t.radiusSm,
-            background: t.colors.bg,
+            background: "rgba(255, 255, 255, 0.15)",
             textDecoration: "none",
-            color: t.colors.text,
+            color: "#2A0E1A",
             fontSize: t.fontSize.sm,
             fontWeight: t.fontWeight.semibold,
             minHeight: "44px",
-            "&:hover": { background: t.colors.bgAlt, borderColor: t.colors.primary },
-            "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+            backdropFilter: "blur(8px)",
+            transition: "all 0.15s",
+            "&:hover": { background: "rgba(255, 255, 255, 0.25)", borderColor: "rgba(255, 255, 255, 0.6)" },
+            "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
           }))}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:0}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -466,10 +470,11 @@ export default function AccountSettings({
                   alignItems: "center",
                   justifyContent: "space-between",
                   padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-                  background: t.colors.bgAlt,
-                  border: `1px solid ${t.colors.borderLight}`,
+                  background: "rgba(255, 255, 255, 0.15)",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
                   borderRadius: t.radiusSm,
                   fontSize: t.fontSize.sm,
+                  backdropFilter: "blur(8px)",
                 }))}
               >
                 <div className={css((t) => ({ display: "flex", flexDirection: "column", gap: t.spacing(1), minWidth: 0, flex: 1 }))}>
@@ -606,15 +611,16 @@ export default function AccountSettings({
               padding: `${t.spacing(2.5)} ${t.spacing(4)}`,
               border: "none",
               borderRadius: t.radiusSm,
-              background: t.colors.primary,
+              background: "linear-gradient(180deg, #FF6FA0 0%, #FF3B7A 100%)",
               color: "#fff",
               cursor: "pointer",
               fontSize: t.fontSize.sm,
               fontWeight: t.fontWeight.semibold,
               minHeight: "44px",
-              transition: "background 0.15s",
-              "&:hover:not(:disabled)": { background: t.colors.primaryHover },
-              "&:focus-visible": { outline: `2px solid ${t.colors.primary}`, outlineOffset: "2px" },
+              transition: "opacity 0.15s",
+              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+              "&:hover:not(:disabled)": { opacity: 0.9 },
+              "&:focus-visible": { outline: "2px solid #FF4F8A", outlineOffset: "2px" },
               "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
             }))}
           >
@@ -672,7 +678,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         color: t.colors.text,
         marginBottom: t.spacing(3),
         paddingBottom: t.spacing(2),
-        borderBottom: `1px solid ${t.colors.borderLight}`,
+        borderBottom: "1px solid rgba(255, 255, 255, 0.3)",
       }))}>
         {title}
       </h2>

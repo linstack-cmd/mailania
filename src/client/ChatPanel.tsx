@@ -208,12 +208,13 @@ function parseInlineFormats(text: string): React.ReactNode {
         <code
           key={`ic-${key++}`}
           className={css((t) => ({
-            background: "rgba(0, 0, 0, 0.2)",
-            color: "white",
+            background: "rgba(255, 255, 255, 0.15)",
+            color: "#2A0E1A",
             padding: `0 ${t.spacing(0.75)}`,
             borderRadius: t.radiusSm,
             fontSize: "0.9em",
             fontFamily: "monospace",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
           }))}
         >
           {content}
@@ -232,10 +233,10 @@ function parseInlineFormats(text: string): React.ReactNode {
             target="_blank"
             rel="noopener noreferrer"
             className={css((t) => ({
-              color: "rgba(255, 255, 255, 0.9)",
+              color: "#FF4F8A",
               textDecoration: "underline",
               transition: "opacity 0.15s",
-              "&:hover": { opacity: 0.7 },
+              "&:hover": { opacity: 0.85 },
             }))}
           >
             {linkText}
@@ -420,10 +421,11 @@ export function ChatPanel({
   return (
     <div
       className={css((t) => ({
-        border: "1px solid rgba(217, 70, 166, 0.08)",
         borderRadius: t.radiusLarge,
         overflow: "hidden",
-        background: "linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 187, 208, 0.12) 100%)",
+        background: "rgba(255, 255, 255, 0.55)",
+        backdropFilter: "blur(24px) saturate(1.6)",
+        border: "1px solid rgba(255, 255, 255, 0.85)",
         minWidth: 0,
         maxWidth: "100%",
         width: "100%",
@@ -431,7 +433,7 @@ export function ChatPanel({
         flexDirection: "column",
         minHeight: "200px",
         boxSizing: "border-box",
-        boxShadow: "0 20px 60px rgba(217, 70, 166, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8)",
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
         "@media (max-width: 640px)": {
           flex: "1",
           minHeight: "180px",
@@ -442,7 +444,7 @@ export function ChatPanel({
         className={css((t) => ({
           padding: `${t.spacing(3)} ${t.spacing(4)}`,
           background: "transparent",
-          borderBottom: "1px solid rgba(217, 70, 166, 0.05)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
           flexShrink: 0,
         }))}
       >
@@ -556,9 +558,9 @@ export function ChatPanel({
                 onClick={() => onInputChange(prompt)}
                 disabled={loading}
                 className={css((t) => ({
-                  border: `1px solid ${t.colors.border}`,
-                  background: t.colors.bgAlt,
-                  color: t.colors.text,
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  background: "rgba(255, 255, 255, 0.15)",
+                  color: "#2A0E1A",
                   borderRadius: "999px",
                   padding: `${t.spacing(1.5)} ${t.spacing(2.5)}`,
                   fontSize: t.fontSize.xs,
@@ -568,9 +570,9 @@ export function ChatPanel({
                   wordBreak: "break-word",
                   textAlign: "center",
                   "&:hover:not(:disabled)": {
-                    borderColor: "#d946a6",
-                    color: "#d946a6",
-                    background: "rgba(217, 70, 166, 0.1)",
+                    borderColor: "rgba(255, 255, 255, 0.6)",
+                    color: "#FF4F8A",
+                    background: "rgba(255, 255, 255, 0.25)",
                   },
                   "&:disabled": {
                     opacity: 0.5,
@@ -621,10 +623,11 @@ export function ChatPanel({
         <div
           className={css((t) => ({
             padding: `${t.spacing(2)} ${t.spacing(4)}`,
-            background: "#fef2f2",
-            color: t.colors.error,
+            background: "rgba(255, 130, 165, 0.20)",
+            backdropFilter: "blur(8px)",
+            color: "#2A0E1A",
             fontSize: t.fontSize.xs,
-            borderTop: "1px solid rgba(217, 70, 166, 0.05)",
+            borderTop: "1px solid rgba(255, 130, 165, 0.4)",
             flexShrink: 0,
           }))}
         >
@@ -638,7 +641,7 @@ export function ChatPanel({
             display: "flex",
             gap: t.spacing(2),
             padding: t.spacing(3),
-            borderTop: "1px solid rgba(217, 70, 166, 0.05)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.2)",
             background: "transparent",
             minWidth: 0,
             alignItems: "flex-end",

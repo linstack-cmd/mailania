@@ -21,7 +21,7 @@ import {
 // ---------------------------------------------------------------------------
 const skeletonLineClass = css({
   borderRadius: "4px",
-  background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+  background: "linear-gradient(90deg, rgba(255,255,255,0.3) 25%, rgba(255,255,255,0.5) 50%, rgba(255,255,255,0.3) 75%)",
   backgroundSize: "200px 100%",
   animation: "skeleton-shimmer 1.5s ease-in-out infinite",
 });
@@ -35,11 +35,13 @@ function ProposalSkeletonCard() {
     <div
       className={css((t) => ({
         padding: t.spacing(3),
-        border: `1px solid ${t.colors.borderLight}`,
+        border: "1px solid rgba(255, 255, 255, 0.3)",
         borderRadius: t.radius,
         display: "flex",
         flexDirection: "column",
         gap: t.spacing(2),
+        background: "rgba(255, 255, 255, 0.15)",
+        backdropFilter: "blur(8px)",
       }))}
     >
       <div className={css({ display: "flex", justifyContent: "space-between" })}>
@@ -129,7 +131,7 @@ function ProposalCard({
             {kindInfo.icon}
           </span>
           <div className={css({ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 })}>
-            <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#333", lineHeight: "1.35" }))}>
+            <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#2A0E1A", lineHeight: "1.35" }))}>
               {suggestion.title}
             </div>
           </div>
@@ -140,10 +142,7 @@ function ProposalCard({
             fontWeight: "600", 
             textTransform: "uppercase", 
             letterSpacing: "0.5px",
-            background: t.gradients.confidenceText,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
+            color: "#2A0E1A",
             flexShrink: 0,
           }))}
         >
@@ -155,7 +154,7 @@ function ProposalCard({
       <p
         className={css((t) => ({
           fontSize: t.fontSize.xs,
-          color: "#666",
+          color: "#5A2C3D",
           margin: 0,
           lineHeight: "1.4",
         }))}
@@ -362,7 +361,8 @@ export default function ProposalSidebar({
       {/* Sidebar panel container */}
       <div
         className={css((t) => ({
-          background: "linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 187, 208, 0.08))",
+          background: "rgba(255, 255, 255, 0.55)",
+          backdropFilter: "blur(24px) saturate(1.6)",
           borderRadius: t.radiusPanel,
           padding: t.spacing(6),
           display: "flex",
@@ -370,8 +370,8 @@ export default function ProposalSidebar({
           gap: t.spacing(3.5),
           height: "100%",
           overflowY: "auto",
-          boxShadow: "0 16px 48px rgba(217, 70, 166, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.6)",
-          border: "1px solid rgba(217, 70, 166, 0.08)",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+          border: "1px solid rgba(255, 255, 255, 0.85)",
           maxHeight: "calc(100vh - 180px)",
         }))}
       >
@@ -381,10 +381,7 @@ export default function ProposalSidebar({
           fontWeight: "700",
           textTransform: "uppercase",
           letterSpacing: "1.2px",
-          background: t.gradients.suggestionsTitle,
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
+          color: "#2A0E1A",
           margin: "0 0 4px",
         }))}>
           Suggested Actions
@@ -394,10 +391,12 @@ export default function ProposalSidebar({
           <div
             className={css((t) => ({
               padding: t.spacing(2.5),
-              background: "#fef2f2",
+              background: "rgba(255, 130, 165, 0.20)",
+              backdropFilter: "blur(8px)",
               borderRadius: t.radiusSm,
-              color: t.colors.error,
+              color: "#2A0E1A",
               fontSize: t.fontSize.sm,
+              border: "1px solid rgba(255, 130, 165, 0.4)",
             }))}
           >
             <span>{suggestionsError}</span>
@@ -422,7 +421,7 @@ export default function ProposalSidebar({
             }))}
           >
             <div className={css((t) => ({ fontSize: "2.5rem", marginBottom: t.spacing(2) }))}>✨</div>
-            <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.sm, margin: "0 0 4px", color: "#333" }))}>No suggestions yet</p>
+            <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.sm, margin: "0 0 4px", color: "#2A0E1A" }))}>No suggestions yet</p>
             <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.xs, margin: 0 }))}>
               Ask the chat to find suggestions for your inbox.
             </p>

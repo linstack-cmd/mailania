@@ -218,10 +218,11 @@ export function ChatInputBar({
               bottom: "calc(100% + 8px)",
               left: 0,
               right: 0,
-              background: t.colors.bg,
-              border: "1px solid rgba(217, 70, 166, 0.15)",
+              background: "rgba(255, 255, 255, 0.32)",
+              backdropFilter: "blur(14px) saturate(1.4)",
+              border: "1px solid rgba(255, 255, 255, 0.6)",
               borderRadius: t.radiusCard,
-              boxShadow: "0 8px 24px rgba(217, 70, 166, 0.15)",
+              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px -8px rgba(255, 79, 138, 0.25)",
               maxHeight: "200px",
               overflowY: "auto",
               zIndex: 1000,
@@ -245,7 +246,7 @@ export function ChatInputBar({
                   onClick={() => selectMention(suggestion)}
                   className={css((t) => ({
                     padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-                    borderBottom: "1px solid rgba(217, 70, 166, 0.08)",
+                    borderBottom: "1px solid rgba(255, 255, 255, 0.15)",
                     cursor: "pointer",
                     transition: "background 0.15s",
                     display: "flex",
@@ -253,9 +254,9 @@ export function ChatInputBar({
                     gap: t.spacing(2),
                     fontSize: t.fontSize.sm,
                     "&:last-child": { borderBottom: "none" },
-                    "&:hover": { background: "rgba(217, 70, 166, 0.04)" },
+                    "&:hover": { background: "rgba(255, 255, 255, 0.25)" },
                   }))}
-                  style={idx === highlightedIndex ? { background: "rgba(217, 70, 166, 0.08)" } : undefined}
+                  style={idx === highlightedIndex ? { background: "rgba(255, 255, 255, 0.25)" } : undefined}
                 >
                   <span className={css({ fontSize: "0.85rem", flexShrink: 0 })}>
                     {KIND_LABELS[suggestion.kind as keyof typeof KIND_LABELS]?.icon ?? "📝"}
@@ -283,10 +284,11 @@ export function ChatInputBar({
               bottom: "calc(100% + 8px)",
               left: 0,
               right: 0,
-              background: t.colors.bg,
-              border: "1px solid rgba(217, 70, 166, 0.15)",
+              background: "rgba(255, 255, 255, 0.32)",
+              backdropFilter: "blur(14px) saturate(1.4)",
+              border: "1px solid rgba(255, 255, 255, 0.6)",
               borderRadius: t.radiusCard,
-              boxShadow: "0 8px 24px rgba(217, 70, 166, 0.15)",
+              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px -8px rgba(255, 79, 138, 0.25)",
               zIndex: 1000,
             }))}
           >

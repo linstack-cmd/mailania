@@ -114,7 +114,7 @@ function MobileProposalCard({
             {kindInfo.icon}
           </span>
           <div className={css({ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 })}>
-            <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#333", lineHeight: "1.35" }))}>
+            <div className={css((t) => ({ fontSize: t.fontSize.sm, fontWeight: "600", color: "#2A0E1A", lineHeight: "1.35" }))}>
               {suggestion.title}
             </div>
           </div>
@@ -125,10 +125,7 @@ function MobileProposalCard({
             fontWeight: "600", 
             textTransform: "uppercase", 
             letterSpacing: "0.5px",
-            background: t.gradients.confidenceText,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
+            color: "#2A0E1A",
             flexShrink: 0,
           }))}
         >
@@ -139,7 +136,7 @@ function MobileProposalCard({
       <p
         className={css((t) => ({
           fontSize: t.fontSize.xs,
-          color: "#666",
+          color: "#5A2C3D",
           margin: 0,
           lineHeight: "1.4",
         }))}
@@ -932,10 +929,12 @@ export function MobileSwipePane({
             <div
               className={css((t) => ({
                 padding: t.spacing(3),
-                background: "#fef2f2",
+                background: "rgba(255, 130, 165, 0.20)",
+                backdropFilter: "blur(8px)",
                 borderRadius: t.radiusSm,
-                color: t.colors.error,
+                color: "#2A0E1A",
                 fontSize: t.fontSize.sm,
+                border: "1px solid rgba(255, 130, 165, 0.4)",
               }))}
             >
               <span>{suggestionsError}</span>
@@ -953,13 +952,15 @@ export function MobileSwipePane({
               className={css((t) => ({
                 textAlign: "center",
                 padding: `${t.spacing(8)} ${t.spacing(4)}`,
-                background: t.colors.bgAlt,
+                background: "rgba(255, 255, 255, 0.15)",
+                backdropFilter: "blur(8px)",
                 borderRadius: t.radius,
+                border: "1px solid rgba(255, 255, 255, 0.3)",
               }))}
             >
               <div className={css({ fontSize: "2rem", marginBottom: "8px" })}>✨</div>
-              <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base, margin: "0 0 6px" }))}>No suggestions yet</p>
-              <p className={css((t) => ({ color: t.colors.textMuted, fontSize: t.fontSize.sm, margin: 0, lineHeight: "1.5" }))}>
+              <p className={css((t) => ({ fontWeight: "600", fontSize: t.fontSize.base, margin: "0 0 6px", color: "#2A0E1A" }))}>No suggestions yet</p>
+              <p className={css((t) => ({ color: "#5A2C3D", fontSize: t.fontSize.sm, margin: 0, lineHeight: "1.5" }))}>
                 Ask the chat to create suggestions for your inbox.
               </p>
             </div>
