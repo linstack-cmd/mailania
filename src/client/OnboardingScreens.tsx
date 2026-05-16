@@ -482,6 +482,7 @@ export function PreferencesScreen({
               color: "#2A0E1A",
               fontSize: t.fontSize.sm,
               fontFamily: "monospace",
+              cursor: "text",
               transition: "border-color 0.15s",
               boxSizing: "border-box",
               "&:focus": {

@@ -87,6 +87,52 @@ function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; hei
 // --- Route wrapper components (proper React components so useLocation works) ---
 // These must be real components (not inline callbacks) to satisfy Rules of Hooks.
 
+// Mock email previews for detail screen
+const MOCK_EMAIL_PREVIEWS = [
+  {
+    id: "email-1",
+    from: "promotions@mountainwarehouse.com",
+    subject: "50% or More Off Everything",
+    preview: "Limited time offer on all outdoor apparel and gear. Shop now and save big on summer collections.",
+    isArchived: false,
+  },
+  {
+    id: "email-2",
+    from: "deals@mountainwarehouse.com",
+    subject: "Flash Sale: Final 24 Hours",
+    preview: "Don't miss out! Our biggest sale of the season ends tonight. Stock up on essentials.",
+    isArchived: false,
+  },
+  {
+    id: "email-3",
+    from: "promotions@mountainwarehouse.com",
+    subject: "We Miss You - 40% Off",
+    preview: "Come back and shop with us. We're offering exclusive discounts just for returning customers.",
+    isArchived: true,
+  },
+  {
+    id: "email-4",
+    from: "newsletter@mountainwarehouse.com",
+    subject: "New Arrivals: Spring Collection",
+    preview: "Fresh styles have arrived. Explore our latest spring and summer outdoor collections.",
+    isArchived: false,
+  },
+  {
+    id: "email-5",
+    from: "promotions@mountainwarehouse.com",
+    subject: "Clearance Event Now Live",
+    preview: "Seasonal clearance with savings up to 60%. Limited stock on select items.",
+    isArchived: true,
+  },
+  {
+    id: "email-6",
+    from: "support@mountainwarehouse.com",
+    subject: "Order Confirmation #MW-123456",
+    preview: "Thank you for your purchase. Your order has been confirmed and is being prepared.",
+    isArchived: false,
+  },
+];
+
 interface MobilePileDetailRouteProps {
   params: { id?: string };
   suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>;
@@ -101,7 +147,7 @@ function MobilePileDetailRoute({ params, suggestionsWithIds, acceptSuggestion, d
     <DetailScreen
       ruleTitle={suggestion?.title || "Unknown Rule"}
       ruleDescription={suggestion?.subtitle}
-      emailPreviews={[]}
+      emailPreviews={MOCK_EMAIL_PREVIEWS}
       isLoading={false}
       onApprove={() => { acceptSuggestion(suggestionId); setLocation("/pile"); }}
       onDismiss={() => { dismissSuggestion(suggestionId); setLocation("/pile"); }}
@@ -224,7 +270,7 @@ function DesktopPileDetailRoute(props: DesktopPileDetailRouteProps) {
       detailScreenProps={{
         ruleTitle: suggestion?.title || "Unknown Rule",
         ruleDescription: suggestion?.subtitle,
-        emailPreviews: [],
+        emailPreviews: MOCK_EMAIL_PREVIEWS,
         isLoading: false,
         onApprove: () => { props.acceptSuggestion(suggestionId); setLocation("/pile"); },
         onDismiss: () => { props.dismissSuggestion(suggestionId); setLocation("/pile"); },
