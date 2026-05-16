@@ -284,8 +284,9 @@ export function TodayCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: "20px",
-              fontWeight: "700",
+              fontSize: "24px",
+              fontFamily: '"Instrument Serif", serif',
+              fontWeight: "400",
               color: "white",
             }))}>
               {pileCount}
@@ -315,11 +316,11 @@ export function TodayCard({
             </div>
             {onViewPile && (
               <svg
-                width="20"
-                height="20"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#2A0E1A"
+                stroke="#6B3450"
                 strokeWidth="2"
                 style={{ flexShrink: 0 }}
               >
