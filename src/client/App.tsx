@@ -35,7 +35,7 @@ import { loginWithPasskey, signupWithPasskey, isPasskeySupported } from "./passk
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import { MobileLayout } from "./MobileLayout";
-import { DesktopLayout } from "./DesktopLayout";
+import { DesktopLayout, DesktopLayoutWithPile } from "./DesktopLayout";
 import { TodayCard } from "./TodayCard";
 import { updateMobileDebug } from "./mobileDebug";
 import {
@@ -891,7 +891,7 @@ export default function App() {
     );
   }
 
-  // Desktop layout (three-column: sidebar + chat + suggestions)
+  // Desktop layout (three-column: sidebar + chat/pile + suggestions)
   return (
     <ErrorBoundary>
     <Router>
@@ -919,21 +919,48 @@ export default function App() {
           const suggestionId = params.id;
           const suggestion = suggestionsWithIds.find((s) => s.id === suggestionId)?.suggestion;
           return (
-            <DetailScreen
-              ruleTitle={suggestion?.title || "Unknown Rule"}
-              ruleDescription={suggestion?.subtitle}
-              emailPreviews={[]}
-              isLoading={false}
-              onApprove={() => {
-                acceptSuggestion(suggestionId);
-                setLocation("/pile");
+            <DesktopLayoutWithPile
+              layout="detail"
+              detailScreenProps={{
+                ruleTitle: suggestion?.title || "Unknown Rule",
+                ruleDescription: suggestion?.subtitle,
+                emailPreviews: [],
+                isLoading: false,
+                onApprove: () => {
+                  acceptSuggestion(suggestionId);
+                  setLocation("/pile");
+                },
+                onDismiss: () => {
+                  dismissSuggestion(suggestionId);
+                  setLocation("/pile");
+                },
+                onBack: () => setLocation("/pile"),
               }}
-              onDismiss={() => {
-                dismissSuggestion(suggestionId);
-                setLocation("/pile");
-              }}
-              onBack={() => setLocation("/pile")}
-              isMobileView={false}
+              // DesktopLayout props
+              messages={generalChatMessages}
+              loading={generalChatLoading}
+              initLoading={generalChatInitLoading}
+              error={generalChatError}
+              input={generalChatInput}
+              onInputChange={setGeneralChatInput}
+              onSend={sendGeneralChatMessage}
+              mentionSuggestions={mentionSuggestions}
+              textareaRef={chatPanelTextareaRef}
+              suggestionsWithIds={suggestionsWithIds}
+              suggestionsLoading={suggestionsLoading}
+              suggestionsError={suggestionsError}
+              onDismissSuggestion={dismissSuggestion}
+              onAcceptSuggestion={acceptSuggestion}
+              onMentionSuggestion={handleMentionSuggestion}
+              onSuggestionNotification={handleSuggestionNotification}
+              status={status}
+              testMode={testMode}
+              hasMore={generalChatHasMore}
+              paginationLoading={generalChatPaginationLoading}
+              onLoadMore={fetchMoreGeneralChat}
+              onLogout={handleLogout}
+              onNavigate={(path) => {}}
+              userName={status?.user?.displayName?.split(" ")[0]}
             />
           );
         }}
@@ -942,22 +969,48 @@ export default function App() {
         {() => {
           const [, setLocation] = useLocation();
           return (
-            <PileScreen
-              suggestions={pileScreenSuggestions}
-              isLoading={suggestionsLoading}
-              onApproveSuggestion={acceptSuggestion}
-              onViewDetail={(id) => {
-                setLocation(`/pile/${id}`);
+            <DesktopLayoutWithPile
+              layout="pile"
+              pileScreenProps={{
+                suggestions: pileScreenSuggestions,
+                isLoading: suggestionsLoading,
+                onApproveSuggestion: acceptSuggestion,
+                onViewDetail: (id) => setLocation(`/pile/${id}`),
+                onBack: () => setLocation("/"),
               }}
-              onBack={() => setLocation("/")}
-              isMobileView={false}
+              // DesktopLayout props
+              messages={generalChatMessages}
+              loading={generalChatLoading}
+              initLoading={generalChatInitLoading}
+              error={generalChatError}
+              input={generalChatInput}
+              onInputChange={setGeneralChatInput}
+              onSend={sendGeneralChatMessage}
+              mentionSuggestions={mentionSuggestions}
+              textareaRef={chatPanelTextareaRef}
+              suggestionsWithIds={suggestionsWithIds}
+              suggestionsLoading={suggestionsLoading}
+              suggestionsError={suggestionsError}
+              onDismissSuggestion={dismissSuggestion}
+              onAcceptSuggestion={acceptSuggestion}
+              onMentionSuggestion={handleMentionSuggestion}
+              onSuggestionNotification={handleSuggestionNotification}
+              status={status}
+              testMode={testMode}
+              hasMore={generalChatHasMore}
+              paginationLoading={generalChatPaginationLoading}
+              onLoadMore={fetchMoreGeneralChat}
+              onLogout={handleLogout}
+              onNavigate={(path) => {}}
+              userName={status?.user?.displayName?.split(" ")[0]}
             />
           );
         }}
       </Route>
       <Route>
         {() => (
-          <DesktopLayout
+          <DesktopLayoutWithPile
+            layout="chat"
             messages={generalChatMessages}
             loading={generalChatLoading}
             initLoading={generalChatInitLoading}

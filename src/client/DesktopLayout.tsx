@@ -12,6 +12,8 @@ import { css } from "@flow-css/core/css";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import ProposalSidebar from "./ProposalSidebar";
 import { TodayCard } from "./TodayCard";
+import { PileScreen, type Suggestion } from "./PileScreen";
+import { DetailScreen } from "./DetailScreen";
 import type { TriageSuggestion } from "./TriageSuggestions";
 
 interface DesktopLayoutProps {
@@ -433,6 +435,421 @@ export function DesktopLayout({
           onAcceptSuggestion={onAcceptSuggestion}
           onMentionSuggestion={onMentionSuggestion}
           onSuggestionNotification={onSuggestionNotification}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * DesktopLayoutWithPile — Wrapper that renders either Chat or Pile/Detail screens
+ * inside the DesktopLayout's center column
+ */
+interface DesktopLayoutWithPileProps extends DesktopLayoutProps {
+  layout?: "chat" | "pile" | "detail";
+  pileScreenProps?: {
+    suggestions: Suggestion[];
+    isLoading: boolean;
+    onApproveSuggestion: (id: string) => void;
+    onViewDetail: (id: string) => void;
+    onBack: () => void;
+  };
+  detailScreenProps?: {
+    ruleTitle: string;
+    ruleDescription?: string;
+    emailPreviews: any[];
+    isLoading: boolean;
+    onApprove: () => void;
+    onDismiss: () => void;
+    onBack: () => void;
+  };
+}
+
+export function DesktopLayoutWithPile({
+  layout = "chat",
+  pileScreenProps,
+  detailScreenProps,
+  ...desktopLayoutProps
+}: DesktopLayoutWithPileProps) {
+  const [, setLocation] = useLocation();
+
+  return (
+    <div
+      className={css((t) => ({
+        display: "flex",
+        width: "100%",
+        height: "100dvh",
+        background: "transparent",
+        overflow: "hidden",
+      }))}
+    >
+      {/* Left Sidebar (240px) */}
+      <div
+        className={css((t) => ({
+          width: "240px",
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          background: "rgba(255, 255, 255, 0.32)",
+          backdropFilter: "blur(14px) saturate(1.4)",
+          borderRight: "1px solid rgba(255, 255, 255, 0.6)",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+          padding: `${t.spacing(6)} ${t.spacing(4)}`,
+          gap: t.spacing(8),
+          boxSizing: "border-box",
+        }))}
+      >
+        {/* Logo */}
+        <div
+          className={css((t) => ({
+            display: "flex",
+            alignItems: "center",
+            gap: t.spacing(2),
+          }))}
+        >
+          <div
+            className={css((t) => ({
+              width: "40px",
+              height: "40px",
+              background: t.gradients.logo,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "20px",
+              fontWeight: "700",
+              color: "white",
+              boxShadow: "0 4px 12px rgba(255, 79, 138, 0.2)",
+              flexShrink: 0,
+            }))}
+          >
+            ✨
+          </div>
+          <h1
+            className={css((t) => ({
+              fontSize: "16px",
+              fontWeight: "700",
+              margin: 0,
+              color: "#2A0E1A",
+              fontFamily: '"Instrument Serif", serif',
+            }))}
+          >
+            mailania
+          </h1>
+        </div>
+
+        {/* Nav items */}
+        <nav
+          className={css((t) => ({
+            display: "flex",
+            flexDirection: "column",
+            gap: t.spacing(2),
+            flex: 1,
+          }))}
+        >
+          <button
+            onClick={() => setLocation("/")}
+            className={css((t) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: t.spacing(3),
+              padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+              border: "none",
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: "#2A0E1A",
+              cursor: "pointer",
+              fontSize: t.fontSize.sm,
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                background: "rgba(255, 255, 255, 0.3)",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #FF4F8A",
+                outlineOffset: "2px",
+              },
+            }))}
+          >
+            <span style={{ fontSize: "18px" }}>💬</span>
+            <span>Chat</span>
+          </button>
+
+          <button
+            onClick={() => setLocation("/pile")}
+            className={css((t) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: t.spacing(3),
+              padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+              border: "none",
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: "#2A0E1A",
+              cursor: "pointer",
+              fontSize: t.fontSize.sm,
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                background: "rgba(255, 255, 255, 0.3)",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #FF4F8A",
+                outlineOffset: "2px",
+              },
+            }))}
+          >
+            <span style={{ fontSize: "18px" }}>📋</span>
+            <span>Pile</span>
+          </button>
+
+          <button
+            onClick={() => setLocation("/preferences")}
+            className={css((t) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: t.spacing(3),
+              padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+              border: "none",
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: "#2A0E1A",
+              cursor: "pointer",
+              fontSize: t.fontSize.sm,
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                background: "rgba(255, 255, 255, 0.3)",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #FF4F8A",
+                outlineOffset: "2px",
+              },
+            }))}
+          >
+            <span style={{ fontSize: "18px" }}>⚙️</span>
+            <span>Preferences</span>
+          </button>
+
+          <button
+            onClick={() => setLocation("/settings")}
+            className={css((t) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: t.spacing(3),
+              padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
+              border: "none",
+              borderRadius: t.radiusSm,
+              background: "transparent",
+              color: "#2A0E1A",
+              cursor: "pointer",
+              fontSize: t.fontSize.sm,
+              fontWeight: "500",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                background: "rgba(255, 255, 255, 0.3)",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #FF4F8A",
+                outlineOffset: "2px",
+              },
+            }))}
+          >
+            <span style={{ fontSize: "18px" }}>🔧</span>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        {/* User info & logout at bottom */}
+        <div
+          className={css((t) => ({
+            display: "flex",
+            flexDirection: "column",
+            gap: t.spacing(2),
+            paddingTop: t.spacing(4),
+            borderTop: "1px solid rgba(255, 255, 255, 0.4)",
+          }))}
+        >
+          <div
+            className={css((t) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: t.spacing(2),
+            }))}
+          >
+            <div
+              className={css((t) => ({
+                width: "32px",
+                height: "32px",
+                background: t.gradients.avatarUser,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "14px",
+                color: "white",
+                fontWeight: "600",
+                flexShrink: 0,
+              }))}
+            >
+              {desktopLayoutProps.status?.user?.displayName?.charAt(0).toUpperCase() || "A"}
+            </div>
+            <div
+              className={css((t) => ({
+                display: "flex",
+                flexDirection: "column",
+                gap: "2px",
+                minWidth: 0,
+              }))}
+            >
+              <div
+                className={css((t) => ({
+                  fontSize: t.fontSize.xs,
+                  fontWeight: "600",
+                  color: "#2A0E1A",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }))}
+              >
+                {desktopLayoutProps.status?.user?.displayName || "User"}
+              </div>
+              <div
+                className={css((t) => ({
+                  fontSize: t.fontSize.xs,
+                  color: "#6B3450",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }))}
+              >
+                {desktopLayoutProps.status?.user?.email}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={desktopLayoutProps.onLogout}
+            className={css((t) => ({
+              padding: `${t.spacing(2)} ${t.spacing(3)}`,
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              borderRadius: "16px",
+              background: "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(8px)",
+              cursor: "pointer",
+              fontSize: t.fontSize.xs,
+              color: "#2A0E1A",
+              fontWeight: "600",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                background: "rgba(255, 255, 255, 0.25)",
+                borderColor: "rgba(255, 255, 255, 0.5)",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #FF4F8A",
+                outlineOffset: "2px",
+              },
+            }))}
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* Center: Content area (chat or pile/detail) */}
+      <div
+        className={css((t) => ({
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+          maxWidth: "720px",
+          margin: "0 auto",
+          width: "100%",
+        }))}
+      >
+        {layout === "chat" && (
+          <ChatPanel
+            title="Chat with Mailania"
+            subtitle="Read-only and recommendation-only — it can inspect mail and saved preferences, but it won't change your mailbox from chat."
+            messages={desktopLayoutProps.messages}
+            loading={desktopLayoutProps.loading}
+            initLoading={desktopLayoutProps.initLoading}
+            error={desktopLayoutProps.error}
+            input={desktopLayoutProps.input}
+            onInputChange={desktopLayoutProps.onInputChange}
+            onSend={desktopLayoutProps.onSend}
+            placeholder="Ask about your inbox…"
+            emptyState="No messages yet. Start with a broad inbox question or ask Mailania to find a specific email."
+            starterPrompts={[
+              "What stands out in my inbox right now?",
+              "Search for receipts from this month",
+              "What triage preferences do you remember?",
+              "Summarize the latest triage suggestions",
+            ]}
+            mentionSuggestions={desktopLayoutProps.mentionSuggestions}
+            textareaRef={desktopLayoutProps.textareaRef}
+            suppressHeader={true}
+            hasMore={desktopLayoutProps.hasMore}
+            paginationLoading={desktopLayoutProps.paginationLoading}
+            onLoadMore={desktopLayoutProps.onLoadMore}
+          />
+        )}
+        {layout === "pile" && pileScreenProps && (
+          <PileScreen
+            suggestions={pileScreenProps.suggestions}
+            isLoading={pileScreenProps.isLoading}
+            onApproveSuggestion={pileScreenProps.onApproveSuggestion}
+            onViewDetail={pileScreenProps.onViewDetail}
+            onBack={pileScreenProps.onBack}
+            isMobileView={false}
+          />
+        )}
+        {layout === "detail" && detailScreenProps && (
+          <DetailScreen
+            ruleTitle={detailScreenProps.ruleTitle}
+            ruleDescription={detailScreenProps.ruleDescription}
+            emailPreviews={detailScreenProps.emailPreviews}
+            isLoading={detailScreenProps.isLoading}
+            onApprove={detailScreenProps.onApprove}
+            onDismiss={detailScreenProps.onDismiss}
+            onBack={detailScreenProps.onBack}
+            isMobileView={false}
+          />
+        )}
+      </div>
+
+      {/* Right pane (380px) */}
+      <div
+        className={css((t) => ({
+          width: "380px",
+          flexShrink: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: t.spacing(4),
+          padding: `${t.spacing(8)} ${t.spacing(4)}`,
+          overflow: "auto",
+          boxSizing: "border-box",
+        }))}
+      >
+        {/* Today Card */}
+        <TodayCard
+          pileCount={desktopLayoutProps.suggestionsWithIds.length}
+          userName={desktopLayoutProps.userName}
+          lastTriageMessages={undefined}
+          lastTriageSuggestions={undefined}
+          onViewPile={() => setLocation("/pile")}
+        />
+
+        {/* Suggestions peek */}
+        <ProposalSidebar
+          suggestionsWithIds={desktopLayoutProps.suggestionsWithIds}
+          suggestionsLoading={desktopLayoutProps.suggestionsLoading}
+          suggestionsError={desktopLayoutProps.suggestionsError}
+          onDismissSuggestion={desktopLayoutProps.onDismissSuggestion}
+          onAcceptSuggestion={desktopLayoutProps.onAcceptSuggestion}
+          onMentionSuggestion={desktopLayoutProps.onMentionSuggestion}
+          onSuggestionNotification={desktopLayoutProps.onSuggestionNotification}
         />
       </div>
     </div>

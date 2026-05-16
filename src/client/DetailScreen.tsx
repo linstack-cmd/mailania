@@ -56,51 +56,59 @@ export function DetailScreen({
         },
       }))}
     >
-      {/* Mobile header */}
-      {isMobileView && (
-        <div
+      {/* Header - mobile and desktop */}
+      <div
+        className={css((t) => ({
+          display: "flex",
+          alignItems: "center",
+          gap: t.spacing(2),
+          padding: `${t.spacing(3)} ${t.spacing(4)}`,
+          borderBottom: "1px solid rgba(255, 255, 255, 0.3)",
+          background: "transparent",
+          "@media (max-width: 640px)": {
+            padding: `${t.spacing(3)} ${t.spacing(4)}`,
+          },
+          "@media (min-width: 641px)": {
+            paddingBottom: t.spacing(2),
+            borderBottom: "none",
+          },
+        }))}
+      >
+        <button
+          onClick={onBack}
           className={css((t) => ({
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            color: "#2A0E1A",
             display: "flex",
             alignItems: "center",
-            gap: t.spacing(2),
-            padding: `${t.spacing(3)} ${t.spacing(4)}`,
-            borderBottom: "1px solid rgba(255, 255, 255, 0.3)",
-            background: "transparent",
+            fontSize: "20px",
+            transition: "opacity 0.15s",
+            "&:hover": { opacity: 0.75 },
+            "&:active": { transform: "scale(0.96)" },
+          }))}
+        >
+          ‹
+        </button>
+        <h1
+          className={css((t) => ({
+            fontSize: t.fontSize.lg,
+            fontWeight: "600",
+            margin: 0,
+            color: "#2A0E1A",
+            "@media (max-width: 640px)": {
+              fontSize: t.fontSize.lg,
+            },
             "@media (min-width: 641px)": {
-              display: "none",
+              fontSize: t.fontSize.sm,
             },
           }))}
         >
-          <button
-            onClick={onBack}
-            className={css((t) => ({
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: 0,
-              color: "#2A0E1A",
-              display: "flex",
-              alignItems: "center",
-              fontSize: "20px",
-              transition: "opacity 0.15s",
-              "&:hover": { opacity: 0.75 },
-              "&:active": { transform: "scale(0.96)" },
-            }))}
-          >
-            ‹
-          </button>
-          <h1
-            className={css((t) => ({
-              fontSize: t.fontSize.lg,
-              fontWeight: "600",
-              margin: 0,
-              color: "#2A0E1A",
-            }))}
-          >
-            Rule Details
-          </h1>
-        </div>
-      )}
+          {isMobileView ? "Rule Details" : "Rule Details"}
+        </h1>
+      </div>
 
       {/* Scrollable content */}
       <div
