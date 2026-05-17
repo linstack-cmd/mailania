@@ -16,9 +16,9 @@ import { PileScreen, type Suggestion } from "./PileScreen";
 import { DetailScreen } from "./DetailScreen";
 import type { TriageSuggestion } from "./TriageSuggestions";
 
-// Helper to compute kind summary from suggestions — produces category labels
-// e.g. "archive · filter · 1 reply · digest"
-// Shows all distinct kinds present in the pile, with counts where they add value
+// Helper to compute kind summary from suggestions
+// Helper to compute kind summary from suggestions — produces counted labels
+// e.g. "5 archive · 1 filter · 2 reply · 3 digest"
 function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>): string {
   if (suggestionsWithIds.length === 0) return "";
   
@@ -29,37 +29,19 @@ function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: a
     mark_read_bulk: "digest",
   };
   
-  // Track which kinds are present and their counts
-  const kindsPresent = new Set<string>();
   const counts = new Map<string, number>();
-  
   for (const { suggestion } of suggestionsWithIds) {
     const kind = suggestion?.kind;
     const label = kindMap[kind];
     if (label) {
-      kindsPresent.add(label);
       counts.set(label, (counts.get(label) || 0) + 1);
     }
   }
   
-  // Canonical order for display
-  const order = ["archive", "filter", "reply", "digest"];
-  
-  // Build parts: show all kinds that are present
-  // For reply, show count (e.g., "1 reply", "2 replies")
-  // For others, show just the label
   const parts: string[] = [];
-  for (const kind of order) {
-    if (kindsPresent.has(kind)) {
-      if (kind === "reply") {
-        const count = counts.get(kind)!;
-        parts.push(`${count} ${kind}${count !== 1 ? 's' : ''}`);
-      } else {
-        parts.push(kind);
-      }
-    }
+  for (const [label, count] of counts) {
+    parts.push(`${count} ${label}`);
   }
-  
   return parts.length > 0 ? parts.join(" · ") : "";
 }
 

@@ -604,25 +604,6 @@ export function ChatPanel({
           </div>
         )}
 
-        {/* Static "ready when you are" bubble when there are pending suggestions/pile items */}
-        {messages.length > 0 && (
-          <div className={chatRowAssistantClass}>
-            <div className={css((t) => ({
-              padding: "11px 15px",
-              borderRadius: "20px 20px 20px 6px",
-              fontSize: t.fontSize.sm,
-              lineHeight: t.lineHeight.relaxed,
-              background: "rgba(255, 255, 255, 0.55)",
-              backdropFilter: "blur(24px) saturate(1.6)",
-              border: "1px solid rgba(255, 255, 255, 0.85)",
-              color: "#2A0E1A",
-              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
-            }))}>
-              ready when you are. tap the pile to review.
-            </div>
-          </div>
-        )}
-
         {messages.map((msg) => (
           <ChatBubble 
             key={msg.id} 

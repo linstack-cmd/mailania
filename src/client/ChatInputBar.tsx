@@ -167,7 +167,7 @@ export function ChatInputBar({
         className={css((t) => ({
           flex: 1,
           minWidth: 0,
-          maxWidth: "calc(100% - 56px)",
+          maxWidth: "100%",
           position: "relative",
         }))}
       >
