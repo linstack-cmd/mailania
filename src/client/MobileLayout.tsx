@@ -212,6 +212,8 @@ export function MobileLayout({
           <div
             className={css((t) => ({
               background: "rgba(255, 255, 255, 0.15)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
               borderRadius: "999px",
               padding: "4px 14px",
               fontSize: "11px",
@@ -333,7 +335,6 @@ export function MobileLayout({
           padding: `${t.spacing(2)} ${t.spacing(3)} calc(${t.spacing(2)} + env(safe-area-inset-bottom, 0px))`,
           display: "flex",
           gap: t.spacing(2),
-          borderTop: "1px solid rgba(255, 255, 255, 0.6)",
           background: "transparent",
           flexShrink: 0,
           boxSizing: "border-box",

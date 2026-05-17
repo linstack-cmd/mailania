@@ -87,18 +87,6 @@ export function TodayCard({
         },
       }))}
     >
-      {/* Morning greeting eyebrow */}
-      {!isTriaging && (
-        <div className={css((t) => ({
-          fontSize: "11px",
-          fontWeight: "400",
-          textTransform: "lowercase",
-          color: "#A87B95",
-          marginBottom: t.spacing(2),
-        }))}>
-          good {getTimeOfDay()}{userName ? `, ${userName}` : ""}
-        </div>
-      )}
 
       {isTriaging ? (
         // TRIAGE RUNNING STATE
@@ -243,7 +231,6 @@ export function TodayCard({
             </div>
             <div className={css((t) => ({
               flex: 1,
-              minWidth: 0,
               display: "flex",
               flexDirection: "column",
               gap: t.spacing(0.5),
@@ -264,6 +251,8 @@ export function TodayCard({
                 color: "#A87B95",
                 fontWeight: "500",
                 margin: 0,
+                whiteSpace: "normal",
+                overflow: "visible",
               }))}>
                 {kindSummary || "pending suggestions"}
               </p>
