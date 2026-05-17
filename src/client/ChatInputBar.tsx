@@ -156,10 +156,17 @@ export function ChatInputBar({
     <div
       className={css((t) => ({
         display: "flex",
-        gap: t.spacing(2),
+        alignItems: "center",
+        gap: "8px",
+        padding: "6px",
+        paddingLeft: "18px",
+        borderRadius: "999px",
+        background: "rgba(255, 255, 255, 0.55)",
+        backdropFilter: "blur(24px) saturate(1.6)",
+        border: "1px solid rgba(255, 255, 255, 0.85)",
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
         width: "100%",
         minWidth: 0,
-        alignItems: "flex-end",
         position: "relative",
       }))}
     >
@@ -167,8 +174,9 @@ export function ChatInputBar({
         className={css((t) => ({
           flex: 1,
           minWidth: 0,
-          maxWidth: "100%",
           position: "relative",
+          display: "flex",
+          alignItems: "center",
         }))}
       >
         <textarea
@@ -182,12 +190,11 @@ export function ChatInputBar({
           className={css((t) => ({
             flex: 1,
             minWidth: 0,
-            maxWidth: "100%",
             minHeight: "44px",
             maxHeight: "180px",
-            padding: `${t.spacing(2.5)} ${t.spacing(3)}`,
-            border: "1px solid rgba(255, 255, 255, 0.85)",
-            borderRadius: "999px",
+            padding: "0",
+            border: "none",
+            borderRadius: "0",
             fontSize: t.fontSize.sm,
             resize: "none",
             fontFamily: "inherit",
@@ -198,12 +205,12 @@ export function ChatInputBar({
             overflowY: "auto",
             boxSizing: "border-box",
             width: "100%",
-            background: "rgba(255, 255, 255, 0.55)",
-            backdropFilter: "blur(24px) saturate(1.6)",
-            boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+            background: "transparent",
+            backdropFilter: "none",
+            boxShadow: "none",
             color: "#2A0E1A",
             "&::placeholder": { color: "#A87B95" },
-            "&:focus": { borderColor: "rgba(255, 255, 255, 0.95)", background: "rgba(255, 255, 255, 0.65)" },
+            "&:focus": { outline: "none" },
             "&:focus-visible": { outline: "none" },
             "&:disabled": { opacity: 0.6 },
           }))}
@@ -317,9 +324,9 @@ export function ChatInputBar({
           border: "none",
           background: "rgba(255, 79, 138, 0.85)",
           color: "white",
-          borderRadius: "50%",
+          borderRadius: "999px",
           cursor: "pointer",
-          fontSize: "18px",
+          fontSize: "16px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -333,7 +340,7 @@ export function ChatInputBar({
           "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
         }))}
       >
-        →
+        ↑
       </button>
     </div>
   );

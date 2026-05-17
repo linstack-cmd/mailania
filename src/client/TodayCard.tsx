@@ -63,9 +63,9 @@ export function TodayCard({
         }
       }}
       className={css((t) => ({
-        padding: "12px 14px",
-        borderRadius: t.radiusCard,
-        background: "rgba(255, 255, 255, 0.55)",
+        padding: "14px",
+        borderRadius: "24px",
+        background: "rgba(255, 255, 255, 0.6)",
         backdropFilter: "blur(24px) saturate(1.6)",
         border: "1px solid rgba(255, 255, 255, 0.85)",
         boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
@@ -249,7 +249,7 @@ export function TodayCard({
               </h2>
               <p style={{
                 fontSize: "12px",
-                color: "#A87B95",
+                color: "rgb(107, 52, 80)",
                 fontWeight: 500,
                 margin: 0,
                 whiteSpace: "normal",

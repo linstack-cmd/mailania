@@ -604,6 +604,35 @@ export function ChatPanel({
           </div>
         )}
 
+        {/* "Ready when you are" prompt if there are suggestions/pile items */}
+        {messages.length === 0 && !initLoading && !loading && (
+          <div
+            className={css((t) => ({
+              alignSelf: "flex-start",
+              maxWidth: "82%",
+              padding: "11px 15px",
+              fontSize: "13.5px",
+              lineHeight: "1.5",
+              borderRadius: "20px 20px 20px 6px",
+              background: "rgba(255, 255, 255, 0.55)",
+              backdropFilter: "blur(24px) saturate(1.6)",
+              border: "1px solid rgba(255, 255, 255, 0.85)",
+              color: "#2A0E1A",
+              boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+            }))}
+          >
+            ready when you are.{" "}
+            <em
+              className={css((t) => ({
+                fontStyle: "italic",
+                color: "rgb(107, 52, 80)",
+              }))}
+            >
+              tap the pile to review.
+            </em>
+          </div>
+        )}
+
         {messages.map((msg) => (
           <ChatBubble 
             key={msg.id} 

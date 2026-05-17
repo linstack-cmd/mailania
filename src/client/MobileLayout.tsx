@@ -205,8 +205,8 @@ export function MobileLayout({
           className={css((t) => ({
             display: "flex",
             alignItems: "center",
-            gap: t.spacing(2.5),
-            marginBottom: t.spacing(2.5),
+            gap: "8px",
+            marginBottom: t.spacing(3),
           }))}
         >
           <div
@@ -215,16 +215,16 @@ export function MobileLayout({
               backdropFilter: "blur(8px)",
               border: "1px solid rgba(255, 255, 255, 0.75)",
               borderRadius: "999px",
-              padding: "4px 14px",
+              padding: "6px 12px",
               fontSize: "11px",
               fontFamily: '"DM Sans", sans-serif',
-              fontWeight: "400",
-              color: "#A87B95",
+              fontWeight: "600",
+              color: "rgb(107, 52, 80)",
             }))}
           >
             good {getTimeOfDay()}, karen
           </div>
-          {/* Mint jelly avatar circle (36×36px) — overlapping on right */}
+          {/* Mint jelly avatar circle (36×36px) */}
           <div
             className={css((t) => ({
               width: "36px",
@@ -240,7 +240,6 @@ export function MobileLayout({
               fontWeight: "400",
               color: "white",
               boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.95), inset 0 -2px 4px rgba(120,30,80,0.18), 0 4px 14px -4px rgba(255,79,138,0.35)",
-              marginLeft: "-8px",
             }))}
           >
             K
@@ -331,10 +330,10 @@ export function MobileLayout({
       <div
         ref={inputBarWrapperRef}
         className={css((t) => ({
-          minHeight: "56px",
+          minHeight: "54px",
           padding: `${t.spacing(2)} ${t.spacing(3)} calc(${t.spacing(2)} + env(safe-area-inset-bottom, 0px))`,
           display: "flex",
-          gap: t.spacing(2),
+          gap: "0",
           background: "transparent",
           flexShrink: 0,
           boxSizing: "border-box",
