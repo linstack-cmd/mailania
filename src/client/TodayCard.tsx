@@ -63,38 +63,38 @@ export function TodayCard({
         }
       }}
       className={css((t) => ({
-        padding: t.spacing(5),
+        padding: "12px 14px",
         borderRadius: t.radiusCard,
-        background: "rgba(255, 255, 255, 0.32)",
-        backdropFilter: "blur(14px) saturate(1.4)",
-        border: "1px solid rgba(255, 255, 255, 0.6)",
-        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px -8px rgba(255, 79, 138, 0.25)",
+        background: "rgba(255, 255, 255, 0.55)",
+        backdropFilter: "blur(24px) saturate(1.6)",
+        border: "1px solid rgba(255, 255, 255, 0.85)",
+        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
         transition: "all 0.3s ease",
         cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        minHeight: "80px",
         "&:hover": {
-          background: "rgba(255, 255, 255, 0.42)",
+          background: "rgba(255, 255, 255, 0.65)",
           transform: "translateY(-2px)",
-          borderColor: "rgba(255, 255, 255, 0.75)",
-          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -8px rgba(255, 79, 138, 0.35)",
+          borderColor: "rgba(255, 255, 255, 0.95)",
+          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 16px 40px rgba(255, 79, 138, 0.4)",
         },
         "&:focus-visible": {
           outline: "2px solid #FF4F8A",
           outlineOffset: "2px",
-        },
-        "@media (max-width: 640px)": {
-          padding: t.spacing(4),
         },
       }))}
     >
       {/* Morning greeting eyebrow */}
       {!isTriaging && (
         <div className={css((t) => ({
-          fontSize: t.fontSize.xs,
-          fontWeight: "600",
+          fontSize: "11px",
+          fontWeight: "400",
           textTransform: "lowercase",
-          letterSpacing: "0.05em",
           color: "#A87B95",
-          marginBottom: t.spacing(3),
+          marginBottom: t.spacing(2),
         }))}>
           good {getTimeOfDay()}{userName ? `, ${userName}` : ""}
         </div>
@@ -103,65 +103,47 @@ export function TodayCard({
       {isTriaging ? (
         // TRIAGE RUNNING STATE
         <>
-          {/* Jelly icon with ✦ symbol */}
           <div className={css((t) => ({
+            width: "50px",
+            height: "50px",
+            minWidth: "50px",
+            borderRadius: "16px",
+            background: "rgba(255, 79, 138, 0.85)",
+            boxShadow: "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -2px 6px rgba(120, 30, 80, 0.2), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+            border: "1px solid rgba(255, 200, 220, 0.6)",
             display: "flex",
             alignItems: "center",
-            gap: t.spacing(3),
-            marginBottom: t.spacing(3),
+            justifyContent: "center",
+            fontSize: "24px",
+            fontWeight: "700",
+            color: "white",
           }))}>
-            <div className={css((t) => ({
-              width: "48px",
-              height: "48px",
-              minWidth: "48px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",
-              boxShadow: "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -2px 6px rgba(120, 30, 80, 0.2), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
-              border: "1px solid rgba(255, 200, 220, 0.6)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "24px",
-              fontWeight: "700",
-              color: "white",
-            }))}>
-              ✦
-            </div>
-            <div className={css((t) => ({
-              flex: 1,
-              minWidth: 0,
-            }))}>
-              <h2 className={css((t) => ({
-                fontSize: "19px",
-                fontFamily: '"Instrument Serif", serif',
-                fontWeight: "400",
-                margin: 0,
-                color: "#2A0E1A",
-                lineHeight: "1.2",
-              }))}>
-                reading your{" "}
-                <span style={{ fontStyle: "italic" }}>inbox</span>
-              </h2>
-              <p className={css((t) => ({
-                fontSize: t.fontSize.xs,
-                color: "#A87B95",
-                margin: `${t.spacing(0.5)} 0 0`,
-              }))}>
-                {triageStage || "analyzing…"}
-              </p>
-            </div>
+            ✦
           </div>
-
-          {/* Progress bar */}
           <div className={css((t) => ({
-            marginBottom: t.spacing(2),
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: t.spacing(1),
           }))}>
+            <h2 className={css((t) => ({
+              fontSize: "19px",
+              fontFamily: '"Instrument Serif", serif',
+              fontWeight: "400",
+              margin: 0,
+              color: "#2A0E1A",
+              lineHeight: "1.2",
+            }))}>
+              reading your{" "}
+              <span style={{ fontStyle: "italic" }}>inbox</span>
+            </h2>
+            {/* Progress bar */}
             <div className={css((t) => ({
               height: "8px",
-              borderRadius: "4px",
+              borderRadius: "999px",
               background: "rgba(255, 255, 255, 0.3)",
               overflow: "hidden",
-              boxShadow: "inset 0 1px 2px rgba(0, 0, 0, 0.05)",
             }))}>
               <div
                 style={{
@@ -169,101 +151,67 @@ export function TodayCard({
                   transition: "width 0.4s ease-out",
                 }}
                 className={css((t) => ({
-                  position: "relative",
                   height: "100%",
-                  borderRadius: "4px",
-                  background: "linear-gradient(90deg, #FF4F8A, #FF6FA0)",
-                  boxShadow: "0 0 8px rgba(255, 79, 138, 0.4)",
-                  overflow: "hidden",
-                  "&::after": {
-                    content: '""',
-                    position: "absolute",
-                    inset: 0,
-                    backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                    backgroundSize: "200% 100%",
-                    animation: "progress-shimmer 1.5s linear infinite",
-                  },
+                  background: "rgba(255, 79, 138, 0.85)",
                 }))}
               />
             </div>
-          </div>
-
-          {/* Progress label */}
-          <div className={css((t) => ({
-            fontSize: t.fontSize.xs,
-            color: "#A87B95",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }))}>
-            <span>{triageProgress}% complete</span>
+            <p className={css((t) => ({
+              fontSize: "11px",
+              color: "#A87B95",
+              fontWeight: "500",
+              margin: 0,
+            }))}>
+              {triageProgress}% · found 3
+            </p>
           </div>
         </>
       ) : isIdle ? (
         // IDLE/EMPTY STATE (Mint jelly)
         <>
           <div className={css((t) => ({
+            width: "50px",
+            height: "50px",
+            minWidth: "50px",
+            borderRadius: "16px",
+            background: "rgba(140, 220, 180, 0.75)",
+            boxShadow: "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -2px 6px rgba(60, 100, 80, 0.15), 0 12px 32px -12px rgba(140, 220, 180, 0.3)",
+            border: "1px solid rgba(200, 240, 220, 0.6)",
             display: "flex",
             alignItems: "center",
-            gap: t.spacing(3),
+            justifyContent: "center",
+            fontSize: "24px",
+            fontWeight: "700",
+            color: "white",
           }))}>
-            <div className={css((t) => ({
-              width: "48px",
-              height: "48px",
-              minWidth: "48px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, rgba(140, 220, 180, 0.75), rgba(160, 235, 195, 0.85))",
-              boxShadow: "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -2px 6px rgba(60, 100, 80, 0.15), 0 12px 32px -12px rgba(140, 220, 180, 0.3)",
-              border: "1px solid rgba(200, 240, 220, 0.6)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "24px",
-              fontWeight: "700",
-              color: "white",
-            }))}>
-              ✓
-            </div>
-            <div className={css((t) => ({
-              flex: 1,
-              minWidth: 0,
-            }))}>
-              <h2 className={css((t) => ({
-                fontSize: "19px",
-                fontFamily: '"Instrument Serif", serif',
-                fontWeight: "400",
-                margin: 0,
-                color: "#2A0E1A",
-                lineHeight: "1.2",
-              }))}>
-                nothing waiting on you
-              </h2>
-              <p className={css((t) => ({
-                fontSize: t.fontSize.xs,
-                color: "#A87B95",
-                margin: `${t.spacing(0.5)} 0 0`,
-              }))}>
-                inbox is clear
-              </p>
-            </div>
+            ✓
           </div>
-          
-          {/* Last triage stats */}
-          {lastTriageMessages !== undefined && lastTriageSuggestions !== undefined && (
-            <div className={css((t) => ({
-              marginTop: t.spacing(3),
-              paddingTop: t.spacing(3),
-              borderTop: "1px solid rgba(255, 255, 255, 0.3)",
-              display: "flex",
-              gap: t.spacing(4),
-              fontSize: t.fontSize.xs,
-              color: "#A87B95",
+          <div className={css((t) => ({
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: t.spacing(0.5),
+          }))}>
+            <h2 className={css((t) => ({
+              fontSize: "19px",
+              fontFamily: '"Instrument Serif", serif',
+              fontWeight: "400",
+              margin: 0,
+              color: "#2A0E1A",
+              lineHeight: "1.2",
             }))}>
-              <span>{lastTriageMessages} message{lastTriageMessages !== 1 ? "s" : ""}</span>
-              <span>→</span>
-              <span>{lastTriageSuggestions} suggestion{lastTriageSuggestions !== 1 ? "s" : ""}</span>
-            </div>
-          )}
+              nothing waiting on you
+            </h2>
+            <p className={css((t) => ({
+              fontSize: "12px",
+              color: "#A87B95",
+              fontWeight: "500",
+              margin: 0,
+            }))}>
+              last triage 2h ago · 47 archived
+            </p>
+          </div>
         </>
       ) : (
         // PILE COUNT STATE (Pink jelly - default)
@@ -272,13 +220,15 @@ export function TodayCard({
             display: "flex",
             alignItems: "center",
             gap: t.spacing(3),
+            flex: 1,
+            minWidth: 0,
           }))}>
             <div className={css((t) => ({
-              width: "48px",
-              height: "48px",
-              minWidth: "48px",
-              borderRadius: "12px",
-              background: "linear-gradient(135deg, #FF4F8A, #FF6FA0)",
+              width: "50px",
+              height: "50px",
+              minWidth: "50px",
+              borderRadius: "16px",
+              background: "rgba(255, 79, 138, 0.85)",
               boxShadow: "inset 0 2px 4px rgba(255, 255, 255, 0.4), inset 0 -2px 6px rgba(120, 30, 80, 0.2), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
               border: "1px solid rgba(255, 200, 220, 0.6)",
               display: "flex",
@@ -294,6 +244,9 @@ export function TodayCard({
             <div className={css((t) => ({
               flex: 1,
               minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: t.spacing(0.5),
             }))}>
               <h2 className={css((t) => ({
                 fontSize: "19px",
@@ -307,26 +260,14 @@ export function TodayCard({
                 <span style={{ fontStyle: "italic" }}>pile</span>
               </h2>
               <p className={css((t) => ({
-                fontSize: t.fontSize.xs,
+                fontSize: "12px",
                 color: "#A87B95",
-                margin: `${t.spacing(0.5)} 0 0`,
+                fontWeight: "500",
+                margin: 0,
               }))}>
-                {kindSummary || "pending suggestions awaiting your review"}
+                {kindSummary || "pending suggestions"}
               </p>
             </div>
-            {onViewPile && (
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#6B3450"
-                strokeWidth="2"
-                style={{ flexShrink: 0 }}
-              >
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            )}
           </div>
         </>
       )}

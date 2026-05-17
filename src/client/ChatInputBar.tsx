@@ -310,16 +310,16 @@ export function ChatInputBar({
         onClick={() => onSend()}
         disabled={loading || !input.trim() || mentionActive}
         className={css((t) => ({
-          width: "48px",
-          height: "48px",
-          minWidth: "48px",
-          minHeight: "48px",
+          width: "40px",
+          height: "40px",
+          minWidth: "40px",
+          minHeight: "40px",
           border: "none",
           background: "rgba(255, 79, 138, 0.85)",
           color: "white",
           borderRadius: "50%",
           cursor: "pointer",
-          fontSize: "20px",
+          fontSize: "18px",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

@@ -185,13 +185,67 @@ export function MobileLayout({
         </div>
       )}
 
-      {/* Display heading: "here's what i found" or "your inbox is calm" (when idle) */}
+      {/* Status bar zone (44px) — breathing room at top */}
       <div
         className={css((t) => ({
-          padding: `${t.spacing(4)} ${t.spacing(4)} 0`,
+          height: "44px",
+          flexShrink: 0,
+        }))}
+      />
+
+      {/* Greeting chip + heading area */}
+      <div
+        className={css((t) => ({
+          padding: `0 ${t.spacing(4)} ${t.spacing(3)}`,
           flexShrink: 0,
         }))}
       >
+        {/* Greeting chip: "good morning, [name]" */}
+        <div
+          className={css((t) => ({
+            display: "flex",
+            alignItems: "center",
+            gap: t.spacing(2.5),
+            marginBottom: t.spacing(2.5),
+          }))}
+        >
+          <div
+            className={css((t) => ({
+              background: "rgba(255, 255, 255, 0.15)",
+              borderRadius: "999px",
+              padding: "4px 14px",
+              fontSize: "11px",
+              fontFamily: '"DM Sans", sans-serif',
+              fontWeight: "400",
+              color: "#A87B95",
+            }))}
+          >
+            good {getTimeOfDay()}, karen
+          </div>
+          {/* Mint jelly avatar circle (36×36px) — overlapping on right */}
+          <div
+            className={css((t) => ({
+              width: "36px",
+              height: "36px",
+              minWidth: "36px",
+              borderRadius: "999px",
+              background: "rgba(140, 220, 180, 0.75)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "16px",
+              fontFamily: '"Instrument Serif", serif',
+              fontWeight: "400",
+              color: "white",
+              boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.95), inset 0 -2px 4px rgba(120,30,80,0.18), 0 4px 14px -4px rgba(255,79,138,0.35)",
+              marginLeft: "-8px",
+            }))}
+          >
+            K
+          </div>
+        </div>
+
+        {/* Display heading: "here's what i found" or "your inbox is calm" (when idle) */}
         <h1
           className={css((t) => ({
             fontSize: "34px",
@@ -199,7 +253,7 @@ export function MobileLayout({
             fontWeight: "400",
             fontStyle: "normal",
             lineHeight: "1.0",
-            margin: "0 0 24px 0",
+            margin: "0",
             color: "#2A0E1A",
             letterSpacing: "-0.015em",
           }))}
@@ -280,18 +334,16 @@ export function MobileLayout({
           display: "flex",
           gap: t.spacing(2),
           borderTop: "1px solid rgba(255, 255, 255, 0.6)",
-          background: "rgba(255, 255, 255, 0.32)",
-          backdropFilter: "blur(14px) saturate(1.4)",
+          background: "transparent",
           flexShrink: 0,
           boxSizing: "border-box",
-          boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.7)",
         }))}
       >
         <ChatInputBar
           input={input}
           onInputChange={onInputChange}
           onSend={onSend}
-          placeholder="Tell me what to do…"
+          placeholder="ask mailania anything…"
           mentionSuggestions={mentionSuggestions}
           textareaRef={textareaRef}
           loading={loading}
@@ -299,4 +351,11 @@ export function MobileLayout({
       </div>
     </div>
   );
+}
+
+function getTimeOfDay(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
 }

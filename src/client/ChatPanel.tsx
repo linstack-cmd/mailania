@@ -425,11 +425,11 @@ export function ChatPanel({
   return (
     <div
       className={css((t) => ({
-        borderRadius: t.radiusLarge,
+        borderRadius: 0,
         overflow: "hidden",
-        background: "rgba(255, 255, 255, 0.55)",
-        backdropFilter: "blur(24px) saturate(1.6)",
-        border: "1px solid rgba(255, 255, 255, 0.85)",
+        background: "transparent",
+        backdropFilter: "none",
+        border: "none",
         minWidth: 0,
         maxWidth: "100%",
         width: "100%",
@@ -437,7 +437,7 @@ export function ChatPanel({
         flexDirection: "column",
         minHeight: "200px",
         boxSizing: "border-box",
-        boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 12px 32px -12px rgba(255, 79, 138, 0.35)",
+        boxShadow: "none",
         flex: "1",
         "@media (max-width: 640px)": {
           minHeight: "180px",

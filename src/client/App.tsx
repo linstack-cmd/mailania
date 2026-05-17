@@ -101,12 +101,14 @@ function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: a
   const uniqueKinds = new Set<string>();
   for (const { suggestion } of suggestionsWithIds) {
     const kind = suggestion?.kind;
-    if (kind && kindMap[kind]) {
-      uniqueKinds.add(kindMap[kind]);
+    const label = kindMap[kind];
+    if (label) {
+      uniqueKinds.add(label);
     }
   }
   
-  return Array.from(uniqueKinds).join(" · ");
+  const kindsList = Array.from(uniqueKinds);
+  return kindsList.length > 0 ? kindsList.join(" · ") : "";
 }
 
 // Mock email previews for detail screen
