@@ -213,7 +213,7 @@ export function MobileLayout({
             className={css((t) => ({
               background: "rgba(255, 255, 255, 0.15)",
               backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255, 255, 255, 0.3)",
+              border: "1px solid rgba(255, 255, 255, 0.75)",
               borderRadius: "999px",
               padding: "4px 14px",
               fontSize: "11px",

@@ -231,6 +231,7 @@ export function TodayCard({
             </div>
             <div className={css((t) => ({
               flex: 1,
+              minWidth: 0,
               display: "flex",
               flexDirection: "column",
               gap: t.spacing(0.5),
