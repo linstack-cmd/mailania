@@ -16,6 +16,30 @@ import { PileScreen, type Suggestion } from "./PileScreen";
 import { DetailScreen } from "./DetailScreen";
 import type { TriageSuggestion } from "./TriageSuggestions";
 
+// Helper to compute kind summary from suggestions
+function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>): string {
+  if (suggestionsWithIds.length === 0) return "";
+  
+  const kindMap: Record<string, string> = {
+    archive_bulk: "archive",
+    create_filter: "filter",
+    needs_user_input: "reply",
+    mark_read_bulk: "digest",
+  };
+  
+  const uniqueKinds = new Set<string>();
+  for (const { suggestion } of suggestionsWithIds) {
+    const kind = suggestion?.kind;
+    const label = kindMap[kind];
+    if (label) {
+      uniqueKinds.add(label);
+    }
+  }
+  
+  const kindsList = Array.from(uniqueKinds);
+  return kindsList.length > 0 ? kindsList.join(" · ") : "";
+}
+
 interface DesktopLayoutProps {
   // Chat
   messages: ChatMessageData[];
@@ -421,6 +445,7 @@ export function DesktopLayout({
         <TodayCard
           pileCount={suggestionsWithIds.length}
           userName={userName}
+          kindSummary={computeKindSummary(suggestionsWithIds)}
           lastTriageMessages={undefined}
           lastTriageSuggestions={undefined}
           onViewPile={() => setLocation("/pile")}
@@ -836,6 +861,7 @@ export function DesktopLayoutWithPile({
         <TodayCard
           pileCount={desktopLayoutProps.suggestionsWithIds.length}
           userName={desktopLayoutProps.userName}
+          kindSummary={computeKindSummary(desktopLayoutProps.suggestionsWithIds)}
           lastTriageMessages={undefined}
           lastTriageSuggestions={undefined}
           onViewPile={() => setLocation("/pile")}

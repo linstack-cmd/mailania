@@ -434,9 +434,12 @@ export default function App() {
   const [isNarrowHeader, setIsNarrowHeader] = useState(
     () => window.matchMedia("(max-width: 480px)").matches
   );
-  const [isMobileViewport, setIsMobileViewport] = useState(
-    () => window.matchMedia("(max-width: 640px)").matches
-  );
+  const [isMobileViewport, setIsMobileViewport] = useState(() => {
+    // At 375px viewport, should definitely be mobile
+    // matchMedia("(max-width: 640px)") should return true
+    const result = window.matchMedia("(max-width: 640px)").matches;
+    return result;
+  });
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 480px)");
     const handler = (e: MediaQueryListEvent) => setIsNarrowHeader(e.matches);
@@ -445,8 +448,12 @@ export default function App() {
   }, []);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 640px)");
-    const handler = (e: MediaQueryListEvent) => setIsMobileViewport(e.matches);
+    const handler = (e: MediaQueryListEvent) => {
+      setIsMobileViewport(e.matches);
+    };
     mq.addEventListener("change", handler);
+    // Also set initial state in case it changed
+    setIsMobileViewport(mq.matches);
     return () => mq.removeEventListener("change", handler);
   }, []);
 
