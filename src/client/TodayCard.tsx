@@ -247,14 +247,17 @@ export function TodayCard({
                 today's{" "}
                 <span style={{ fontStyle: "italic" }}>pile</span>
               </h2>
-              <p className={css((t) => ({
+              <p style={{
                 fontSize: "12px",
                 color: "#A87B95",
-                fontWeight: "500",
+                fontWeight: 500,
                 margin: 0,
                 whiteSpace: "normal",
                 overflow: "visible",
-              }))}>
+                textOverflow: "clip",
+                display: "block",
+                width: "100%",
+              }}>
                 {kindSummary || "pending suggestions"}
               </p>
             </div>

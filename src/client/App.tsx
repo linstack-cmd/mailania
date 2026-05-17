@@ -87,7 +87,8 @@ function SkeletonLine({ width = "100%", height = "12px" }: { width?: string; hei
 // --- Route wrapper components (proper React components so useLocation works) ---
 // These must be real components (not inline callbacks) to satisfy Rules of Hooks.
 
-// Helper to compute kind summary from suggestions
+// Helper to compute kind summary from suggestions — produces counted labels
+// e.g. "5 archive · 1 filter · 2 reply · 3 digest"
 function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: any, status: string}>): string {
   if (suggestionsWithIds.length === 0) return "";
   
@@ -98,17 +99,20 @@ function computeKindSummary(suggestionsWithIds: Array<{id: string, suggestion: a
     mark_read_bulk: "digest",
   };
   
-  const uniqueKinds = new Set<string>();
+  const counts = new Map<string, number>();
   for (const { suggestion } of suggestionsWithIds) {
     const kind = suggestion?.kind;
     const label = kindMap[kind];
     if (label) {
-      uniqueKinds.add(label);
+      counts.set(label, (counts.get(label) || 0) + 1);
     }
   }
   
-  const kindsList = Array.from(uniqueKinds);
-  return kindsList.length > 0 ? kindsList.join(" · ") : "";
+  const parts: string[] = [];
+  for (const [label, count] of counts) {
+    parts.push(`${count} ${label}`);
+  }
+  return parts.length > 0 ? parts.join(" · ") : "";
 }
 
 // Mock email previews for detail screen
