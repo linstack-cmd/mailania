@@ -218,8 +218,8 @@ export function MobileLayout({
               padding: "4px 14px",
               fontSize: "11px",
               fontFamily: '"DM Sans", sans-serif',
-              fontWeight: "400",
-              color: "#A87B95",
+              fontWeight: "600",
+              color: "rgb(107, 52, 80)",
             }))}
           >
             good {getTimeOfDay()}, karen
@@ -331,7 +331,7 @@ export function MobileLayout({
       <div
         ref={inputBarWrapperRef}
         className={css((t) => ({
-          minHeight: "56px",
+          minHeight: "54px",
           padding: `${t.spacing(2)} ${t.spacing(3)} calc(${t.spacing(2)} + env(safe-area-inset-bottom, 0px))`,
           display: "flex",
           gap: t.spacing(2),
