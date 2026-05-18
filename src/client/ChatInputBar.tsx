@@ -142,14 +142,26 @@ export function ChatInputBar({
   }, [mentionActive]);
 
   // Auto-resize textarea
+  // - Starts at 44px (single line)
+  // - Expands up to ~120px (5 lines, based on ~24px per line)
+  // - Never shows scrollbar during expansion — grows to fit
+  // - Shrinks back to single line when cleared
   useEffect(() => {
     const textarea = activeTextareaRef.current;
     if (!textarea) return;
 
+    // Reset height to auto to measure natural scrollHeight
     textarea.style.height = "auto";
-    const nextHeight = Math.min(textarea.scrollHeight, 180);
-    textarea.style.height = `${Math.max(nextHeight, 44)}px`;
-    textarea.style.overflowY = textarea.scrollHeight > 180 ? "auto" : "hidden";
+    const scrollHeight = textarea.scrollHeight;
+    
+    // Cap height at 120px (roughly 5 lines), default to 44px (1 line)
+    const maxHeight = 120;
+    const minHeight = 44;
+    const nextHeight = Math.max(Math.min(scrollHeight, maxHeight), minHeight);
+    
+    textarea.style.height = `${nextHeight}px`;
+    // Only show scrollbar if content exceeds max height
+    textarea.style.overflowY = scrollHeight > maxHeight ? "auto" : "hidden";
   }, [input]);
 
   return (
@@ -192,7 +204,7 @@ export function ChatInputBar({
             flex: 1,
             minWidth: 0,
             minHeight: "44px",
-            maxHeight: "180px",
+            maxHeight: "120px",
             padding: "10px 0",
             border: "none",
             borderRadius: "0",

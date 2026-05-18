@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import { css } from "@flow-css/core/css";
 import { ChatPanel, type ChatMessageData } from "./ChatPanel";
 import { ChatInputBar } from "./ChatInputBar";
@@ -65,6 +66,7 @@ export function MobileLayout({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputBarWrapperRef = useRef<HTMLDivElement>(null);
   const [vpHeight, setVpHeight] = useState<number | undefined>(undefined);
+  const [, setLocation] = useLocation();
 
   // Track visual viewport height for Firefox Android keyboard handling
   useEffect(() => {
@@ -239,6 +241,7 @@ export function MobileLayout({
             
             {/* Mint jelly avatar circle (36×36px) */}
             <div
+              onClick={() => setLocation("/settings")}
               className={css((t) => ({
                 width: "36px",
                 height: "36px",
@@ -253,6 +256,11 @@ export function MobileLayout({
                 fontWeight: "400",
                 color: "white",
                 boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.95), inset 0 -2px 4px rgba(120,30,80,0.18), 0 4px 14px -4px rgba(255,79,138,0.35)",
+                cursor: "pointer",
+                transition: "all 200ms ease",
+                "&:active": {
+                  transform: "scale(0.95)",
+                },
               }))}
             >
               K
