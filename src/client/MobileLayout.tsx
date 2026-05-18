@@ -200,12 +200,12 @@ export function MobileLayout({
           flexShrink: 0,
         }))}
       >
-        {/* Greeting chip: "good morning, [name]" */}
+        {/* Greeting chip + avatar row: chip on left, avatar pinned to right */}
         <div
           className={css((t) => ({
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            justifyContent: "space-between",
             marginBottom: t.spacing(3),
           }))}
         >
@@ -224,7 +224,7 @@ export function MobileLayout({
           >
             good {getTimeOfDay()}, karen
           </div>
-          {/* Mint jelly avatar circle (36×36px) */}
+          {/* Mint jelly avatar circle (36×36px) — pinned to right edge */}
           <div
             className={css((t) => ({
               width: "36px",

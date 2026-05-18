@@ -177,6 +177,7 @@ export function ChatInputBar({
           position: "relative",
           display: "flex",
           alignItems: "center",
+          minHeight: "44px",
         }))}
       >
         <textarea
@@ -192,13 +193,13 @@ export function ChatInputBar({
             minWidth: 0,
             minHeight: "44px",
             maxHeight: "180px",
-            padding: "0",
+            padding: "10px 0",
             border: "none",
             borderRadius: "0",
-            fontSize: t.fontSize.sm,
+            fontSize: "14px",
             resize: "none",
             fontFamily: "inherit",
-            lineHeight: t.lineHeight.normal,
+            lineHeight: "1.5",
             outline: "none",
             transition: "all 0.3s ease",
             overflowX: "hidden",
@@ -209,7 +210,7 @@ export function ChatInputBar({
             backdropFilter: "none",
             boxShadow: "none",
             color: "#2A0E1A",
-            "&::placeholder": { color: "#A87B95" },
+            "&::placeholder": { color: "rgba(168, 123, 149, 0.7)" },
             "&:focus": { outline: "none" },
             "&:focus-visible": { outline: "none" },
             "&:disabled": { opacity: 0.6 },
