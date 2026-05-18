@@ -200,7 +200,7 @@ export function MobileLayout({
           flexShrink: 0,
         }))}
       >
-        {/* Greeting chip + avatar row: chip on left, avatar pinned to right */}
+        {/* Greeting chip + avatar row: outer space-between, left spacer, right group */}
         <div
           className={css((t) => ({
             display: "flex",
@@ -209,40 +209,54 @@ export function MobileLayout({
             marginBottom: t.spacing(3),
           }))}
         >
+          {/* Left spacer (empty, no back button on home screen) */}
+          <div />
+          
+          {/* Right group: pill + avatar together, with gap */}
           <div
             className={css((t) => ({
-              background: "rgba(255, 255, 255, 0.15)",
-              backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255, 255, 255, 0.75)",
-              borderRadius: "999px",
-              padding: "6px 12px",
-              fontSize: "11px",
-              fontFamily: '"DM Sans", sans-serif',
-              fontWeight: "600",
-              color: "rgb(107, 52, 80)",
-            }))}
-          >
-            good {getTimeOfDay()}, karen
-          </div>
-          {/* Mint jelly avatar circle (36×36px) — pinned to right edge */}
-          <div
-            className={css((t) => ({
-              width: "36px",
-              height: "36px",
-              minWidth: "36px",
-              borderRadius: "999px",
-              background: "rgba(140, 220, 180, 0.75)",
               display: "flex",
+              gap: "8px",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: "16px",
-              fontFamily: '"Instrument Serif", serif',
-              fontWeight: "400",
-              color: "white",
-              boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.95), inset 0 -2px 4px rgba(120,30,80,0.18), 0 4px 14px -4px rgba(255,79,138,0.35)",
             }))}
           >
-            K
+            {/* Greeting chip */}
+            <div
+              className={css((t) => ({
+                background: "rgba(255, 255, 255, 0.15)",
+                backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255, 255, 255, 0.75)",
+                borderRadius: "999px",
+                padding: "6px 12px",
+                fontSize: "11px",
+                fontFamily: '"DM Sans", sans-serif',
+                fontWeight: "600",
+                color: "rgb(107, 52, 80)",
+              }))}
+            >
+              good {getTimeOfDay()}, karen
+            </div>
+            
+            {/* Mint jelly avatar circle (36×36px) */}
+            <div
+              className={css((t) => ({
+                width: "36px",
+                height: "36px",
+                minWidth: "36px",
+                borderRadius: "999px",
+                background: "rgba(140, 220, 180, 0.75)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "16px",
+                fontFamily: '"Instrument Serif", serif',
+                fontWeight: "400",
+                color: "white",
+                boxShadow: "inset 0 1.5px 1px rgba(255,255,255,0.95), inset 0 -2px 4px rgba(120,30,80,0.18), 0 4px 14px -4px rgba(255,79,138,0.35)",
+              }))}
+            >
+              K
+            </div>
           </div>
         </div>
 
